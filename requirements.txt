@@ -1,0 +1,24 @@
+# 핵심 AI 패키지
+google-generativeai==0.8.3
+faiss-cpu==1.9.0
+
+# 웹 프레임워크
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.5.0
+
+# 데이터 처리
+numpy==2.2.1
+pandas==2.2.3
+python-dotenv==1.0.1
+PyMuPDF==1.24.0
+
+# LangChain (Google Generative AI integration)
+langchain==0.3.27
+langchain-google-genai==2.0.3
+
+# HTTP 클라이언트
+requests==2.32.3
+
+# 기타  
+torch>=2.0.0
