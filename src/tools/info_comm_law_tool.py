@@ -31,7 +31,7 @@ class InfoCommLawTool(BaseTool):
                     self._law_data = predata.get("pdf_extraction_results.txt", "")
                 else:
                     # 직접 파일 로드
-                    base_path = Path(__file__).parent.parent
+                    base_path = Path(__file__).parent.parent.parent
                     law_path = base_path / "predata" / "pdf_extraction_results.txt"
                     
                     if law_path.exists():

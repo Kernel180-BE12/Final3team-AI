@@ -30,7 +30,7 @@ class WhiteListTool(BaseTool):
                     self._whitelist_data = predata.get("cleaned_white_list.md", "")
                 else:
                     # 직접 파일 로드
-                    base_path = Path(__file__).parent.parent
+                    base_path = Path(__file__).parent.parent.parent
                     whitelist_path = base_path / "predata" / "cleaned_white_list.md"
                     
                     if whitelist_path.exists():

@@ -130,7 +130,7 @@ class Agent2:
             
             def _load_whitelist(self):
                 try:
-                    base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                     whitelist_path = os.path.join(base_path, "predata", "cleaned_white_list.md")
                     with open(whitelist_path, 'r', encoding='utf-8') as f:
                         return f.read()
@@ -176,7 +176,7 @@ class Agent2:
             
             def _load_guidelines(self):
                 try:
-                    base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                     guideline_files = [
                         "cleaned_add_infotalk.md",
                         "cleaned_alrimtalk.md",
@@ -239,7 +239,7 @@ class Agent2:
             
             def _load_law_data(self):
                 try:
-                    base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                     law_path = os.path.join(base_path, "predata", "pdf_extraction_results.txt")
                     with open(law_path, 'r', encoding='utf-8') as f:
                         return f.read()
