@@ -461,7 +461,7 @@ class TemplateAPI:
         try:
             # 기업 백엔드 API 엔드포인트에 맞춤
             response = requests.post(
-                f"{backend_url}/api/v1/templates/create",
+                f"{backend_url}/api/templates/create",
                 json=json_data,
                 headers=headers,
                 timeout=30

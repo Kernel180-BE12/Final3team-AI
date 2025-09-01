@@ -12,7 +12,7 @@ from api import get_template_api
 class TemplateCreationRequest(BaseModel):
     """Spring Boot에서 오는 요청을 위한 모델"""
     user_id: int = Field(..., alias='userId')
-    request_content: str
+    request_content: str = Field(..., alias='requestContent')
 
 # 응답 모델 (Response)
 class Button(BaseModel):
@@ -59,7 +59,7 @@ app = FastAPI()
 template_api = get_template_api()
 
 
-@app.post("/api/v1/templates", response_model=TemplateResponse, status_code=200)
+@app.post("/ai/templates", response_model=TemplateResponse, status_code=200)
 async def create_template(request: TemplateCreationRequest):
     """
     AI를 사용하여 템플릿을 생성하고 Spring Boot가 요구하는 형식으로 반환합니다.
@@ -118,6 +118,7 @@ async def create_template(request: TemplateCreationRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/health")
 async def health_check():
