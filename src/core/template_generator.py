@@ -8,71 +8,12 @@ from typing import Dict, List, Tuple
 from .base_processor import BaseTemplateProcessor
 
 
-# prototype.py에서 가져온 클래스들
-class VariableExtractor:
-    def __init__(self, llm):
-        self.llm = llm
-    
-    def extract(self, query):
-        """변수 추출 (prototype.py 스타일)"""
-        prompt = f'''
-        사용자의 요청을 분석하여 다음 변수들을 추출해줘. 각 변수에 대한 정보가 없으면 "없음"이라고 명확히 답변해줘.
-
-        - 누가 (To/Recipient):
-        - 무엇을 (What/Subject):
-        - 어떻게 (How/Method):
-        - 언제 (When/Time):
-        - 어디서 (Where/Place):
-        - 왜 (Why/Reason):
-
-        ---
-        요청: "{query}"
-        ---
-
-        추출된 변수:
-        '''
-        
-        response = self.llm.generate_with_gemini(prompt)
-        return self._parse_variables(response)
-    
-    def _parse_variables(self, response: str) -> dict:
-        variables = {}
-        lines = response.strip().split('\n')
-        for line in lines:
-            if ':' in line:
-                key, value = line.split(':', 1)
-                key = key.strip().replace('-', '').strip()
-                variables[key] = value.strip()
-        return variables
-
-class IntentRecognizer:
-    def __init__(self, llm):
-        self.llm = llm
-    
-    def recognize(self, query, variables):
-        """의도 파악 (prototype.py 스타일)"""
-        prompt = f'''
-        사용자의 요청과 추출된 변수를 바탕으로, 사용자의 핵심 의도를 한두 단어의 일반적인 카테고리로 분류해줘.
-        (예: 이벤트 안내, 시스템 점검, 주문 확인, 포인트 소멸 안내, 컨퍼런스 안내)
-
-        ---
-        요청: "{query}"
-        변수: {variables}
-        ---
-
-        핵심 의도:
-        '''
-        
-        intent = self.llm.generate_with_gemini(prompt).strip()
-        return intent
 
 class TemplateGenerator(BaseTemplateProcessor):
     """prototype.py 스타일로 완전 개선된 템플릿 생성 클래스"""
 
     def __init__(self, api_key: str, gemini_model: str = "gemini-2.0-flash-exp"):
         super().__init__(api_key, gemini_model)
-        self.variable_extractor = VariableExtractor(self)
-        self.intent_recognizer = IntentRecognizer(self)
         
         # 벡터 DB 관련 초기화
         base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -92,31 +33,11 @@ class TemplateGenerator(BaseTemplateProcessor):
     
     def preprocess_query(self, query: str) -> str:
         """
-        '내일', '글피', 'N일 뒤'와 같은 시간 표현을 실제 날짜와 요일로 변환합니다.
+        다양한 시간 표현을 실제 날짜와 요일로 변환합니다.
         """
-        today = date.today()
-
-        # '내일'과 '글피' 처리
-        if '내일' in query:
-            tomorrow = today + timedelta(days=1)
-            day_of_week = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"][tomorrow.weekday()]
-            query = query.replace('내일', tomorrow.strftime('%Y년 %m월 %d일') + f'({day_of_week})')
-        if '글피' in query:
-            day_after_tomorrow = today + timedelta(days=2)
-            day_of_week = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"][day_after_tomorrow.weekday()]
-            query = query.replace('글피', day_after_tomorrow.strftime('%Y년 %m월 %d일') + f'({day_of_week})')
-
-        # 'N일 뒤' 패턴 처리
-        match = re.search(r'(\d+)\s*일\s*뒤', query)
-        if match:
-            days_to_add = int(match.group(1))
-            future_date = today + timedelta(days=days_to_add)
-            day_of_week = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"][future_date.weekday()]
-
-            # 'N일 뒤'를 'YYYY년 MM월 DD일 (요일)' 형식으로 대체
-            query = re.sub(r'(\d+)\s*일\s*뒤', future_date.strftime('%Y년 %m월 %d일') + f'({day_of_week})', query)
-
-        return query
+        from ..tools.date_preprocessor import DatePreprocessor
+        preprocessor = DatePreprocessor()
+        return preprocessor.preprocess_dates(query)
 
     def embed_texts(self, texts):
         """텍스트 임베딩 생성 (prototype.py에서 가져옴)"""

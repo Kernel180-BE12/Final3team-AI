@@ -21,17 +21,14 @@ class TemplateAPI:
         """API 초기화"""
         print(" Template API 초기화 중...")
         
-        # 인덱스 매니저 초기화
-        self.index_manager = get_index_manager()
+        # 공통 초기화 모듈 사용
+        from src.utils.common_init import initialize_core_components, setup_guidelines_and_indexes
         
-        # 핵심 컴포넌트 초기화
-        self.entity_extractor = EntityExtractor(GEMINI_API_KEY)
-        self.template_generator = TemplateGenerator(GEMINI_API_KEY)
-        self.data_processor = DataProcessor()
-        self.agent2 = Agent2(GEMINI_API_KEY, index_manager=self.index_manager)
+        (self.index_manager, self.entity_extractor, 
+         self.template_generator, self.data_processor, 
+         self.agent2) = initialize_core_components()
         
-        # 템플릿 비교 학습 시스템 추가
-        self.template_learner = TemplateComparisonLearner()
+        # TODO: 템플릿 비교 학습 시스템 구현 필요
         
         # 가이드라인 및 인덱스 구축
         self._initialize_indexes()
@@ -77,11 +74,8 @@ class TemplateAPI:
     
     def _get_sample_templates(self) -> list:
         """샘플 템플릿"""
-        return [
-            "[가격 변경 안내]\n\n안녕하세요, #{수신자명}님.\n#{서비스명} 서비스 가격 변경을 안내드립니다.\n\n 변경 적용일: #{적용일}\n 기존 가격: #{기존가격}원\n 변경 가격: #{변경가격}원\n\n[변경 사유 및 개선사항]\n#{변경사유}에 따라 서비스 품질 개선을 위해 가격을 조정합니다.\n주요 개선사항: #{개선사항}\n\n[기존 이용자 안내]\n- 현재 이용 중인 서비스: #{유예기간}까지 기존 가격 적용\n- 자동 연장 서비스: 변경된 가격으로 갱신\n- 서비스 해지 희망: #{해지마감일}까지 신청 가능\n\n[문의 및 지원]\n- 고객센터: #{고객센터번호}\n- 상담시간: 평일 09:00-18:00\n- 온라인 문의: #{문의링크}\n\n※ 본 메시지는 정보통신망법에 따라 서비스 약관 변경 안내를 위해 발송된 정보성 메시지입니다.",
-            "[#{매장명} 방문 예약 확인]\n\n#{고객명}님, 안녕하세요.\n#{매장명} 방문 예약이 완료되었습니다.\n\n 예약 정보\n- 예약번호: #{예약번호}\n- 방문일시: #{방문일시}\n- 예상 소요시간: #{소요시간}\n- 담당 직원: #{담당자명}\n\n 매장 정보\n- 위치: #{매장주소}\n- 연락처: #{매장전화번호}\n- 주차: #{주차안내}\n\n[방문 전 준비사항]\n- 신분증 지참 필수 (본인 확인)\n- 예약 10분 전 도착 권장\n- 마스크 착용 협조\n- 예약 확인 문자 제시\n\n[교통 및 위치 안내]\n- 대중교통: #{교통편안내}\n- 자가용: #{길찾기정보}\n- 주변 랜드마크: #{랜드마크}\n\n[예약 변경 및 취소]\n방문 예정일 1일 전까지 변경/취소 가능\n- 전화: #{매장전화번호}\n- 온라인: #{변경링크}\n- 문자 회신으로도 변경 가능\n\n※ 본 메시지는 매장 방문 예약 신청고객에게 발송되는 예약 확인 메시지입니다.",
-            "[#{행사명} 참가 안내]\n\n#{수신자명}님, 안녕하세요.\n#{주최기관}에서 개최하는 #{행사명} 참가를 안내드립니다.\n\n 행사 개요\n- 행사명: #{행사명}\n- 일시: #{행사일시}\n- 장소: #{행사장소}\n- 대상: #{참가대상}\n- 참가비: #{참가비}\n\n 프로그램 일정\n#{프로그램일정상세}\n\n 참가 신청\n- 신청 방법: #{신청방법}\n- 신청 마감: #{신청마감일}\n- 신청 문의: #{신청문의전화}\n- 온라인 신청: #{신청링크}\n\n[준비물 및 복장]\n- 필수 준비물: #{필수준비물}\n- 권장 복장: #{복장안내}\n- 개인 준비물: #{개인준비물}\n\n[행사장 안내]\n- 상세 주소: #{상세주소}\n- 교통편: #{교통편}\n- 주차 시설: #{주차정보}\n- 편의 시설: #{편의시설}\n\n[주의사항 및 안내]\n- 코로나19 방역수칙 준수\n- 행사 당일 발열체크 실시\n- 우천 시 일정: #{우천시대안}\n- 기타 문의: #{기타문의처}\n\n※ 본 메시지는 #{행사명} 관심 등록자에게 발송되는 행사 안내 메시지입니다."
-        ]
+        from src.utils.sample_templates import get_sample_templates
+        return get_sample_templates()
     
     def generate_template(self, user_input: str, options: Optional[Dict] = None) -> Dict:
         """
@@ -103,20 +97,9 @@ class TemplateAPI:
             }
         
         try:
-            # 1. 템플릿 비교 학습 - 새로운 유형인지 확인
-            novelty_analysis = self.template_learner.analyze_input_novelty(user_input)
-            
-            # 기존 템플릿과 유사한 경우 경고 반환 (기업이 처리)
-            if not novelty_analysis["is_new_type"]:
-                return {
-                    "success": False,
-                    "is_duplicate": True,
-                    "message": novelty_analysis["recommendation"]["message"],
-                    "recommended_template_id": novelty_analysis["recommendation"].get("recommended_template_id"),
-                    "similarity_score": novelty_analysis["recommendation"].get("similarity_score"),
-                    "template": None,
-                    "metadata": {"novelty_analysis": novelty_analysis}
-                }
+            # TODO: 템플릿 비교 학습 시스템 구현 필요
+            # 현재는 항상 새로운 유형으로 처리
+            novelty_analysis = {"is_new_type": True, "recommendation": {}}
             
             # 2. 새로운 유형인 경우 생성 진행
             print(f" 새로운 유형 템플릿 생성: '{user_input}'")

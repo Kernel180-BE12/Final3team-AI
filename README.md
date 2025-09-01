@@ -27,17 +27,22 @@
 
 ###  핵심 컴포넌트
 
-1. **Agent2 생성 엔진** (`agents/agent2.py`)
+1. **Agent2 생성 엔진** (`src/agents/agent2.py`)
    - 4개 도구 병렬 분석 (가이드라인, 법령, 블랙리스트, 화이트리스트)
    - 완벽한 정책 준수 템플릿 생성
    - FAISS 벡터 검색 기반 컨텍스트 매칭
 
-2. **템플릿 생성기** (`core/template_generator.py`)
+2. **템플릿 생성기** (`src/core/template_generator.py`)
    - prototype.py 로직 통합 완료
    - 변수 추출, 의도 파악, 정책 검증 파이프라인
    - 벡터 검색 기반 템플릿 생성
 
-3. **백엔드 연동 서버** (`server.py`)
+3. **Agent1 전용 도구들**
+   - **날짜 전처리기** (`src/tools/date_preprocessor.py`): 자연어 날짜 표현 변환
+   - **의도 분류기** (`src/tools/intent_classifier.py`): 사용자 의도 자동 분류
+   - **변수 추출기** (`src/tools/variable_extractor.py`): 6W 변수 추출
+
+4. **백엔드 연동 서버** (`server.py`)
    - FastAPI 기반 RESTful API
    - JSON 출력 및 DB 스키마 매칭
    - 실시간 템플릿 생성 서비스
@@ -200,7 +205,10 @@ Jober_ai/
 │   │   ├──  __init__.py
 │   │   ├──  blacklist_tool.py  # 금지 키워드 검사
 │   │   ├──  whitelist_tool.py  # 허용 패턴 검사
-│   │   └──  info_comm_law_tool.py # 정보통신법 검사
+│   │   ├──  info_comm_law_tool.py # 정보통신법 검사
+│   │   ├──  date_preprocessor.py # 날짜 전처리기 (Agent1용)
+│   │   ├──  intent_classifier.py # 의도 분류기 (Agent1용)
+│   │   └──  variable_extractor.py # 변수 추출기 (Agent1용)
 │   └──  utils/                  # 유틸리티
 │       ├──  __init__.py
 │       └──  data_processor.py  # 데이터 처리
