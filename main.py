@@ -9,6 +9,9 @@ from src.core.index_manager import get_index_manager
 from src.utils import DataProcessor
 from src.agents.agent2 import Agent2
 
+# Agent1 import (주석 해제하여 사용)
+# from src.agents.agent1 import Agent1
+
 
 class TemplateSystem:
 
@@ -161,5 +164,99 @@ def main():
             print(" 입력이 비어있습니다.\n")
 
 
+def main_with_agent1():
+    """
+    Agent1을 사용한 메인 실행 함수 예시
+    
+    사용법:
+    1. 상단 import에서 'from agent1 import Agent1' 주석 해제
+    2. 이 함수를 호출하거나 main() 대신 사용
+    """
+    print("🤖 Agent1 + Template System 통합 실행")
+    print("=" * 50)
+    
+    try:
+        # Agent1 초기화
+        # agent1 = Agent1()
+        # print("✅ Agent1 초기화 완료")
+        
+        # Template System 초기화
+        template_system = TemplateSystem()
+        print("✅ Template System 초기화 완료\n")
+        
+        while True:
+            user_input = input("📝 알림톡 내용을 설명해주세요: ").strip()
+            
+            if user_input.lower() in ["quit", "exit", "종료"]:
+                print("👋 시스템을 종료합니다.")
+                break
+            
+            if user_input:
+                # === Agent1 처리 단계 (주석 해제 필요) ===
+                # print("\n🔍 Agent1 분석 시작...")
+                # agent1_result = agent1.process_query(user_input)
+                # 
+                # if agent1_result['status'] == 'success':
+                #     print(f"✅ Agent1 검증 완료")
+                #     print(f"선택된 변수: {len(agent1_result['selected_variables'])}개")
+                #     
+                #     # Agent1 성공 시 Template 생성 진행
+                #     try:
+                #         result = template_system.generate_template(user_input)
+                #         # 결과 출력 (기존 코드와 동일)
+                #         print("\n📄 생성된 템플릿:")
+                #         print("=" * 50)
+                #         print(result["generated_template"])
+                #         print("=" * 50)
+                #     except Exception as e:
+                #         print(f"❌ 템플릿 생성 오류: {e}")
+                # 
+                # elif agent1_result['status'] == 'reask_required':
+                #     print(f"\n{agent1_result['message']}")
+                # 
+                # else:
+                #     print(f"\n{agent1_result['message']}")
+                #     print("🔄 다시 입력해주세요.")
+                
+                # === 현재는 기존 시스템만 실행 (Agent1 없이) ===
+                try:
+                    print(f"\n💭 사용자 입력: '{user_input}'")
+                    print("📄 템플릿 생성 중...")
+                    result = template_system.generate_template(user_input)
+
+                    print("\n생성된 템플릿:")
+                    print("=" * 50)
+                    print(result["generated_template"])
+                    print("=" * 50)
+
+                    print(f"\n추출된 변수 ({len(result['variables'])}개):")
+                    print(f"   {', '.join(result['variables'])}")
+
+                    print(f"\n추출된 정보:")
+                    entities = result["entities"]
+                    extracted = entities.get("extracted_info", {})
+                    if extracted.get("dates"):
+                        print(f"    날짜: {', '.join(extracted['dates'])}")
+                    if extracted.get("names"):
+                        print(f"    이름: {', '.join(extracted['names'])}")
+                    if extracted.get("locations"):
+                        print(f"    장소: {', '.join(extracted['locations'])}")
+                    if extracted.get("events"):
+                        print(f"    이벤트: {', '.join(extracted['events'])}")
+
+                    print("\n" + "=" * 50 + "\n")
+
+                except Exception as e:
+                    print(f"❌ 오류: {e}\n")
+            else:
+                print("❌ 입력이 비어있습니다.\n")
+                
+    except Exception as e:
+        print(f"❌ 시스템 초기화 실패: {e}")
+
+
 if __name__ == "__main__":
     main()
+    
+    # Agent1과 함께 사용하려면 아래 주석을 해제하고 위의 main() 대신 실행
+    # main_with_agent1()
