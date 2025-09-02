@@ -24,4 +24,4 @@ langchain-google-genai==2.0.4
 requests==2.32.3
 
 # 기타
-torch>=2.6.0      # Python 3.13 지원 최신 버전
+# torch>=2.6.0      # 실제 코드에서 사용하지 않음 - 주석 처리
