@@ -187,7 +187,41 @@ class IndexManager:
         
         # 새로 구축
         print(f" {index_name} FAISS 인덱스 구축 중...")
-        embeddings = encode_func(data)
+        
+        # 최적화된 배치 처리 (API 호출 최소화)
+        batch_size = 100  # 배치 크기 증가로 API 호출 횟수 줄이기
+        print(f" 총 {len(data)}개 항목을 {batch_size}개씩 최적화 배치 처리")
+        
+        all_embeddings = []
+        import time
+        
+        for i in range(0, len(data), batch_size):
+            batch_data = data[i:i + batch_size]
+            batch_end = min(i + batch_size, len(data))
+            batch_num = i//batch_size + 1
+            total_batches = (len(data)-1)//batch_size + 1
+            
+            print(f" 배치 {batch_num}/{total_batches}: {i+1}-{batch_end} 처리중...")
+            
+            try:
+                start_time = time.time()
+                batch_embeddings = encode_func(batch_data)
+                end_time = time.time()
+                
+                all_embeddings.extend(batch_embeddings)
+                print(f" 배치 {batch_num} 완료 ({end_time - start_time:.1f}초, {len(batch_embeddings)}개 임베딩)")
+                
+            except Exception as e:
+                print(f" 배치 {batch_num} 처리 실패: {e}")
+                continue
+        
+        if not all_embeddings:
+            print(f" {index_name} 임베딩 생성 실패")
+            return None
+            
+        embeddings = np.array(all_embeddings)
+        print(f" 임베딩 완료: {embeddings.shape}")
+        
         index = build_func(embeddings)
         
         # 캐시 저장
@@ -207,12 +241,57 @@ class IndexManager:
         
         return index
     
+    def _process_batches_parallel(self, batches, encode_func, index_name):
+        """배치를 병렬로 처리하여 임베딩 생성"""
+        import concurrent.futures
+        from concurrent.futures import ThreadPoolExecutor
+        import time
+        
+        def process_single_batch(batch_info):
+            batch_idx, batch_data = batch_info
+            batch_num = batch_idx // 50 + 1
+            try:
+                start_time = time.time()
+                embeddings = encode_func(batch_data)
+                end_time = time.time()
+                print(f" 배치 {batch_num} 완료 ({end_time - start_time:.1f}초)")
+                return embeddings
+            except Exception as e:
+                print(f" 배치 {batch_num} 실패: {e}")
+                return None
+        
+        all_embeddings = []
+        
+        # ThreadPoolExecutor로 병렬 처리 (API 호출이므로 I/O bound)
+        with ThreadPoolExecutor(max_workers=3) as executor:  # API 제한을 고려하여 3개로 제한
+            print(f" 최대 3개 배치 동시 처리 시작...")
+            
+            # 모든 배치 작업 제출
+            future_to_batch = {
+                executor.submit(process_single_batch, batch): batch 
+                for batch in batches
+            }
+            
+            # 결과 수집 (완료 순서대로)
+            for future in concurrent.futures.as_completed(future_to_batch):
+                result = future.result()
+                if result is not None:
+                    all_embeddings.extend(result)
+        
+        print(f" 병렬 처리 완료: {len(all_embeddings)}개 임베딩 생성")
+        return all_embeddings
+    
     def _load_metadata(self) -> Dict:
         """메타데이터 로드"""
         if self.metadata_cache.exists():
             try:
                 with open(self.metadata_cache, 'r') as f:
-                    return json.load(f)
+                    data = json.load(f)
+                    # 데이터가 리스트인 경우 빈 딕셔너리 반환 (호환성 보장)
+                    if isinstance(data, list):
+                        print(" 메타데이터 형식 불일치 - 새로 생성")
+                        return {}
+                    return data
             except:
                 pass
         return {}

@@ -278,6 +278,12 @@ class Agent2:
         
         return LawTool()
     
+    def _preprocess_dates(self, user_input: str) -> str:
+        """날짜 표현을 구체적인 날짜로 변환"""
+        from ..tools.date_preprocessor import DatePreprocessor
+        preprocessor = DatePreprocessor()
+        return preprocessor.preprocess_dates(user_input)
+    
     def generate_compliant_template(self, user_input: str) -> Tuple[str, Dict]:
         """
         AI.png 구조에 따른 완벽 준수 템플릿 생성
@@ -285,8 +291,13 @@ class Agent2:
         """
         print(f" Agent2: 4개 Tools 병렬 분석 시작")
         
+        # 0단계: 날짜 전처리 (내일, 모레 등을 구체적 날짜로 변환)
+        preprocessed_input = self._preprocess_dates(user_input)
+        if preprocessed_input != user_input:
+            print(f" 날짜 전처리: '{user_input}' → '{preprocessed_input}'")
+        
         # 1단계: 4개 Tools 병렬 실행
-        input_data = {"user_input": user_input}
+        input_data = {"user_input": preprocessed_input}
         
         try:
             tools_results = {}
@@ -299,10 +310,13 @@ class Agent2:
             return "오류로 인해 템플릿을 생성할 수 없습니다.", {}
         
         # 2단계: Agent(템플릿생성자)가 Tools 결과를 종합하여 템플릿 생성
-        template = self._create_template_from_tools(user_input, tools_results)
+        template = self._create_template_from_tools(preprocessed_input, tools_results)
         
         # 메타데이터 준비
         metadata = {
+            "original_input": user_input,
+            "preprocessed_input": preprocessed_input,
+            "date_preprocessing_applied": preprocessed_input != user_input,
             "tools_results": tools_results,
             "generation_method": "Agent2_4Tools_Parallel",
             "compliance_status": {
@@ -341,10 +355,12 @@ class Agent2:
 
 템플릿에는 반드시 다음이 포함되어야 함:
 - 적절한 인사말
-- 핵심 내용 (변수 형태로 #{변수명})
+- 핵심 내용 (사용자가 제공한 구체적인 정보를 그대로 사용)
 - 연락처 정보
 - 법적 고지사항 (필요시)
-- 정중한 마무리"""
+- 정중한 마무리
+
+중요: 사용자가 구체적인 시간, 장소, 날짜 등을 제공했다면 변수로 바꾸지 말고 그대로 사용하세요."""
 
         human_prompt = f"""사용자 요청: {user_input}
 

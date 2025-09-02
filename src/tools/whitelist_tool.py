@@ -12,8 +12,8 @@ class WhiteListTool(BaseTool):
     """
     승인된 패턴과 베스트 프랙티스를 기반으로 템플릿을 최적화하는 도구
     """
-    name = "whitelist_template_optimizer"
-    description = "승인된 패턴 기반 템플릿 최적화"
+    name: str = "whitelist_template_optimizer"
+    description: str = "승인된 패턴 기반 템플릿 최적화"
     
     def __init__(self, index_manager=None):
         super().__init__()

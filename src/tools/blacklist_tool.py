@@ -12,8 +12,8 @@ class BlackListTool(BaseTool):
     """
     금지어 및 위험 패턴을 검출하여 안전한 템플릿 생성을 가이드하는 도구
     """
-    name = "blacklist_generator_guide"
-    description = "금지어 패턴 기반 안전한 템플릿 생성 가이드"
+    name: str = "blacklist_generator_guide"
+    description: str = "금지어 패턴 기반 안전한 템플릿 생성 가이드"
     
     def __init__(self, index_manager=None):
         super().__init__()

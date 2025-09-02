@@ -13,8 +13,8 @@ class InfoCommLawTool(BaseTool):
     """
     정보통신망 이용촉진 및 정보보호 등에 관한 법률 준수를 검증하는 도구
     """
-    name = "info_communication_law_compliance"
-    description = "정보통신망법 준수 검증 및 가이드"
+    name: str = "info_communication_law_compliance"
+    description: str = "정보통신망법 준수 검증 및 가이드"
     
     def __init__(self, index_manager=None):
         super().__init__()

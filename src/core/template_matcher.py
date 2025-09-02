@@ -6,6 +6,7 @@ Template Matcher - AI.png 구조에 맞는 키워드 기반 기존 템플릿 검
 import os
 import json
 import pickle
+import re
 import numpy as np
 from typing import Dict, List, Tuple, Optional
 from pathlib import Path
@@ -85,55 +86,54 @@ class TemplateMatcher(BaseTemplateProcessor):
             
             self.template_database.append(template_data)
         
-        # 2. JSON 파일에서 기존 템플릿 로드
-        self._load_templates_from_json()
+        # 2. JSON 파일에서 기존 템플릿 로드 (고도화 시 사용)
+        # self._load_templates_from_json()
     
-    def _load_templates_from_json(self):
-        """JSON 파일에서 기존 템플릿 로드"""
-        try:
-            # JSON 파일 경로
-            base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            json_file_path = os.path.join(base_path, "data", "existing_templates.json")
-            
-            if not os.path.exists(json_file_path):
-                print("existing_templates.json 파일이 없습니다. 샘플 템플릿만 사용합니다.")
-                return
-            
-            with open(json_file_path, 'r', encoding='utf-8') as f:
-                json_templates = json.load(f)
-            
-            print(f"JSON에서 {len(json_templates)}개 템플릿 로드 중...")
-            
-            for template_data in json_templates:
-                # JSON 데이터 검증
-                if not all(key in template_data for key in ['id', 'content', 'category']):
-                    print(f"템플릿 데이터 누락: {template_data.get('id', 'unknown')}")
-                    continue
-                
-                # 키워드가 없으면 자동 추출
-                if 'keywords' not in template_data or not template_data['keywords']:
-                    template_data['keywords'] = self._extract_keywords_from_template(template_data['content'])
-                
-                # 기본값 설정
-                template_data.setdefault('usage_count', 0)
-                template_data.setdefault('last_used', None)
-                template_data.setdefault('quality_score', 0.8)
-                template_data.setdefault('source', 'json_file')
-                
-                self.template_database.append(template_data)
-            
-            print(f"JSON 템플릿 로드 완료: {len(json_templates)}개")
-            
-        except FileNotFoundError:
-            print("existing_templates.json 파일이 없습니다.")
-        except json.JSONDecodeError as e:
-            print(f"JSON 파일 형식 오류: {e}")
-        except Exception as e:
-            print(f"JSON 템플릿 로드 실패: {e}")
+    # def _load_templates_from_json(self):
+    #     """JSON 파일에서 기존 템플릿 로드"""
+    #     try:
+    #         # JSON 파일 경로
+    #         base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    #         json_file_path = os.path.join(base_path, "data", "existing_templates.json")
+    #         
+    #         if not os.path.exists(json_file_path):
+    #             print("existing_templates.json 파일이 없습니다. 샘플 템플릿만 사용합니다.")
+    #             return
+    #         
+    #         with open(json_file_path, 'r', encoding='utf-8') as f:
+    #             json_templates = json.load(f)
+    #         
+    #         print(f"JSON에서 {len(json_templates)}개 템플릿 로드 중...")
+    #         
+    #         for template_data in json_templates:
+    #             # JSON 데이터 검증
+    #             if not all(key in template_data for key in ['id', 'content', 'category']):
+    #                 print(f"템플릿 데이터 누락: {template_data.get('id', 'unknown')}")
+    #                 continue
+    #             
+    #             # 키워드가 없으면 자동 추출
+    #             if 'keywords' not in template_data or not template_data['keywords']:
+    #                 template_data['keywords'] = self._extract_keywords_from_template(template_data['content'])
+    #             
+    #             # 기본값 설정
+    #             template_data.setdefault('usage_count', 0)
+    #             template_data.setdefault('last_used', None)
+    #             template_data.setdefault('quality_score', 0.8)
+    #             template_data.setdefault('source', 'json_file')
+    #             
+    #             self.template_database.append(template_data)
+    #         
+    #         print(f"JSON 템플릿 로드 완료: {len(json_templates)}개")
+    #         
+    #     except FileNotFoundError:
+    #         print("existing_templates.json 파일이 없습니다.")
+    #     except json.JSONDecodeError as e:
+    #         print(f"JSON 파일 형식 오류: {e}")
+    #     except Exception as e:
+    #         print(f"JSON 템플릿 로드 실패: {e}")
     
     def _extract_keywords_from_template(self, template_content: str) -> List[str]:
         """템플릿에서 핵심 키워드 추출"""
-        import re
         
         # 제목에서 키워드 추출
         title_match = re.search(r'\[(.*?)\]', template_content)
