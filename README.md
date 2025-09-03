@@ -70,15 +70,18 @@ echo "GOOGLE_API_KEY=your_gemini_api_key" > .env
 python main.py
 
 # 백엔드 서버 실행 (FastAPI)
-uvicorn server:app --reload --host 0.0.0.0 --port 5000
+uvicorn server:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 3. API 사용법
 ```bash
 # 템플릿 생성 요청
-curl -X POST http://localhost:5000/generate \
+curl -X POST http://localhost:8000/ai/templates \
   -H "Content-Type: application/json" \
-  -d '{"query": "쿠폰 발급 안내", "use_agent2": true}'
+  -d '{"userId": 101, "requestContent": "쿠폰 발급 안내"}'
+
+# 헬스 체크
+curl -X GET http://localhost:8000/health
 ```
 
 ### 4. 응답 예시
@@ -96,7 +99,7 @@ curl -X POST http://localhost:5000/generate \
 
 ## API 엔드포인트
 
-### POST /api/v1/templates
+### POST /ai/templates
 템플릿 생성 요청 (FastAPI)
 
 **요청 형식:**
@@ -170,9 +173,9 @@ python main.py
 
 ### 서버 실행 테스트
 ```bash
-uvicorn server:app --reload --host 0.0.0.0 --port 5000
+uvicorn server:app --reload --host 0.0.0.0 --port 8000
 # 또는
-curl -X POST http://localhost:5000/api/v1/templates \
+curl -X POST http://localhost:8000/ai/templates \
   -H "Content-Type: application/json" \
   -d '{"userId": 101, "requestContent": "쿠폰 발급 안내"}'
 ```
@@ -234,6 +237,12 @@ Jober_ai/
 ---
 
 ##  버전 히스토리
+
+### v2.2.0 (2025-09-03)
+- FastAPI 서버 포트 8000으로 표준화
+- Spring Boot 연동을 위한 API 엔드포인트 최적화 (/ai/templates)
+- 프론트엔드 연동 준비 완료 (CORS 설정 가이드)
+- EC2 배포 및 프로덕션 환경 대응
 
 ### v2.1.0 (2025-09-01)
 - prototype.py 로직 core/template_generator.py 통합
