@@ -106,7 +106,7 @@ async def create_template(request: TemplateCreationRequest):
                 {
                     "id": i + 1, # 임시 ID
                     "variableKey": var.get("variable_key"),
-                    "placeholder": var.get("placeholder"),
+                    "placeholder": "#" + var.get("placeholder"),
                     "inputType": var.get("input_type")
                 } for i, var in enumerate(variable_data)
             ],
@@ -124,4 +124,9 @@ async def create_template(request: TemplateCreationRequest):
 async def health_check():
     """API 상태를 확인합니다."""
     return template_api.health_check()
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 

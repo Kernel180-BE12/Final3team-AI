@@ -188,32 +188,18 @@ class IndexManager:
         # 새로 구축
         print(f" {index_name} FAISS 인덱스 구축 중...")
         
-        # 최적화된 배치 처리 (API 호출 최소화)
-        batch_size = 100  # 배치 크기 증가로 API 호출 횟수 줄이기
-        print(f" 총 {len(data)}개 항목을 {batch_size}개씩 최적화 배치 처리")
+        # 병렬 처리를 위한 배치 준비
+        batch_size = 50  # 병렬 처리에 맞춰 배치 크기 조정
+        print(f" 총 {len(data)}개 항목을 {batch_size}개씩 병렬 배치 처리")
         
-        all_embeddings = []
-        import time
-        
+        # 배치 데이터 준비
+        batches = []
         for i in range(0, len(data), batch_size):
             batch_data = data[i:i + batch_size]
-            batch_end = min(i + batch_size, len(data))
-            batch_num = i//batch_size + 1
-            total_batches = (len(data)-1)//batch_size + 1
-            
-            print(f" 배치 {batch_num}/{total_batches}: {i+1}-{batch_end} 처리중...")
-            
-            try:
-                start_time = time.time()
-                batch_embeddings = encode_func(batch_data)
-                end_time = time.time()
-                
-                all_embeddings.extend(batch_embeddings)
-                print(f" 배치 {batch_num} 완료 ({end_time - start_time:.1f}초, {len(batch_embeddings)}개 임베딩)")
-                
-            except Exception as e:
-                print(f" 배치 {batch_num} 처리 실패: {e}")
-                continue
+            batches.append((i, batch_data))
+        
+        # 병렬 처리로 임베딩 생성
+        all_embeddings = self._process_batches_parallel(batches, encode_func, index_name)
         
         if not all_embeddings:
             print(f" {index_name} 임베딩 생성 실패")
@@ -250,21 +236,23 @@ class IndexManager:
         def process_single_batch(batch_info):
             batch_idx, batch_data = batch_info
             batch_num = batch_idx // 50 + 1
+            total_batches = len(batches)
             try:
                 start_time = time.time()
                 embeddings = encode_func(batch_data)
                 end_time = time.time()
-                print(f" 배치 {batch_num} 완료 ({end_time - start_time:.1f}초)")
+                print(f" 배치 {batch_num}/{total_batches} 완료 ({end_time - start_time:.1f}초, {len(embeddings)}개 임베딩)")
                 return embeddings
             except Exception as e:
-                print(f" 배치 {batch_num} 실패: {e}")
+                print(f" 배치 {batch_num}/{total_batches} 실패: {e}")
                 return None
         
         all_embeddings = []
         
         # ThreadPoolExecutor로 병렬 처리 (API 호출이므로 I/O bound)
-        with ThreadPoolExecutor(max_workers=3) as executor:  # API 제한을 고려하여 3개로 제한
-            print(f" 최대 3개 배치 동시 처리 시작...")
+        max_workers = min(3, len(batches))  # 배치 수와 3 중 작은 값 사용
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            print(f" 최대 {max_workers}개 배치 동시 처리 시작 ({len(batches)}개 배치)...")
             
             # 모든 배치 작업 제출
             future_to_batch = {
@@ -273,10 +261,13 @@ class IndexManager:
             }
             
             # 결과 수집 (완료 순서대로)
+            completed_count = 0
             for future in concurrent.futures.as_completed(future_to_batch):
                 result = future.result()
+                completed_count += 1
                 if result is not None:
                     all_embeddings.extend(result)
+                    print(f" 진행상황: {completed_count}/{len(batches)} 배치 완료")
         
         print(f" 병렬 처리 완료: {len(all_embeddings)}개 임베딩 생성")
         return all_embeddings
