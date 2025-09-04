@@ -2,7 +2,7 @@
 
 **기업용 AI 기반 알림톡 템플릿 자동 생성 시스템**
 
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.11.13-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)]()
 [![Backend](https://img.shields.io/badge/Backend-Ready-orange.svg)]()
@@ -52,16 +52,34 @@
 ##  빠른 시작
 
 ### 1. 환경 설정
+
+#### 자동 설치 (권장)
 ```bash
 # 레포지토리 클론
 git clone https://github.com/your-username/Jober_ai.git
 cd Jober_ai
 
+# 자동 설치 스크립트 실행
+chmod +x install.sh
+./install.sh
+```
+
+#### 수동 설치
+```bash
+# Python 3.11.13 설치 (pyenv 사용 권장)
+pyenv install 3.11.13
+pyenv global 3.11.13
+pyenv local 3.11.13
+
 # 의존성 설치
 pip install -r requirements.txt
 
+# 또는 Poetry 사용
+poetry install
+
 # 환경변수 설정 (.env 파일 생성)
-echo "GOOGLE_API_KEY=your_gemini_api_key" > .env
+echo "GEMINI_API_KEY=your_gemini_api_key" > .env
+echo "ENVIRONMENT=development" >> .env
 ```
 
 ### 2. 로컬 실행
@@ -251,13 +269,13 @@ Jober_ai/
 - 모든 이모지 제거 및 코드 정리 완료
 - 백엔드 연동 최적화 완료
 
-### v2.0.0 (2025-08-01)
+### v2.0.0 (2025-08-28)
 -  Agent2 4도구 병렬 분석 시스템
 -  업종별 자동 분류 시스템
 -  FAISS 벡터 검색 및 캐시 시스템
 -  완전한 정책 준수 파이프라인
 
-### v1.0.0 (2025-07-01) 
+### v1.0.0 (2025-08-22) 
 -  기본 AI 템플릿 생성 기능
 -  Google Gemini 2.5 Flash 통합
 -  가이드라인 준수 시스템

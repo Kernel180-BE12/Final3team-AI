@@ -1,34 +1,135 @@
 [tool.poetry]
 name = "jober-ai"
 version = "2.1.0"
-description = "AI 기반 알림톡 템플릿 자동 생성 시스템"
-authors = ["JOBER Team"]
+description = "AI 기반 알림톡 템플릿 자동 생성 시스템 - Python 3.11.13 최적화"
+authors = ["JOBER Team <contact@jober-ai.com>"]
+readme = "README.md"
+license = "MIT"
+repository = "https://github.com/your-username/jober-ai"
+documentation = "https://github.com/your-username/jober-ai/wiki"
+keywords = ["ai", "langchain", "fastapi", "template", "job", "message", "alrimtalk"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 package-mode = false
 
 [tool.poetry.dependencies]
-python = "^3.13"
-# Core packages - let Poetry resolve compatible versions
-# Essential packages for alrimtalk template generator
-langchain = "^0.3.27"
-langchain-core = "^0.3.74"
-langchain-community = "^0.3.27"
-langchain-openai = "^0.3.31"
-langchain-text-splitters = "^0.3.9"
+# Python 3.11.13 전용 (호환성 보장)
+python = "^3.11.13,<3.12"
 
-# Vector database and embeddings
-faiss-cpu = "^1.8.0"
-sentence-transformers = "^3.0.0"
+# 핵심 AI 패키지 (검증된 버전)
+google-generativeai = "0.7.2"
+faiss-cpu = "1.9.0.post1"
+numpy = "^1.26.0,<2.0.0"
+pandas = "^2.0.0,<3.0.0"
 
-# Text processing
-pypdf = "^4.2.0,<5.0.0"
-tokenizers = "^0.19.1,<0.20.0"
+# LangChain 생태계 (호환성 검증)
+langchain-core = "^0.2.33,<0.3.0"
+langchain = "^0.2.17,<0.3.0"
+langchain-google-genai = "1.0.10"
+langchain-community = "^0.2.19,<0.3.0"
+langchain-text-splitters = "^0.2.4,<0.3.0"
+
+# 웹 프레임워크 & API
+fastapi = "0.115.0"
+uvicorn = {extras = ["standard"], version = "0.32.0"}
+pydantic = "^2.9.0,<3.0.0"
+
+# 데이터 처리 & 파일 처리
+pymupdf = "^1.24.0"
+python-dotenv = "^1.0.0"
+requests = "^2.32.0,<3.0.0"
+httpx = "^0.28.0"
+aiofiles = "^24.0.0"
+
+# 시스템 & 유틸리티
+python-multipart = "^0.0.17"
+click = "^8.0.0"
+rich = "^13.0.0"
+tqdm = "^4.66.0"
+
+# 저레벨 의존성 (호환성 고정)
+protobuf = "^4.25.0,<5.0.0"
+tenacity = "^8.1.0,<9.0.0"
+grpcio-status = "^1.62.0,<2.0.0"
+jsonpatch = "^1.33,<2.0"
+pyyaml = "^6.0.0"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.0.0"
+# 개발 도구
+pytest = "^7.4.0"
+pytest-asyncio = "^0.23.0"
+pytest-cov = "^4.1.0"
 black = "^23.0.0"
+isort = "^5.12.0"
 flake8 = "^6.0.0"
-mypy = "^1.0.0"
+mypy = "^1.8.0"
+
+[tool.poetry.group.docs.dependencies]
+# 문서화 도구
+mkdocs = "^1.5.0"
+mkdocs-material = "^9.0.0"
+mkdocstrings = {extras = ["python"], version = "^0.24.0"}
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+# 개발 도구 설정
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+exclude = '''
+(
+  /(
+      \.eggs
+    | \.git
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+  )/
+)
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+known_first_party = ["jober_ai"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --cov=src --cov-report=term-missing"
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*", "*/test_*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]

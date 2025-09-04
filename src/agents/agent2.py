@@ -5,11 +5,15 @@ Agent2 - AI.png 구조에 맞는 템플릿 생성 에이전트
 가이드라인과 법령을 모르는 사용자를 위한 완벽 준수 템플릿 생성
 """
 import os
+import sys
 import json
 from typing import Dict, List, Tuple
 from langchain.schema import HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.schema.runnable import RunnableParallel
+
+# 상위 디렉토리의 config 모듈을 import하기 위해 path 추가
+sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 from config import GEMINI_API_KEY
 
 class Agent2:
@@ -431,3 +435,26 @@ class Agent2:
 감사합니다."""
         
         return template
+
+
+# 테스트 실행 블록
+if __name__ == "__main__":
+    print("Agent2 테스트 시작...")
+    
+    try:
+        # Agent2 인스턴스 생성
+        agent = Agent2()
+        print("Agent2 인스턴스 생성 성공!")
+        
+        # 간단한 테스트
+        test_input = "긴급 점검 안내드립니다"
+        print(f"테스트 입력: {test_input}")
+        
+        result, tools_data = agent.generate_compliant_template(test_input)
+        print(f"생성된 템플릿:\n{result}")
+        print(f"도구 데이터: {tools_data}")
+        
+    except Exception as e:
+        print(f"오류 발생: {e}")
+        import traceback
+        traceback.print_exc()
