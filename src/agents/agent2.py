@@ -288,7 +288,7 @@ class Agent2:
         preprocessor = DatePreprocessor()
         return preprocessor.preprocess_dates(user_input)
     
-    def generate_compliant_template(self, user_input: str) -> Tuple[str, Dict]:
+    def generate_compliant_template(self, user_input: str, agent1_variables: Dict[str, str] = None) -> Tuple[str, Dict]:
         """
         AI.png 구조에 따른 완벽 준수 템플릿 생성
         4개 Tools 병렬 실행 -> Agent(템플릿생성자) -> 최종 템플릿

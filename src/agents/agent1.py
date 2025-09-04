@@ -72,7 +72,7 @@ class Agent1:
             '어떻게 (How/Method)'
         ]
         
-        print("🤖 Agent1 초기화 완료")
+        print("Agent1 초기화 완료")
     
     def _load_policy_document(self) -> str:
         """정책 문서 로드"""
@@ -82,10 +82,10 @@ class Agent1:
                 with open(policy_path, 'r', encoding='utf-8') as f:
                     return f.read()
             else:
-                print("⚠️ 정책 문서를 찾을 수 없습니다.")
+                print("정책 문서를 찾을 수 없습니다.")
                 return ""
         except Exception as e:
-            print(f"❌ 정책 문서 로드 실패: {e}")
+            print(f"정책 문서 로드 실패: {e}")
             return ""
     
     def _load_profanity_keywords(self) -> set:
@@ -99,13 +99,13 @@ class Agent1:
                         keyword = line.strip()
                         if keyword:
                             keywords.add(keyword.lower())
-                    print(f"✅ 비속어 키워드 {len(keywords)}개 로드 완료")
+                    print(f"비속어 키워드 {len(keywords)}개 로드 완료")
                     return keywords
             else:
-                print("⚠️ 비속어 키워드 파일을 찾을 수 없습니다.")
+                print("비속어 키워드 파일을 찾을 수 없습니다.")
                 return set()
         except Exception as e:
-            print(f"❌ 비속어 키워드 로드 실패: {e}")
+            print(f"비속어 키워드 로드 실패: {e}")
             return set()
     
     def check_initial_profanity(self, text: str) -> bool:
@@ -128,7 +128,7 @@ class Agent1:
         
         for keyword in self.profanity_keywords:
             if keyword in text_lower or keyword in text_no_space:
-                print(f"🚫 비속어 검출: '{keyword}'")
+                print(f"비속어 검출: '{keyword}'")
                 return True
         
         return False
@@ -143,7 +143,7 @@ class Agent1:
         Returns:
             분석 결과 딕셔너리
         """
-        print("🔍 질의 분석 시작...")
+        print("질의 분석 시작...")
         
         # 1. 변수 추출
         variables = self.variable_extractor.extract_variables(user_input)
@@ -164,7 +164,7 @@ class Agent1:
             'missing_variables': self.variable_extractor.get_missing_variables(variables)
         }
         
-        print(f"✅ 분석 완료 - 의도: {intent_result['intent']}, 완성도: {mandatory_check['completeness_score']:.1%}")
+        print(f"분석 완료 - 의도: {intent_result['intent']}, 완성도: {mandatory_check['completeness_score']:.1%}")
         return analysis_result
     
     def check_mandatory_variables(self, variables: Dict[str, str]) -> Dict[str, Any]:
@@ -215,12 +215,12 @@ class Agent1:
         questions = []
         for var in missing_variables:
             if var in var_questions:
-                questions.append(f"❓ {var_questions[var]}")
+                questions.append(f"{var_questions[var]}")
         
         if questions:
-            return f"📝 추가 정보가 필요합니다:\n\n" + "\n".join(questions) + "\n\n위 정보를 추가로 입력해주세요."
+            return f"추가 정보가 필요합니다:\n\n" + "\n".join(questions) + "\n\n위 정보를 추가로 입력해주세요."
         
-        return "📝 추가 정보를 입력해주세요."
+        return "추가 정보를 입력해주세요."
     
     def check_policy_compliance(self, text: str, variables: Dict[str, str]) -> Dict[str, Any]:
         """
@@ -308,14 +308,14 @@ class Agent1:
         Returns:
             처리 결과
         """
-        print(f"\n🚀 Agent1 처리 시작: '{user_input[:50]}...'")
+        print(f"\nAgent1 처리 시작: '{user_input[:50]}...'")
         
         # 1. 초기 비속어 검출
         if self.check_initial_profanity(user_input):
             return {
                 'status': 'error',
                 'error_type': 'profanity',
-                'message': "⚠️ 비속어가 검출되었습니다. 프롬프트를 다시 작성해주세요.",
+                'message': "비속어가 검출되었습니다. 프롬프트를 다시 작성해주세요.",
                 'restart_required': True
             }
         
@@ -354,7 +354,7 @@ class Agent1:
             violation_msg = "\n".join([f"• {v}" for v in policy_result['violations']])
             return {
                 'status': 'policy_violation',
-                'message': f"⚠️ 정책 위반이 감지되었습니다:\n\n{violation_msg}\n\n프롬프트를 다시 작성해주세요.",
+                'message': f"정책 위반이 감지되었습니다:\n\n{violation_msg}\n\n프롬프트를 다시 작성해주세요.",
                 'violations': policy_result['violations'],
                 'restart_required': True
             }
@@ -362,14 +362,14 @@ class Agent1:
         if has_profanity:
             return {
                 'status': 'profanity_violation',
-                'message': "⚠️ 비속어가 감지되었습니다. 프롬프트를 다시 작성해주세요.",
+                'message': "비속어가 감지되었습니다. 프롬프트를 다시 작성해주세요.",
                 'restart_required': True
             }
         
         # 7. 모든 검사 통과 - 성공 결과 반환
         return {
             'status': 'success',
-            'message': "✅ 모든 검사를 통과했습니다. 템플릿 생성이 가능합니다.",
+            'message': "모든 검사를 통과했습니다. 템플릿 생성이 가능합니다.",
             'analysis': analysis_result,
             'variables': variables,
             'intent': analysis_result['intent'],
@@ -381,7 +381,7 @@ class Agent1:
         """
         대화형 세션 실행 (독립 실행용)
         """
-        print("🤖 Agent1 - 질의 분석 및 검증 시스템")
+        print("Agent1 - 질의 분석 및 검증 시스템")
         print("=" * 50)
         print("알림톡 템플릿을 위한 내용을 입력해주세요.")
         print("종료하려면 'quit', 'exit', '종료'를 입력하세요.\n")
@@ -389,14 +389,14 @@ class Agent1:
         while True:
             try:
                 # 사용자 입력 받기
-                user_input = input("📝 내용을 입력하세요: ").strip()
+                user_input = input("내용을 입력하세요: ").strip()
                 
                 if user_input.lower() in ['quit', 'exit', '종료']:
-                    print("👋 Agent1을 종료합니다.")
+                    print("Agent1을 종료합니다.")
                     break
                 
                 if not user_input:
-                    print("❌ 입력이 비어있습니다.\n")
+                    print("입력이 비어있습니다.\n")
                     continue
                 
                 # 재질문 루프
@@ -408,12 +408,12 @@ class Agent1:
                     
                     if result['status'] == 'error' and result.get('restart_required'):
                         print(f"\n{result['message']}\n")
-                        print("🔄 처음부터 다시 시작합니다.\n")
+                        print("처음부터 다시 시작합니다.\n")
                         break
                     
                     elif result['status'] in ['policy_violation', 'profanity_violation']:
                         print(f"\n{result['message']}\n")
-                        print("🔄 처음부터 다시 시작합니다.\n")
+                        print("처음부터 다시 시작합니다.\n")
                         break
                     
                     elif result['status'] == 'reask_required':
@@ -422,39 +422,39 @@ class Agent1:
                         # 현재까지 완성된 변수 정보 표시
                         completed = result['completed_variables']
                         total = result['total_variables']
-                        print(f"📊 진행 상황: {completed}/{total} 필수 변수 완성\n")
+                        print(f"진행 상황: {completed}/{total} 필수 변수 완성\n")
                         
                         # 추가 정보 입력 받기
-                        additional_input = input("📝 추가 정보를 입력하세요: ").strip()
+                        additional_input = input("추가 정보를 입력하세요: ").strip()
                         
                         if additional_input:
                             # 기존 입력과 추가 입력을 합쳐서 다시 처리
                             current_input = current_input + " " + additional_input
                         else:
-                            print("❌ 추가 정보가 없습니다.\n")
+                            print("추가 정보가 없습니다.\n")
                             break
                     
                     elif result['status'] == 'success':
                         print(f"\n{result['message']}\n")
                         
                         # 결과 정보 출력
-                        print("📋 분석 결과:")
+                        print("분석 결과:")
                         print(f"  의도: {result['intent']['intent']}")
                         print(f"  신뢰도: {result['intent']['confidence']:.2f}")
                         
-                        print("\n📝 선택된 변수:")
+                        print("\n선택된 변수:")
                         for key, value in result['selected_variables'].items():
                             print(f"  • {key}: {value}")
                         
-                        print(f"\n🛡️ 정책 준수: {'✅ 통과' if result['policy_result']['is_compliant'] else '❌ 위반'}")
+                        print(f"\n정책 준수: {'통과' if result['policy_result']['is_compliant'] else '위반'}")
                         print("-" * 50)
                         break
                 
             except KeyboardInterrupt:
-                print("\n\n👋 사용자가 중단했습니다.")
+                print("\n\n사용자가 중단했습니다.")
                 break
             except Exception as e:
-                print(f"❌ 오류가 발생했습니다: {e}")
+                print(f"오류가 발생했습니다: {e}")
 
 
 def main():
@@ -463,7 +463,7 @@ def main():
         agent = Agent1()
         agent.interactive_session()
     except Exception as e:
-        print(f"❌ Agent1 초기화 실패: {e}")
+        print(f"Agent1 초기화 실패: {e}")
 
 
 if __name__ == "__main__":
