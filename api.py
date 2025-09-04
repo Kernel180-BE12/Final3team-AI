@@ -11,6 +11,7 @@ from config import GEMINI_API_KEY
 from src.core import EntityExtractor, TemplateGenerator
 from src.core.index_manager import get_index_manager
 from src.utils import DataProcessor
+from src.agents.agent1 import Agent1
 from src.agents.agent2 import Agent2
 
 
@@ -27,6 +28,9 @@ class TemplateAPI:
         (self.index_manager, self.entity_extractor, 
          self.template_generator, self.data_processor, 
          self.agent2) = initialize_core_components()
+        
+        # Agent1 초기화 추가
+        self.agent1 = Agent1()
         
         # TODO: 템플릿 비교 학습 시스템 구현 필요
         
@@ -113,9 +117,25 @@ class TemplateAPI:
             
             # 템플릿 생성
             if use_agent2:
-                # Agent2 방식 (권장)
-                template, metadata = self.agent2.generate_compliant_template(user_input)
-                entities = self.entity_extractor.extract_entities(user_input)
+                # Agent1 → Agent2 플로우
+                print(f"🔍 Agent1 질의 분석 및 검증 시작")
+                agent1_result = self.agent1.process_query(user_input)
+                
+                # Agent1 성공한 경우에만 Agent2 호출
+                if agent1_result['status'] == 'success':
+                    selected_variables = agent1_result.get('selected_variables', {})
+                    print(f"✅ Agent1 완료. 선택된 변수 {len(selected_variables)}개")
+                    template, metadata = self.agent2.generate_compliant_template(user_input, selected_variables)
+                else:
+                    # Agent1 실패시 에러 반환 (재질문, 정책위반 등)
+                    return {
+                        "success": False,
+                        "error": agent1_result.get('message', 'Agent1 처리 실패'),
+                        "template": None,
+                        "metadata": {"agent1_result": agent1_result}
+                    }
+                entities = self.entity_extractor.extract_entities(
+                    user_input)
                 
                 result = {
                     "success": True,
