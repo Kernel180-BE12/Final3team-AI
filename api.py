@@ -311,7 +311,7 @@ class TemplateAPI:
             variable_info = {
                 "template_id": None,  # 백엔드에서 생성된 template_id 사용
                 "variable_key": var_name,  # 기업 형식: variable_key
-                "placeholder": f"{{{var_name}}}",  # 기업 형식: {변수명}
+                "placeholder": f"#{{{var_name}}}",  # 기업 형식: #{변수명}
                 "input_type": "TEXT",  # 기업 형식: 모두 TEXT
                 "created_at": datetime.now().strftime("%Y-%m-%d")
             }
