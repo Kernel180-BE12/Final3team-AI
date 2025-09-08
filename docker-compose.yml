@@ -1,0 +1,35 @@
+services:
+  jober-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jober-ai-container
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    volumes:
+      # 데이터 디렉토리들 영구 저장
+      - ./cache:/app/cache
+      - ./data:/app/data
+      - ./predata:/app/predata
+      # 개발용 - 소스코드 실시간 반영 (필요시 주석 해제)
+      # - ./src:/app/src
+      # - ./api.py:/app/api.py
+      # - ./server.py:/app/server.py
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - jober-network
+
+networks:
+  jober-network:
+    driver: bridge
