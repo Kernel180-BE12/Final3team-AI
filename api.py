@@ -433,11 +433,62 @@ class TemplateAPI:
             '기타': ['회원', '적립금', '등급', '이벤트', '당첨', '응모권', '인보이스']
         }
         
-        # 카테고리 매핑 (기업 스키마)
+        # 카테고리 매핑 (새로운 카테고리 체계)
         category_mapping = {
-            '이용안내': 9101,  # 가격변경, 행사안내, 강의일정, 학습사항, 적립금, 꿀팁, 회원혜택, 업데이트, 샘플, 쿠폰, 당첨, 응모권, 이용권, 등급, 구매
-            '예약완료': 9301,  # 방문예약, 상담예약  
-            '피드백': 9201    # PT결과, 인보이스
+            # 대분류 (001-009)
+            '회원': '001',
+            '구매': '002', 
+            '예약': '003',
+            '서비스이용': '004',
+            '리포팅': '005',
+            '배송': '006',
+            '법적고지': '007',
+            '업무알림': '008',
+            '쿠폰/포인트': '009',
+            
+            # 소분류 (상세 매핑)
+            '회원가입': '001001',
+            '인증/비밀번호/로그인': '001002', 
+            '회원정보/회원혜택': '001003',
+            '구매완료': '002001',
+            '상품가입': '002002',
+            '진행상태': '002003',
+            '구매취소': '002004',
+            '구매예약/입고알림': '002005',
+            '예약완료/예약내역': '003001',
+            '예약상태': '003002',
+            '예약취소': '003003', 
+            '예약알림/리마인드': '003004',
+            '이용안내/공지': '004001',
+            '신청접수': '004002',
+            '처리완료': '004003',
+            '이용도구': '004004',
+            '방문서비스': '004005',
+            '피드백요청': '004006',
+            '구매감사/이용확인': '004007',
+            '리마인드': '004008',
+            '피드백': '005001',
+            '요금청구': '005002',
+            '계약/견적': '005003',
+            '안전/피해예방': '005004',
+            '뉴스레터': '005005',
+            '거래알림': '005006',
+            '배송상태': '006001',
+            '배송예정': '006002',
+            '배송완료': '006003',
+            '배송실패': '006004',
+            '수신동의': '007001',
+            '개인정보': '007002',
+            '약관변경': '007003',
+            '휴면관련': '007004',
+            '주문/예약': '008001',
+            '내부업무알림': '008002',
+            '쿠폰발급': '009001',
+            '쿠폰사용': '009002',
+            '포인트적립': '009003',
+            '포인트사용': '009004',
+            '쿠폰/포인트안내': '009005',
+            '기타': '999999'
         }
         
         # 업종 감지
@@ -448,11 +499,53 @@ class TemplateAPI:
                 break
         
         # 카테고리 감지
-        detected_category = 9101  # 기본값: 이용안내
-        if any(keyword in user_input or keyword in title for keyword in ['예약', '방문', '상담']):
-            detected_category = 9301  # 예약완료
-        elif any(keyword in user_input or keyword in title for keyword in ['결과', '인보이스', '피드백']):
-            detected_category = 9201  # 피드백
+        detected_category = '004001'  # 기본값: 이용안내/공지
+        
+        # 키워드 기반 상세 카테고리 분류
+        if any(keyword in user_input or keyword in title for keyword in ['회원가입', '가입', '신규']):
+            detected_category = '001001'  # 회원가입
+        elif any(keyword in user_input or keyword in title for keyword in ['로그인', '비밀번호', '인증']):
+            detected_category = '001002'  # 인증/비밀번호/로그인
+        elif any(keyword in user_input or keyword in title for keyword in ['회원정보', '회원혜택', '등급']):
+            detected_category = '001003'  # 회원정보/회원혜택
+        elif any(keyword in user_input or keyword in title for keyword in ['구매완료', '주문완료', '결제완료']):
+            detected_category = '002001'  # 구매완료
+        elif any(keyword in user_input or keyword in title for keyword in ['상품가입', '서비스가입']):
+            detected_category = '002002'  # 상품가입
+        elif any(keyword in user_input or keyword in title for keyword in ['진행상태', '처리중']):
+            detected_category = '002003'  # 진행상태
+        elif any(keyword in user_input or keyword in title for keyword in ['구매취소', '주문취소', '결제취소']):
+            detected_category = '002004'  # 구매취소
+        elif any(keyword in user_input or keyword in title for keyword in ['입고알림', '재입고']):
+            detected_category = '002005'  # 구매예약/입고알림
+        elif any(keyword in user_input or keyword in title for keyword in ['예약완료', '예약확인']):
+            detected_category = '003001'  # 예약완료/예약내역
+        elif any(keyword in user_input or keyword in title for keyword in ['예약상태', '예약변경']):
+            detected_category = '003002'  # 예약상태
+        elif any(keyword in user_input or keyword in title for keyword in ['예약취소']):
+            detected_category = '003003'  # 예약취소
+        elif any(keyword in user_input or keyword in title for keyword in ['예약알림', '리마인드']):
+            detected_category = '003004'  # 예약알림/리마인드
+        elif any(keyword in user_input or keyword in title for keyword in ['공지', '안내', '이용방법']):
+            detected_category = '004001'  # 이용안내/공지
+        elif any(keyword in user_input or keyword in title for keyword in ['신청접수', '접수완료']):
+            detected_category = '004002'  # 신청접수
+        elif any(keyword in user_input or keyword in title for keyword in ['처리완료', '완료알림']):
+            detected_category = '004003'  # 처리완료
+        elif any(keyword in user_input or keyword in title for keyword in ['배송상태', '배송조회']):
+            detected_category = '006001'  # 배송상태
+        elif any(keyword in user_input or keyword in title for keyword in ['배송예정', '발송예정']):
+            detected_category = '006002'  # 배송예정
+        elif any(keyword in user_input or keyword in title for keyword in ['배송완료', '배달완료']):
+            detected_category = '006003'  # 배송완료
+        elif any(keyword in user_input or keyword in title for keyword in ['배송실패', '배송지연']):
+            detected_category = '006004'  # 배송실패
+        elif any(keyword in user_input or keyword in title for keyword in ['쿠폰발급', '쿠폰지급']):
+            detected_category = '009001'  # 쿠폰발급
+        elif any(keyword in user_input or keyword in title for keyword in ['포인트적립', '적립금']):
+            detected_category = '009003'  # 포인트적립
+        elif any(keyword in user_input or keyword in title for keyword in ['피드백', '만족도', '후기']):
+            detected_category = '005001'  # 피드백
             
         # 업종 ID 매핑 (실제로는 DB에서 조회해야 함)
         industry_id_mapping = {

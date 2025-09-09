@@ -1,115 +1,122 @@
-#  JOBER AI - 알림톡 템플릿 생성기
+# JOBER AI - 알림톡 템플릿 생성기
 
-**기업용 AI 기반 알림톡 템플릿 자동 생성 시스템**
+**AI 기반 카카오 알림톡 템플릿 자동 생성 시스템**
 
 [![Python](https://img.shields.io/badge/Python-3.11.13-blue.svg)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)]()
-[![Backend](https://img.shields.io/badge/Backend-Ready-orange.svg)]()
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115.0-green.svg)](https://fastapi.tiangolo.com/)
+[![Chroma DB](https://img.shields.io/badge/ChromaDB-0.4.24-orange.svg)](https://www.trychroma.com/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-##  핵심 기능
+## 핵심 기능
 
-###  스마트 템플릿 생성
-- ** AI 기반 생성**: Google Gemini 2.5 Flash를 활용한 고품질 템플릿 생성
-- ** 완벽 정책 준수**: Agent2를 통한 가이드라인/법령/블랙리스트/화이트리스트 검증
-- ** 벡터 검색**: FAISS 기반 유사도 검색으로 최적 템플릿 생성
-- ** 스마트 날짜 처리**: 자연어 시간 표현을 실제 날짜로 자동 변환
+### AI 기반 지능형 생성
+- **Google Gemini 2.0 Flash**: 최신 AI 모델 기반 고품질 템플릿 생성
+- **Agent1 & Agent2**: 2단계 AI 검증 시스템으로 완벽한 품질 보장
+- **Chroma DB 벡터 검색**: 768차원 임베딩을 통한 정확한 유사도 검색
+- **자연어 처리**: "내일", "다음 주" 등 자연어 날짜를 실제 날짜로 자동 변환
 
-### 백엔드 연동 최적화
-- **RESTful API**: FastAPI 기반 완전한 백엔드 연동 인터페이스
-- **JSON 출력**: 기업 DB 스키마 호환 JSON 형식 지원
-- **업종별 분류**: 5개 업종(소매업, 부동산, 교육, 서비스업, 기타) 자동 분류
-- **변수 추출**: 템플릿 내 #{변수} 자동 추출 및 매핑
+### 카테고리 시스템 (신규)
+- **세분화된 분류**: 001-009 대분류, 001001-009005 소분류 체계
+- **자동 카테고리 매칭**: 사용자 입력에 따른 지능형 카테고리 자동 선택
+- **업종별 최적화**: 회원, 구매, 예약, 서비스이용, 배송 등 9개 대분류 지원
 
----
-
-## 🛠 시스템 아키텍처
-
-###  핵심 컴포넌트
-
-1. **Agent2 생성 엔진** (`src/agents/agent2.py`)
-   - 4개 도구 병렬 분석 (가이드라인, 법령, 블랙리스트, 화이트리스트)
-   - 완벽한 정책 준수 템플릿 생성
-   - FAISS 벡터 검색 기반 컨텍스트 매칭
-
-2. **템플릿 생성기** (`src/core/template_generator.py`)
-   - prototype.py 로직 통합 완료
-   - 변수 추출, 의도 파악, 정책 검증 파이프라인
-   - 벡터 검색 기반 템플릿 생성
-
-3. **Agent1 전용 도구들**
-   - **날짜 전처리기** (`src/tools/date_preprocessor.py`): 자연어 날짜 표현 변환
-   - **의도 분류기** (`src/tools/intent_classifier.py`): 사용자 의도 자동 분류
-   - **변수 추출기** (`src/tools/variable_extractor.py`): 6W 변수 추출
-
-4. **백엔드 연동 서버** (`server.py`)
-   - FastAPI 기반 RESTful API
-   - JSON 출력 및 DB 스키마 매칭
-   - 실시간 템플릿 생성 서비스
+### 완벽한 컴플라이언스
+- **4개 Tool 병렬 검증**: BlackList, WhiteList, 가이드라인, 정보통신법 동시 검사
+- **정보통신망법 준수**: PDF 추출 기반 법령 자동 검증 시스템
+- **카카오 정책 준수**: 실시간 가이드라인 매칭 및 위반 사항 자동 감지
 
 ---
 
-##  빠른 시작
+## 시스템 아키텍처
 
-### 1. 환경 설정
+### 핵심 워크플로우
+```
+사용자 입력 → Agent1 검증 → 템플릿 생성 → Agent2 병렬 검증 → RAGAS를 통한 검증 → 결과 반환
+```
 
-#### 자동 설치 (권장)
+### 주요 컴포넌트
+
+**1. Agent1 - 입력 분석 & 검증**
+   - 사용자 의도 분류 (새로운 카테고리 체계 적용)
+   - 6W 변수 추출 (누가, 언제, 어디서, 무엇을, 왜, 어떻게)
+   - 날짜 표현 자동 변환 ("내일" → "2025-01-16")
+
+**2. Agent2 - 4개 Tool 병렬 검증**
+   - **BlackList Tool**: 금지 키워드 및 패턴 검사
+   - **WhiteList Tool**: 승인 패턴 매칭
+   - **Guideline Tool**: 통합 가이드라인 준수 검증
+   - **InfoCommLaw Tool**: 정보통신망법 법령 검증
+
+**3. 벡터 검색 엔진 (Chroma DB)**
+   - 9개 전처리된 가이드라인 파일 임베딩
+   - 768차원 Gemini 임베딩 모델 사용
+   - 컬렉션별 분리 저장 (guidelines, templates)
+
+**4. FastAPI 백엔드 서버**
+   - RESTful API 엔드포인트
+   - JSON 응답 형식 (Spring Boot 호환)
+   - 자동 카테고리 분류 및 매핑
+
+---
+
+## 빠른 시작
+
+### 1. 설치 및 환경 설정
 ```bash
 # 레포지토리 클론
 git clone https://github.com/your-username/Jober_ai.git
 cd Jober_ai
 
-# 자동 설치 스크립트 실행
-chmod +x install.sh
-./install.sh
-```
-
-#### 수동 설치
-```bash
-# Python 3.11.13 설치 (pyenv 사용 권장)
+# Python 3.11.13 설치 (권장)
 pyenv install 3.11.13
-pyenv global 3.11.13
 pyenv local 3.11.13
 
 # 의존성 설치
 pip install -r requirements.txt
-
-# 또는 Poetry 사용
-poetry install
-
-# 환경변수 설정 (.env 파일 생성)
-echo "GEMINI_API_KEY=your_gemini_api_key" > .env
-echo "ENVIRONMENT=development" >> .env
 ```
 
-### 2. 로컬 실행
-```python
-# 기본 CLI 모드
-python main.py
-
-# 백엔드 서버 실행 (FastAPI)
-uvicorn server:app --reload --host 0.0.0.0 --port 8000
+### 2. 환경변수 설정
+```bash
+# .env 파일 생성
+echo "GEMINI_API_KEY=your_gemini_api_key_here" > .env
 ```
 
-### 3. API 사용법
+### 3. 서버 실행
+```bash
+# FastAPI 서버 실행
+python server.py
+# 또는
+uvicorn server:app --host 0.0.0.0 --port 8000
+```
+
+### 4. API 테스트
 ```bash
 # 템플릿 생성 요청
 curl -X POST http://localhost:8000/ai/templates \
   -H "Content-Type: application/json" \
-  -d '{"userId": 101, "requestContent": "쿠폰 발급 안내"}'
+  -d '{"userId": 123, "requestContent": "예약이 완료되었습니다. 고객에게 알려주세요"}'
 
-# 헬스 체크
-curl -X GET http://localhost:8000/health
+# 서버 상태 확인
+curl http://localhost:8000/health
 ```
 
-### 4. 응답 예시
+### 5. 응답 예시
 ```json
 {
-  "generated_template": "안녕하세요, #{고객명}님.\n...",
-  "variables": ["#{고객명}", "#{쿠폰명}", "#{만료일}"],
-  "entities": {...},
-  "generation_method": "Agent2_Compliant_Generation",
-  "quality_assured": true
+  "id": 1,
+  "userId": 123,
+  "categoryId": "003001",
+  "title": "예약 완료 안내",
+  "content": "안녕하세요, #{고객명}님.\n\n예약이 완료되었습니다...",
+  "type": "MESSAGE",
+  "variables": [
+    {
+      "id": 1,
+      "variableKey": "고객명",
+      "placeholder": "#{고객명}",
+      "inputType": "TEXT"
+    }
+  ]
 }
 ```
 
@@ -157,157 +164,93 @@ curl -X GET http://localhost:8000/health
 
 ---
 
-##  기업 베스트 템플릿 호환성
+## 카테고리 분류 시스템
 
-### 지원하는 템플릿 유형 (20종)
-- **소매업**: 쿠폰 발급, 가격 변경, 샘플 입고, 구매 안내
-- **부동산**: 방문 예약, 상담 예약, 행사장 위치 안내  
-- **교육**: 강의 일정, 학습 주요 사항 안내
-- **서비스업**: PT 결과, 서비스 업데이트, 이용권 안내
-- **기타**: 회원 혜택, 적립금, 등급, 이벤트, 인보이스
+### 새로운 카테고리 체계
+**대분류 (001-009)**
+- 001: 회원, 002: 구매, 003: 예약, 004: 서비스이용, 005: 리포팅
+- 006: 배송, 007: 법적고지, 008: 업무알림, 009: 쿠폰/포인트
 
-### 자동 분류 키워드
-| 업종 | 자동 감지 키워드 |
-|------|------------------|
-| 소매업 | 쿠폰, 할인, 상품, 구매, 샘플, 브랜드 |
-| 부동산 | 예약, 방문, 상담, 매물, 아파트 |
-| 교육 | 강의, 학습, 수업, 교육, 학원, 과정 |
-| 서비스업 | 뷰티, 건강, PT, 시술, 관리, 서비스 |
-| 기타 | 회원, 적립금, 등급, 이벤트, 당첨 |
+**소분류 (세부 분류)**
+- 예: 001001(회원가입), 002001(구매완료), 003001(예약완료) 등
+
+### 자동 키워드 매칭
+| 카테고리 | 키워드 | 분류 코드 |
+|---------|--------|----------|
+| 회원가입 | 가입, 신규, 등록 | 001001 |
+| 구매완료 | 구매완료, 주문완료, 결제완료 | 002001 |
+| 예약완료 | 예약완료, 예약확인, 방문예약 | 003001 |
+| 배송상태 | 배송상태, 배송조회, 발송 | 006001 |
+| 쿠폰발급 | 쿠폰발급, 쿠폰지급, 혜택 | 009001 |
 
 ---
 
-##  테스트
+## 테스트
 
-### 백엔드 연동 테스트
+### API 기본 테스트
 ```bash
-python test_backend_integration.py
-```
+# 서버 실행
+python server.py
 
-### CLI 모드 테스트
-```bash
-python main.py
-```
-
-### 서버 실행 테스트
-```bash
-uvicorn server:app --reload --host 0.0.0.0 --port 8000
-# 또는
+# API 테스트
 curl -X POST http://localhost:8000/ai/templates \
   -H "Content-Type: application/json" \
-  -d '{"userId": 101, "requestContent": "쿠폰 발급 안내"}'
+  -d '{"userId": 123, "requestContent": "예약 완료 안내"}'
+```
+
+### 벡터 검색 테스트
+```bash
+# Chroma DB 상태 확인
+python -c "from src.core.index_manager import IndexManager; manager = IndexManager(); print(f'컬렉션: {len(manager.chroma_client.list_collections())}개')"
 ```
 
 ---
 
-##  프로젝트 구조
+## 프로젝트 구조
 
 ```
 Jober_ai/
-├──  README.md                    # 프로젝트 설명서
-├──  requirements.txt             # Python 의존성
-├──  pyproject.toml              # 프로젝트 설정
-├──  config.py                   # 설정 파일
-├──  main.py                     # CLI 실행 파일
-├── server.py                   # FastAPI 백엔드 서버
-├──  api.py                      # API 유틸리티
-├──  test_backend_integration.py # 백엔드 연동 테스트
-├──  src/                        # 소스코드 패키지
-│   ├──  __init__.py
-│   ├──  core/                   # 핵심 컴포넌트  
-│   │   ├──  __init__.py
-│   │   ├──  base_processor.py  # 기본 프로세서
-│   │   ├──  entity_extractor.py # 엔티티 추출
-│   │   ├──  template_generator.py # 템플릿 생성 (prototype.py 통합)
-│   │   └──  index_manager.py   # 벡터 인덱스 관리
-│   ├──  agents/                 # AI 에이전트
-│   │   └──  agent2.py          # Agent2 생성 엔진
-│   ├──  tools/                  # 분석 도구
-│   │   ├──  __init__.py
-│   │   ├──  blacklist_tool.py  # 금지 키워드 검사
-│   │   ├──  whitelist_tool.py  # 허용 패턴 검사
-│   │   ├──  info_comm_law_tool.py # 정보통신법 검사
-│   │   ├──  date_preprocessor.py # 날짜 전처리기 (Agent1용)
-│   │   ├──  intent_classifier.py # 의도 분류기 (Agent1용)
-│   │   └──  variable_extractor.py # 변수 추출기 (Agent1용)
-│   └──  utils/                  # 유틸리티
-│       ├──  __init__.py
-│       └──  data_processor.py  # 데이터 처리
-├──  data/                       # 원본 가이드라인 데이터
-├──  predata/                    # 전처리된 가이드라인 데이터
-├──  cache/                      # FAISS 인덱스 캐시
-└──  docs/                       # 문서
-    ├──  BACKEND_INTEGRATION_FINAL.md
-    ├──  ENTERPRISE_SCHEMA_INTEGRATION.md
-    └──  db_schema.md
+├── README.md                    # 프로젝트 설명서
+├── requirements.txt             # Python 의존성
+├── config.py                   # 환경변수 설정
+├── server.py                   # FastAPI 서버
+├── api.py                      # 메인 API 로직
+├── src/                        # 소스코드
+│   ├── core/                   # 핵심 엔진
+│   │   ├── base_processor.py   # 기본 프로세서
+│   │   ├── entity_extractor.py # 엔티티 추출
+│   │   ├── template_generator.py # 템플릿 생성
+│   │   └── index_manager.py    # Chroma DB 관리
+│   ├── agents/                 # AI 에이전트
+│   │   ├── agent1.py          # 입력 검증 에이전트
+│   │   └── agent2.py          # 4개 Tool 병렬 검증
+│   ├── tools/                  # 검증 도구
+│   │   ├── blacklist_tool.py   # 금지어 검사
+│   │   ├── whitelist_tool.py   # 허용 패턴 검사
+│   │   ├── info_comm_law_tool.py # 법령 검사
+│   │   └── intent_classifier.py # 카테고리 분류
+│   └── utils/                  # 유틸리티
+├── predata/                    # 전처리된 데이터 (9개 파일)
+├── chroma_db/                  # 벡터 데이터베이스
+├── cache/                      # 캐시 파일
+└── docs/                       # 문서
 ```
 
 ---
 
-##  기여하기
+## 주요 특징
 
-1. **Fork** 레포지토리
-2. **브랜치** 생성 (`git checkout -b feature/amazing-feature`)
-3. **커밋** 변경사항 (`git commit -m 'Add amazing feature'`)
-4. **푸시** 브랜치 (`git push origin feature/amazing-feature`)
-5. **Pull Request** 생성
-
----
-
-##  버전 히스토리
-
-### v2.2.0 (2025-09-03)
-- FastAPI 서버 포트 8000으로 표준화
-- Spring Boot 연동을 위한 API 엔드포인트 최적화 (/ai/templates)
-- 프론트엔드 연동 준비 완료 (CORS 설정 가이드)
-- EC2 배포 및 프로덕션 환경 대응
-
-### v2.1.0 (2025-09-01)
-- prototype.py 로직 core/template_generator.py 통합
-- FastAPI 기반 백엔드 서버 구현 (server.py)
-- 프로젝트 구조 정리 및 src/ 패키지화
-- 모든 이모지 제거 및 코드 정리 완료
-- 백엔드 연동 최적화 완료
-
-### v2.0.0 (2025-08-28)
--  Agent2 4도구 병렬 분석 시스템
--  업종별 자동 분류 시스템
--  FAISS 벡터 검색 및 캐시 시스템
--  완전한 정책 준수 파이프라인
-
-### v1.0.0 (2025-08-22) 
--  기본 AI 템플릿 생성 기능
--  Google Gemini 2.5 Flash 통합
--  가이드라인 준수 시스템
-
----
-
-##  지원 및 문의
-
-- ** 이메일**: support@jober.ai
-- ** 이슈 트래커**: [GitHub Issues](https://github.com/your-username/Jober_ai/issues)
-- **📖 문서**: [상세 문서](./docs/)
-
----
-
-##  라이선스
-
-이 프로젝트는 MIT 라이선스 하에 배포됩니다.
-
----
-
-##  감사의 말
-
-- **Google Gemini 2.5**: AI 템플릿 생성 엔진
-- **FAISS**: 벡터 유사도 검색
+### 기술 스택
+- **Python 3.11.13**: 안정적인 파이썬 버전
+- **Google Gemini 2.0 Flash**: 최신 AI 모델
+- **Chroma DB**: 벡터 데이터베이스 (로컬 저장)
+- **FastAPI**: 고성능 웹 프레임워크
 - **LangChain**: AI 에이전트 프레임워크
 
+### 데이터 처리
+- **9개 가이드라인 파일**: 전처리된 정책 데이터
+- **768차원 임베딩**: Gemini 임베딩 모델 사용
+- **벡터 검색**: 유사도 기반 컨텍스트 매칭
+- **로컬 캐싱**: 성능 최적화를 위한 캐시 시스템
+
 ---
-
-<div align="center">
-
-** 이 프로젝트가 도움이 되었다면 Star를 눌러주세요! **
-
-Made with  by JOBER Team
-
-</div>
