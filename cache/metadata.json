@@ -1,0 +1,22 @@
+{
+  "predata_hash": "c5d27d4f27b7378ea79c3bcae1820839",
+  "predata_updated": "2025-09-09T16:37:23.058469",
+  "chunk_configs": {
+    "chunks_800_100": {
+      "created": "2025-09-09T16:37:23.059896",
+      "chunks_count": 260
+    }
+  },
+  "guidelines_hash": "0011bf71e6c7d7fe38b3edf601cba71e",
+  "guidelines_updated": "2025-09-09T16:38:25.449353",
+  "guidelines_size": 260,
+  "templates_hash": "4735aa31a07bfbd0128cf8026c95a82a",
+  "templates_updated": "2025-09-09T16:38:26.803481",
+  "templates_size": 3,
+  "test_hash": "3ab2ae1036d712e025bc50be4757b003",
+  "test_updated": "2025-09-09T16:41:01.546620",
+  "test_size": 2,
+  "ec2_test_hash": "f57cd75dc0923213515236f02d9c190e",
+  "ec2_test_updated": "2025-09-09T17:03:22.220774",
+  "ec2_test_size": 3
+}

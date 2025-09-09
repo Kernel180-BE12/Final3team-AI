@@ -1,10 +1,10 @@
 import re
 import json
 import numpy as np
-import faiss
 from typing import List, Dict, Tuple, Optional
 import google.generativeai as genai
 from pathlib import Path
+from .index_manager import get_index_manager
 
 class BaseTemplateProcessor:
     """템플릿 처리 기본 클래스"""
@@ -23,9 +23,12 @@ class BaseTemplateProcessor:
         self.templates = []
         self.guidelines = []
         
-        # FAISS 인덱스
-        self.template_index = None
-        self.guideline_index = None
+        # Chroma DB 컬렉션
+        self.template_collection = None
+        self.guideline_collection = None
+        
+        # 인덱스 매니저
+        self.index_manager = get_index_manager()
         
     def encode_texts(self, texts: List[str]) -> np.ndarray:
         """텍스트 리스트를 Gemini Embedding으로 변환"""
@@ -83,43 +86,18 @@ class BaseTemplateProcessor:
             print(f"폴백 임베딩 실패: {e}")
             return np.random.rand(len(texts), 384)
     
-    def build_faiss_index(self, embeddings: np.ndarray) -> faiss.Index:
-        """FAISS 인덱스 구축"""
-        dimension = embeddings.shape[1]
-        index = faiss.IndexFlatIP(dimension)
-        
-        # 정규화
-        normalized_embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
-        index.add(normalized_embeddings.astype('float32'))
-        
-        return index
+    def search_similar_chroma(self, query: str, collection_name: str, top_k: int = 3) -> List[Tuple[str, float]]:
+        """Chroma DB를 통한 유사도 검색"""
+        return self.index_manager.query_similar(
+            collection_name=collection_name,
+            query_text=query,
+            encode_func=self.encode_texts,
+            top_k=top_k
+        )
     
-    def search_similar(self, query: str, index: faiss.Index, texts: List[str], top_k: int = 3) -> List[Tuple[str, float]]:
-        """Gemini Embedding 기반 유사도 검색"""
-        if index is None or not texts:
-            return []
-        
-        try:
-            # Gemini Embedding으로 쿼리 임베딩
-            result = genai.embed_content(
-                model="models/embedding-001",
-                content=query,
-                task_type="retrieval_query"
-            )
-            query_embedding = np.array([result['embedding']])
-            query_embedding = query_embedding / np.linalg.norm(query_embedding, axis=1, keepdims=True)
-            
-            scores, indices = index.search(query_embedding.astype('float32'), top_k)
-            
-            results = []
-            for score, idx in zip(scores[0], indices[0]):
-                if idx < len(texts):
-                    results.append((texts[idx], float(score)))
-            
-            return results
-        except Exception as e:
-            print(f" 검색 오류: {e}")
-            return []
+    def search_similar(self, query: str, collection_name: str, top_k: int = 3) -> List[Tuple[str, float]]:
+        """유사도 검색 (Chroma DB 사용)"""
+        return self.search_similar_chroma(query, collection_name, top_k)
     
     def extract_variables(self, template: str) -> List[str]:
         """템플릿에서 #{변수명} 형태의 변수 추출"""

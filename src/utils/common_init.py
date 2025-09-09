@@ -68,11 +68,10 @@ def setup_guidelines_and_indexes(index_manager, entity_extractor, template_gener
             clean_template = re.sub(r"#\{[^}]+\}", "[VARIABLE]", template)
             clean_templates.append(clean_template)
 
-        template_generator.template_index = index_manager.get_faiss_index(
-            index_name="templates",
+        template_generator.template_collection = index_manager.get_chroma_collection(
+            collection_name="templates",
             data=clean_templates,
-            encode_func=template_generator.encode_texts,
-            build_func=template_generator.build_faiss_index
+            encode_func=template_generator.encode_texts
         )
         template_generator.templates = templates
         print(" 템플릿 인덱스 준비 완료")
@@ -80,11 +79,10 @@ def setup_guidelines_and_indexes(index_manager, entity_extractor, template_gener
     # 가이드라인 인덱스  
     if guidelines:
         print(" 가이드라인 인덱스 준비 중...")
-        entity_extractor.guideline_index = index_manager.get_faiss_index(
-            index_name="guidelines",
+        entity_extractor.guideline_collection = index_manager.get_chroma_collection(
+            collection_name="guidelines",
             data=guidelines,
-            encode_func=entity_extractor.encode_texts,
-            build_func=entity_extractor.build_faiss_index
+            encode_func=entity_extractor.encode_texts
         )
         entity_extractor.guidelines = guidelines
         print(" 가이드라인 인덱스 준비 완료")

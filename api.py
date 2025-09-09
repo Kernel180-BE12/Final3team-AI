@@ -54,22 +54,20 @@ class TemplateAPI:
             
             # 인덱스 구축
             if guidelines:
-                self.entity_extractor.guideline_index = self.index_manager.get_faiss_index(
-                    index_name="guidelines",
+                self.entity_extractor.guideline_collection = self.index_manager.get_chroma_collection(
+                    collection_name="guidelines",
                     data=guidelines,
-                    encode_func=self.entity_extractor.encode_texts,
-                    build_func=self.entity_extractor.build_faiss_index
+                    encode_func=self.entity_extractor.encode_texts
                 )
                 self.entity_extractor.guidelines = guidelines
             
             if templates:
                 import re
                 clean_templates = [re.sub(r"#\{[^}]+\}", "[VARIABLE]", t) for t in templates]
-                self.template_generator.template_index = self.index_manager.get_faiss_index(
-                    index_name="templates",
+                self.template_generator.template_collection = self.index_manager.get_chroma_collection(
+                    collection_name="templates",
                     data=clean_templates,
-                    encode_func=self.template_generator.encode_texts,
-                    build_func=self.template_generator.build_faiss_index
+                    encode_func=self.template_generator.encode_texts
                 )
                 self.template_generator.templates = templates
                 
@@ -159,8 +157,7 @@ class TemplateAPI:
                 # 가이드라인만 검색 (규정 준수)
                 relevant_guidelines = self.entity_extractor.search_similar(
                     user_input + " " + entities.get("message_intent", ""),
-                    self.entity_extractor.guideline_index,
-                    self.entity_extractor.guidelines,
+                    "guidelines",
                     top_k=3,
                 )
                 guidelines = [guideline for guideline, _ in relevant_guidelines]
@@ -216,8 +213,8 @@ class TemplateAPI:
                 },
                 "cache_info": cache_info,
                 "indexes": {
-                    "guidelines": self.entity_extractor.guideline_index is not None,
-                    "templates": self.template_generator.template_index is not None
+                    "guidelines": self.entity_extractor.guideline_collection is not None,
+                    "templates": self.template_generator.template_collection is not None
                 }
             }
         except Exception as e:
