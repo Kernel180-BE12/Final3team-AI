@@ -1,7 +1,8 @@
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import List, Optional
+import json
 
 # api.py에서 기존 로직을 가져옵니다.
 from api import get_template_api
@@ -62,6 +63,14 @@ app = FastAPI()
 # api.py에 정의된 싱글톤 인스턴스를 가져옵니다.
 template_api = get_template_api()
 
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    if request.url.path == "/ai/templates" and request.method == "POST":
+        body = await request.body()
+        print(f"🔍 원시 요청 데이터: {body.decode('utf-8')}")
+    response = await call_next(request)
+    return response
 
 @app.post("/ai/templates", response_model=TemplateResponse, status_code=200)
 async def create_template(request: TemplateCreationRequest):
