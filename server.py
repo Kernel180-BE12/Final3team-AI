@@ -68,7 +68,16 @@ template_api = get_template_api()
 async def log_requests(request: Request, call_next):
     if request.url.path == "/ai/templates" and request.method == "POST":
         body = await request.body()
-        print(f"🔍 원시 요청 데이터: {body.decode('utf-8')}")
+        print(f"🔍 Content-Type: {request.headers.get('content-type')}")
+        print(f"🔍 Content-Length: {request.headers.get('content-length')}")
+        print(f"🔍 Body Length: {len(body)} bytes")
+        print(f"🔍 원시 요청 데이터: '{body.decode('utf-8')}'")
+        
+        # body를 다시 사용할 수 있도록 설정
+        async def receive():
+            return {"type": "http.request", "body": body}
+        request._receive = receive
+        
     response = await call_next(request)
     return response
 
