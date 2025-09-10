@@ -85,10 +85,14 @@ async def create_template(request: TemplateCreationRequest):
         if not request.request_content or not request.request_content.strip():
             raise HTTPException(status_code=400, detail="requestContent is required and cannot be empty")
         
-        if not request.user_id:
-            raise HTTPException(status_code=400, detail="userId is required")
-        # 1. api.py의 템플릿 생성 함수 호출
-        generation_result = template_api.generate_template(user_input=request.request_content)
+        if not request.user_id or request.user_id <= 0:
+            raise HTTPException(status_code=400, detail="userId is required and must be greater than 0")
+        
+        # 텍스트 전처리 (긴 텍스트에 적절한 공백 추가)
+        processed_content = request.request_content.replace(".", ". ").replace("  ", " ").strip()
+        print(f"📝 전처리된 내용: {processed_content[:100]}...")
+        # 1. api.py의 템플릿 생성 함수 호출 (전처리된 내용 사용)
+        generation_result = template_api.generate_template(user_input=processed_content)
 
         if not generation_result.get("success"):
             # 템플릿 생성 실패 시 (예: 중복)
@@ -100,7 +104,7 @@ async def create_template(request: TemplateCreationRequest):
         # 2. 생성된 결과를 DB 저장용 JSON 포맷으로 변환
         json_export = template_api.export_to_json(
             result=generation_result,
-            user_input=request.request_content,
+            user_input=processed_content,  # 전처리된 내용 사용
             user_id=request.user_id
         )
 
