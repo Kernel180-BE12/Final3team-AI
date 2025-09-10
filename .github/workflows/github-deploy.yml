@@ -82,8 +82,8 @@ jobs:
           sudo pkill -f 'server.py' || true
           sudo pkill -f 'uvicorn' || true
           
-          # Python 가상환경 설정 및 의존성 설치
-          python3 -m pip install --user -r requirements.txt
+          # Python 의존성 설치 (Amazon Linux)
+          pip3 install --user -r requirements.txt
           
           # FastAPI 서버 시작
           nohup python3 server.py > ~/app.log 2>&1 &
