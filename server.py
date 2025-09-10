@@ -40,8 +40,8 @@ class Purpose(BaseModel):
 class TemplateResponse(BaseModel):
     """FastAPI가 Spring Boot로 보낼 응답을 위한 모델"""
     id: int
-    user_id: int = Field(..., alias='userId')
-    category_id: int = Field(..., alias='categoryId')
+    user_id: int = Field(..., alias='userId')ß
+    category_id: str = Field(..., alias='categoryId')
     title: str
     content: str
     image_url: Optional[str] = Field(None, alias='imageUrl')
