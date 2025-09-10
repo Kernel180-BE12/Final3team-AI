@@ -65,6 +65,15 @@ async def create_template(request: TemplateCreationRequest):
     AI를 사용하여 템플릿을 생성하고 Spring Boot가 요구하는 형식으로 반환합니다.
     """
     try:
+        # 요청 데이터 로깅
+        print(f"📥 받은 요청: user_id={request.user_id}, content={request.request_content}")
+        
+        # 요청 필드 검증
+        if not request.request_content or not request.request_content.strip():
+            raise HTTPException(status_code=400, detail="requestContent is required and cannot be empty")
+        
+        if not request.user_id:
+            raise HTTPException(status_code=400, detail="userId is required")
         # 1. api.py의 템플릿 생성 함수 호출
         generation_result = template_api.generate_template(user_input=request.request_content)
 
@@ -124,6 +133,18 @@ async def create_template(request: TemplateCreationRequest):
 async def health_check():
     """API 상태를 확인합니다."""
     return template_api.health_check()
+
+@app.post("/debug/request")
+async def debug_request(request: TemplateCreationRequest):
+    """요청 데이터 디버깅용"""
+    return {
+        "received": {
+            "user_id": request.user_id,
+            "request_content": request.request_content,
+            "content_length": len(request.request_content) if request.request_content else 0
+        },
+        "status": "OK"
+    }
 
 
 if __name__ == "__main__":
