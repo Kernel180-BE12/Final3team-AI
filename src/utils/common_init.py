@@ -4,7 +4,7 @@ main.py와 api.py의 중복된 초기화 패턴 통합
 """
 
 from config import GEMINI_API_KEY
-from ..core import EntityExtractor, TemplateGenerator
+from ..core import EntityExtractor
 from ..core.index_manager import get_index_manager
 from ..utils import DataProcessor
 from ..agents.agent2 import Agent2
@@ -15,7 +15,7 @@ def initialize_core_components(api_key: str = None):
     핵심 컴포넌트들을 초기화하고 반환
     
     Returns:
-        튜플: (index_manager, entity_extractor, template_generator, data_processor, agent2)
+        튜플: (index_manager, entity_extractor, data_processor, agent2)
     """
     if api_key is None:
         api_key = GEMINI_API_KEY
@@ -25,9 +25,8 @@ def initialize_core_components(api_key: str = None):
     # 인덱스 매니저 초기화
     index_manager = get_index_manager()
     
-    # 컴포넌트 초기화
+    # 컴포넌트 초기화 (TemplateGenerator 제거)
     entity_extractor = EntityExtractor(api_key)
-    template_generator = TemplateGenerator(api_key)
     data_processor = DataProcessor()
     
     # Agent2 추가 - 가이드라인과 법령 기반 템플릿 생성 (데이터 공유)
@@ -35,10 +34,10 @@ def initialize_core_components(api_key: str = None):
     
     print(" 핵심 컴포넌트 초기화 완료")
     
-    return index_manager, entity_extractor, template_generator, data_processor, agent2
+    return index_manager, entity_extractor, data_processor, agent2
 
 
-def setup_guidelines_and_indexes(index_manager, entity_extractor, template_generator):
+def setup_guidelines_and_indexes(index_manager, entity_extractor):
     """
     가이드라인 로드 및 인덱스 구축
     

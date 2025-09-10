@@ -9,10 +9,10 @@
 
 from .base_processor import BaseTemplateProcessor
 from .entity_extractor import EntityExtractor  
-from .template_generator import TemplateGenerator
+# from .template_generator import TemplateGenerator  # FAISS 사용으로 주석 처리
 
 __all__ = [
     'BaseTemplateProcessor',
     'EntityExtractor', 
-    'TemplateGenerator'
+    # 'TemplateGenerator'  # FAISS 사용으로 제외
 ]

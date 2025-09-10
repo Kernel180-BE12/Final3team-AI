@@ -8,7 +8,7 @@ import requests
 from datetime import datetime
 from typing import Dict, Optional, List
 from config import GEMINI_API_KEY
-from src.core import EntityExtractor, TemplateGenerator
+from src.core import EntityExtractor
 from src.core.index_manager import get_index_manager
 from src.utils import DataProcessor
 from src.agents.agent1 import Agent1
@@ -26,8 +26,7 @@ class TemplateAPI:
         from src.utils.common_init import initialize_core_components, setup_guidelines_and_indexes
         
         (self.index_manager, self.entity_extractor, 
-         self.template_generator, self.data_processor, 
-         self.agent2) = initialize_core_components()
+         self.data_processor, self.agent2) = initialize_core_components()
         
         # Agent1 초기화 추가
         self.agent1 = Agent1()

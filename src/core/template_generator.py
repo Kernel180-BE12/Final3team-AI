@@ -1,6 +1,5 @@
 import re
 import os
-import faiss
 import numpy as np
 import pickle
 from datetime import date, timedelta
@@ -17,11 +16,11 @@ class TemplateGenerator(BaseTemplateProcessor):
         
         # 벡터 DB 관련 초기화
         base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.policy_index_file = os.path.join(base_path, "faiss_index_policy.bin")
+        self.policy_index_file = os.path.join(base_path, "index_policy.bin")
         self.policy_chunks_file = os.path.join(base_path, "document_chunks_policy.pkl")
-        self.example_index_file = os.path.join(base_path, "faiss_index_examples.bin")
+        self.example_index_file = os.path.join(base_path, "index_examples.bin")
         self.example_chunks_file = os.path.join(base_path, "document_chunks_examples.pkl")
-        self.validation_index_file = os.path.join(base_path, "faiss_index_validation.bin")
+        self.validation_index_file = os.path.join(base_path, "index_validation.bin")
         self.validation_chunks_file = os.path.join(base_path, "document_chunks_validation.pkl")
         
         self.policy_index = None
@@ -59,26 +58,6 @@ class TemplateGenerator(BaseTemplateProcessor):
         """벡터 데이터베이스 로드"""
         print("벡터 데이터베이스 로드 중...")
         
-        # 정책 DB
-        if os.path.exists(self.policy_index_file) and os.path.exists(self.policy_chunks_file):
-            print("정책 인덱스 로드 중...")
-            self.policy_index = faiss.read_index(self.policy_index_file)
-            with open(self.policy_chunks_file, 'rb') as f:
-                self.policy_chunks = pickle.load(f)
-        
-        # 예시 DB
-        if os.path.exists(self.example_index_file) and os.path.exists(self.example_chunks_file):
-            print("예시 인덱스 로드 중...")
-            self.example_index = faiss.read_index(self.example_index_file)
-            with open(self.example_chunks_file, 'rb') as f:
-                self.example_chunks = pickle.load(f)
-        
-        # 검증 DB
-        if os.path.exists(self.validation_index_file) and os.path.exists(self.validation_chunks_file):
-            print("검증 인덱스 로드 중...")
-            self.validation_index = faiss.read_index(self.validation_index_file)
-            with open(self.validation_chunks_file, 'rb') as f:
-                self.validation_chunks = pickle.load(f)
 
     def validate_against_policies(self, query, intent, top_k=3, threshold=0.8):
         """정책 위반 검증 (prototype.py 스타일)"""
