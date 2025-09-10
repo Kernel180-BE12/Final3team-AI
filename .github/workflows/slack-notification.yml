@@ -1,32 +1,28 @@
-name: Slack Notification on Push
+name: Slack Push Notification
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    branches: [ main, develop ]  # 알림을 받을 브랜치 지정
 
 jobs:
-  notify-slack:
+  notify:
     runs-on: ubuntu-latest
+    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+    - name: Checkout
+      uses: actions/checkout@v4
       
-    - name: Send Slack notification
-      uses: 8398a7/action-slack@v3
-      with:
-        status: ${{ job.status }}
-        channel: 'C09DC2W6YBD'
-        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
-        text: |
-          🚀 JOBER_AI GitHub 업데이트 알림
-          
-          📋 커밋 정보:
-          • 작성자: ${{ github.actor }}
-          • 커밋: ${{ github.sha }}
-          • 브랜치: ${{ github.ref }}
-          • 메시지: ${{ github.event.head_commit.message }}
-          
-          🔗 변경사항 보기: ${{ github.event.head_commit.url }}
-      if: always()
+    - name: Send Slack Notification
+      uses: rtCamp/action-slack-notify@v2
+      env:
+        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+        SLACK_CHANNEL: 'C09DC2W6YBD'  # 채널명 또는 채널 ID
+        SLACK_COLOR: ${{ job.status }}
+        SLACK_MESSAGE: |
+          📝 새로운 Push 이벤트가 발생했습니다!
+          Repository: ${{ github.repository }}
+          Branch: ${{ github.ref_name }}
+          Commit: ${{ github.event.head_commit.message }}
+          Author: ${{ github.actor }}
+        SLACK_TITLE: GitHub Push Notification
+        SLACK_USERNAME: GitHub Bot
