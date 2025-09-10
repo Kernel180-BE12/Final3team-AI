@@ -23,7 +23,7 @@ python = "^3.11.13,<3.12"
 
 # 핵심 AI 패키지 (검증된 버전)
 google-generativeai = "0.7.2"
-faiss-cpu = "1.9.0.post1"
+chromadb = "^0.5.0"
 numpy = "^1.26.0,<2.0.0"
 pandas = "^2.0.0,<3.0.0"
 
