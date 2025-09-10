@@ -61,7 +61,11 @@ jobs:
         mkdir -p ~/.ssh
         echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
+        chmod 700 ~/.ssh
         ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+        
+        # SSH 키 유효성 검사
+        ssh-keygen -l -f ~/.ssh/id_rsa
         
     - name: Deploy to EC2
       run: |
