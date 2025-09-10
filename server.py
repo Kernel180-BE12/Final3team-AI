@@ -13,6 +13,10 @@ class TemplateCreationRequest(BaseModel):
     """Spring Boot에서 오는 요청을 위한 모델"""
     user_id: int = Field(..., alias='userId')
     request_content: str = Field(..., alias='requestContent')
+    
+    class Config:
+        allow_population_by_field_name = True  # snake_case와 camelCase 둘 다 허용
+        populate_by_name = True
 
 # 응답 모델 (Response)
 class Button(BaseModel):
@@ -143,6 +147,15 @@ async def debug_request(request: TemplateCreationRequest):
             "request_content": request.request_content,
             "content_length": len(request.request_content) if request.request_content else 0
         },
+        "status": "OK"
+    }
+
+@app.post("/debug/raw")
+async def debug_raw(request_data: dict):
+    """원시 요청 데이터 디버깅용"""
+    return {
+        "raw_data": request_data,
+        "keys": list(request_data.keys()),
         "status": "OK"
     }
 
