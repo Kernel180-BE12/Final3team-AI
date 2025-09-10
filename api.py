@@ -259,7 +259,7 @@ class TemplateAPI:
         json_data = {
             "template": {
                 "user_id": user_id,
-                "category_id": category_id,
+                "category_id": str(category_id),
                 "title": title,
                 "content": template,
                 "status": "CREATE_REQUESTED",  # 초안 상태
@@ -445,6 +445,7 @@ class TemplateAPI:
             '법적고지': '007',
             '업무알림': '008',
             '쿠폰/포인트': '009',
+            '기타': '999',
             
             # 소분류 (상세 매핑)
             '회원가입': '001001',
