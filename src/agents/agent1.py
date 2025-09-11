@@ -227,10 +227,23 @@ class Agent1:
     def _load_policy_document(self) -> str:
         """정책 문서 로드"""
         try:
-            policy_path = project_root / "data" / "cleaned_alrimtalk.md"
-            if policy_path.exists():
-                with open(policy_path, 'r', encoding='utf-8') as f:
-                    return f.read()
+            policy_content = ""
+            
+            # 1. cleaned_alrimtalk.md 로드
+            alrimtalk_path = project_root / "data" / "cleaned_alrimtalk.md"
+            if alrimtalk_path.exists():
+                with open(alrimtalk_path, 'r', encoding='utf-8') as f:
+                    policy_content += f.read() + "\n\n"
+                    
+            # 2. advertise_info.md 로드
+            advertise_path = project_root / "data" / "advertise_info.md"
+            if advertise_path.exists():
+                with open(advertise_path, 'r', encoding='utf-8') as f:
+                    policy_content += f.read()
+                    
+            if policy_content:
+                print("정책 문서 로드 완료 (알림톡 가이드 + 광고성 정보 정책)")
+                return policy_content
             else:
                 print("정책 문서를 찾을 수 없습니다.")
                 return ""
@@ -434,7 +447,7 @@ class Agent1:
     
     def check_policy_compliance(self, text: str, variables: Dict[str, str]) -> Dict[str, Any]:
         """
-        정책 준수 여부 확인 (message_yuisahang 문서 기반)
+        정책 준수 여부 확인 (알림톡 가이드 + 광고성 정보 정책 기반)
         
         Args:
             text: 검사할 텍스트
@@ -455,40 +468,64 @@ class Agent1:
         
         policy_lower = self.policy_content.lower()
         
-        # 1. 광고성 내용 검사
-        ad_keywords = ["할인", "이벤트", "무료", "특가", "프로모션", "쿠폰"]
+        # 1. 광고성 정보 판단 기준 검사 (advertise_info.md 기반)
+        ad_keywords = ["할인", "이벤트", "무료", "특가", "프로모션", "쿠폰", "세일", "혜택", "적립", "리워드"]
         has_ad_content = any(keyword in text_lower for keyword in ad_keywords)
         
         if has_ad_content:
-            if "[광고]" not in text and "광고" in policy_lower:
+            if "[광고]" not in text:
                 violations.append("광고성 내용이지만 [광고] 표기가 없습니다")
         
-        # 2. message_yuisahang 문서의 금지사항 검사
-        # 청소년 유해 정보 검사
-        youth_harmful = ["주류", "전자담배", "성인", "19세"]
+        # 2. 광고성 정보로 판단되는 추가 키워드들
+        promo_keywords = ["혜택", "이득", "받으세요", "드립니다", "증정", "경품", "당첨"]
+        promo_count = sum(1 for keyword in promo_keywords if keyword in text_lower)
+        if promo_count >= 2:
+            if "[광고]" not in text:
+                violations.append("프로모션/혜택 관련 내용 - [광고] 표기 필요")
+        
+        # 3. 청소년 유해 정보 검사
+        youth_harmful = ["주류", "전자담배", "성인", "19세", "술", "담배", "성인용품"]
         if any(keyword in text_lower for keyword in youth_harmful):
-            if "청소년" in policy_lower and "유해" in policy_lower:
-                violations.append("청소년 유해 정보 관련 - 연령 인증 필요")
+            violations.append("청소년 유해 정보 관련 - 연령 인증 필요")
         
-        # 금융 관련 제한사항
-        financial_keywords = ["결제", "송금", "납부", "대출", "투자", "주식"]
+        # 4. 금융 관련 제한사항
+        financial_keywords = ["결제", "송금", "납부", "대출", "투자", "주식", "보험", "펀드", "금융상품"]
         if any(keyword in text_lower for keyword in financial_keywords):
-            if "금융" in policy_lower and "제한" in policy_lower:
-                violations.append("금융 관련 내용 - 정책 검토 필요")
+            violations.append("금융 관련 내용 - 정책 검토 필요")
         
-        # 개인정보 관련
+        # 5. 개인정보 관련
         if "개인정보" in text_lower or "정보 수집" in text_lower:
-            if "개인정보" in policy_lower and "동의" in policy_lower:
-                violations.append("개인정보 수집 시 동의 절차 필요")
+            violations.append("개인정보 수집 시 동의 절차 필요")
         
-        # 스팸성 표현 검사
-        spam_keywords = ["긴급", "마지막", "즉시", "빨리", "한정", "선착순"]
+        # 6. 스팸성 표현 검사 (advertise_info.md 기반 강화)
+        spam_keywords = ["긴급", "마지막", "즉시", "빨리", "한정", "선착순", "지금", "바로", "오늘만", "마감임박"]
         spam_count = sum(1 for keyword in spam_keywords if keyword in text_lower)
         if spam_count >= 2:
             violations.append("스팸성 표현 과다 사용")
         
+        # 7. 영업시간/휴무 안내 (advertise_info.md 273조항 기반)
+        business_hours = ["영업시간", "휴무", "운영시간", "오픈", "클로즈"]
+        if any(keyword in text_lower for keyword in business_hours):
+            violations.append("영업시간/휴무 안내는 광고성 정보에 해당")
+        
+        # 8. 설문조사 관련 (특정 제품 선호도 조사 등)
+        survey_keywords = ["설문", "조사", "평가", "의견", "후기"]
+        product_keywords = ["제품", "상품", "서비스", "브랜드"]
+        if (any(s in text_lower for s in survey_keywords) and 
+            any(p in text_lower for p in product_keywords)):
+            violations.append("제품 관련 설문조사는 광고성 정보에 해당할 수 있음")
+        
+        # 9. 추천/공유 이벤트 관련
+        if "친구" in text_lower and ("추천" in text_lower or "공유" in text_lower):
+            violations.append("친구 추천/공유 이벤트는 광고성 정보 - 수신동의 필요")
+        
         # 위험도 계산
-        risk_level = "HIGH" if len(violations) >= 2 else ("MEDIUM" if violations else "LOW")
+        if len(violations) >= 3:
+            risk_level = "HIGH"
+        elif len(violations) >= 1:
+            risk_level = "MEDIUM"
+        else:
+            risk_level = "LOW"
         
         return {
             'is_compliant': len(violations) == 0,
