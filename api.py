@@ -180,8 +180,8 @@ class TemplateAPI:
                 "ragas_verified": False
             }
             
-            # 생성된 템플릿인 경우에만 RAGAS 검증 적용
-            if source == "generated" and with_ragas_gate:
+            # 생성된 템플릿인 경우에만 RAGAS 검증 적용 (config에서 설정 확인)
+            if source == "generated" and with_ragas_gate and config.ENABLE_RAGAS_EVALUATION:
                 print(" RAGAS 품질 검증 시작")
                 ragas_result = self._apply_ragas_quality_gate(user_input, {
                     "success": True,
