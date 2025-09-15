@@ -109,8 +109,8 @@ jobs:
           poetry config virtualenvs.in-project true
           poetry install --only=main
           
-          # FastAPI 서버 시작 (Poetry 가상환경에서)
-          nohup poetry run python server.py > ~/app.log 2>&1 &
+          # FastAPI 서버 시작 (Poetry 가상환경에서 - RAGAS 호환을 위해 asyncio 사용)
+          nohup poetry run uvicorn server:app --host 0.0.0.0 --port 8000 --loop asyncio > ~/app.log 2>&1 &
           
           # 애플리케이션 시작 대기
           sleep 15

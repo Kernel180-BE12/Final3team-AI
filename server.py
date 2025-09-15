@@ -383,5 +383,6 @@ async def debug_raw(request_data: dict):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # RAGAS와 uvloop 충돌 방지를 위해 기본 asyncio 사용
+    uvicorn.run(app, host="0.0.0.0", port=8000, loop="asyncio")
 
