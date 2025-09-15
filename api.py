@@ -7,6 +7,7 @@ import re
 import requests
 from datetime import datetime
 from typing import Dict, Optional, List
+import config
 from config import GEMINI_API_KEY
 from src.core import EntityExtractor
 from src.core.index_manager import get_index_manager
