@@ -156,33 +156,6 @@ class ConversationState:
                 'reasoning': 'AI 판단 실패로 기본 필수 변수 체크 사용'
             }
     
-    def _parse_completion_response(self, response: str, variables_key: str = 'needed_variables') -> Dict[str, Any]:
-        """AI 완성도 응답 파싱 (통합 버전)"""
-        lines = response.strip().split('\n')
-        result = {
-            'is_complete': False,
-            variables_key: [],
-            'reasoning': 'AI 응답 파싱 실패'
-        }
-        
-        for line in lines:
-            if ':' in line:
-                key, value = line.split(':', 1)
-                key = key.strip()
-                value = value.strip()
-                
-                if '완성도' in key:
-                    result['is_complete'] = 'COMPLETE' in value.upper()
-                elif ('필요한' in key or '부족한' in key) and '변수' in key:
-                    if '없음' not in value and value.strip():
-                        variables = [v.strip() for v in value.replace('[', '').replace(']', '').split(',')]
-                        result[variables_key] = [v for v in variables if v and v != '없음']
-                elif '이유' in key:
-                    result['reasoning'] = value
-        
-        return result
-
-
 class Agent1:
     """
     질의 분석 및 검증 에이전트
@@ -573,18 +546,12 @@ class Agent1:
             # 첫 입력인 경우 기본 업데이트
             self.conversation_state.update_variables(new_variables)
         
-        # 4. 의도 기반 필요 변수 판단
-        current_variables = self.conversation_state.variables
-        intent = analysis_result['intent']['intent']
-        confidence = analysis_result['intent']['confidence']
+        # 4. 기본 필수 변수 체크 (우선 순위)
+        mandatory_check = self.conversation_state.check_mandatory_variables()
         
-        needed_vars_result = self.determine_needed_variables_by_intent(
-            user_input, intent, confidence, current_variables
-        )
-        
-        # 필요한 변수가 부족하면 재질문
-        if not needed_vars_result['is_complete']:
-            missing_vars = needed_vars_result['missing_variables']
+        # 필수 변수가 부족하면 재질문
+        if not mandatory_check['is_complete']:
+            missing_vars = mandatory_check['missing_mandatory']
             reask_question = self.generate_contextual_reask(self.conversation_state, missing_vars)
             
             return {
@@ -592,11 +559,12 @@ class Agent1:
                 'message': reask_question,
                 'analysis': analysis_result,
                 'missing_variables': missing_vars,
-                'reasoning': needed_vars_result['reasoning']
+                'reasoning': f'{mandatory_check["completed_mandatory"]}/{mandatory_check["total_mandatory"]} 필수 변수 완료'
             }
         
         # 7. AI도 완성이라고 판단하면 정책 및 비속어 검사
         confirmed_vars = self.conversation_state.get_confirmed_variables()
+        current_variables = self.conversation_state.variables
         combined_text = " ".join([v for v in confirmed_vars.values()])
         
         # 정책 준수 확인
@@ -783,6 +751,32 @@ class Agent1:
                     
                     if value and value != '없음':
                         result[key] = value
+        
+        return result
+    
+    def _parse_completion_response(self, response: str, variables_key: str = 'needed_variables') -> Dict[str, Any]:
+        """AI 완성도 응답 파싱 (통합 버전)"""
+        lines = response.strip().split('\n')
+        result = {
+            'is_complete': False,
+            variables_key: [],
+            'reasoning': 'AI 응답 파싱 실패'
+        }
+        
+        for line in lines:
+            if ':' in line:
+                key, value = line.split(':', 1)
+                key = key.strip()
+                value = value.strip()
+                
+                if '완성도' in key:
+                    result['is_complete'] = 'COMPLETE' in value.upper()
+                elif ('필요한' in key or '부족한' in key) and '변수' in key:
+                    if '없음' not in value and value.strip():
+                        variables = [v.strip() for v in value.replace('[', '').replace(']', '').split(',')]
+                        result[variables_key] = [v for v in variables if v and v != '없음']
+                elif '이유' in key:
+                    result['reasoning'] = value
         
         return result
     

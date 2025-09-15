@@ -92,7 +92,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "guide_img_04",
@@ -183,7 +183,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "guide_img_03",
@@ -259,7 +259,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "Introduction25042904",
@@ -314,7 +314,7 @@
                     "공지/안내",
                     "리포트"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "Introduction25042903",
@@ -369,7 +369,7 @@
                     "공지/안내",
                     "리포트"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "Introduction25042905",
@@ -424,7 +424,7 @@
                     "공지/안내",
                     "리포트"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "Introduction25042902",
@@ -479,7 +479,7 @@
                     "공지/안내",
                     "리포트"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "coupon_noti_img_01",
@@ -555,7 +555,7 @@
                     "쿠폰",
                     "회원 관리"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "coupon_noti_img_03",
@@ -646,7 +646,7 @@
                     "쿠폰",
                     "회원 관리"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "coupon_noti_img_02",
@@ -817,7 +817,7 @@
                 "purposes": [
                     "회원 관리"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "JOBER0529_1650507513114",
@@ -886,7 +886,7 @@
                 "purposes": [
                     "회원 관리"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "JOBER0529_1643015267916",
@@ -955,7 +955,7 @@
                 "purposes": [
                     "회원 관리"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "JOBER0529_1642750562500",
@@ -1017,7 +1017,7 @@
                 "purposes": [
                     "회원 관리"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "JOBER0411_1656221993271",
@@ -1089,7 +1089,7 @@
                     "예약",
                     "행사 신청"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "JOBER0529_1656221993271",
@@ -1176,7 +1176,7 @@
                     "예약",
                     "행사 신청"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "JOBER0529_1642751733148",
@@ -1249,7 +1249,7 @@
                     "예약",
                     "행사 신청"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "location_info_img_02",
@@ -1343,7 +1343,7 @@
                     "예약",
                     "행사 신청"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "JOBER0529_1642987967069",
@@ -1420,7 +1420,7 @@
                     "공지/안내",
                     "결제 안내"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "JOBER0411_1655973746821",
@@ -1590,7 +1590,7 @@
                     "공지/안내",
                     "결제 안내"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_edu_fee_due_img_01",
@@ -1645,7 +1645,7 @@
                     "공지/안내",
                     "결제 안내"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_edu_fee_status_img_01",
@@ -1707,7 +1707,7 @@
                     "공지/안내",
                     "결제 안내"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "JOBER0529_1655974885674",
@@ -1788,7 +1788,7 @@
                     "예약",
                     "행사 신청"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "JOBER0411_1655974377659",
@@ -1849,7 +1849,7 @@
                     "공지/안내",
                     "결제 안내"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "JOBER0411_1656221929854",
@@ -1910,7 +1910,7 @@
                     "공지/안내",
                     "결제 안내"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "JOBER0529_1656221929854",
@@ -1986,7 +1986,7 @@
                     "공지/안내",
                     "결제 안내"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "academy_apply_img_01",
@@ -2047,7 +2047,7 @@
                 "purposes": [
                     "공지/안내"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "JOBER0529_1655974202612",
@@ -2122,7 +2122,7 @@
                 "purposes": [
                     "공지/안내"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "JOBER0411_1655975553181",
@@ -2291,7 +2291,7 @@
                 "purposes": [
                     "공지/안내"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "Information_10",
@@ -2371,7 +2371,7 @@
                     "공지/안내",
                     "리포트"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "Information_info_02",
@@ -2449,7 +2449,7 @@
                     "부동산"
                 ],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "cont_received_img_01",
@@ -2540,7 +2540,7 @@
                     "예약",
                     "회원 관리"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "survey_received_img_01",
@@ -2629,7 +2629,7 @@
                     "설문",
                     "회원 관리"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "subsidy_25051211",
@@ -2725,7 +2725,7 @@
                 "purposes": [
                     "공지/안내"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "subsidy_25051212",
@@ -2821,7 +2821,7 @@
                 "purposes": [
                     "공지/안내"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "Information_info_03",
@@ -2905,7 +2905,7 @@
                     "콘텐츠 발송",
                     "회원 관리"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "contents_delivery_info_05",
@@ -2996,7 +2996,7 @@
                     "리포트",
                     "콘텐츠 발송"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "contents_delivery_img_04",
@@ -3201,7 +3201,7 @@
                     "리포트",
                     "콘텐츠 발송"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "report_delivery_info_link_02",
@@ -3298,7 +3298,7 @@
                     "리포트",
                     "콘텐츠 발송"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "report_delivery_info_jober_03",
@@ -3394,7 +3394,7 @@
                     "리포트",
                     "콘텐츠 발송"
                 ]
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "price_noti_non_01",
@@ -3470,7 +3470,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "Introduction25042904",
@@ -3519,7 +3519,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "Introduction25042905",
@@ -3568,7 +3568,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "seminar_250512_02",
@@ -3645,7 +3645,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "seminar_250512_01",
@@ -3722,7 +3722,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "seminar_250510_03",
@@ -3791,7 +3791,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "Introduction25042902",
@@ -3909,7 +3909,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "salary_received_non_01",
@@ -3985,7 +3985,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "survey_received_img_01",
@@ -4062,7 +4062,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "cont_received_img_01",
@@ -4139,7 +4139,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "academy_homework_non_01",
@@ -4215,7 +4215,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "academy_review_non_01",
@@ -4284,7 +4284,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "academy_apply_non_01",
@@ -4346,7 +4346,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "semina_info_non_01",
@@ -4436,7 +4436,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_academy_schedule_img_01",
@@ -4498,7 +4498,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "academy_schedule_img_02",
@@ -4679,7 +4679,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "link_academy_materials_img_01",
@@ -4756,7 +4756,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "invi_received_non_01",
@@ -4839,7 +4839,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "vote_recieved_img_01",
@@ -4923,7 +4923,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "onlineclass_access_img_01",
@@ -5000,7 +5000,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "address_info_img_01",
@@ -5084,7 +5084,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_academy_schedule_img_02",
@@ -5153,7 +5153,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_academy_schedule_img_01",
@@ -5215,7 +5215,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "ticket_expired_img_01",
@@ -5277,7 +5277,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "link_parcel_tracking_img_01",
@@ -5436,7 +5436,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "link_academy_materials_img_01",
@@ -5513,7 +5513,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "invi_received_non_01",
@@ -5596,7 +5596,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "vote_recieved_img_01",
@@ -5680,7 +5680,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "onlineclass_access_img_01",
@@ -5757,7 +5757,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "address_info_img_01",
@@ -5841,7 +5841,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_academy_schedule_img_02",
@@ -5910,7 +5910,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_academy_schedule_img_01",
@@ -5972,7 +5972,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "ticket_expired_img_01",
@@ -6034,7 +6034,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "link_parcel_tracking_img_01",
@@ -6173,7 +6173,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_travel_insured_img_01",
@@ -6207,7 +6207,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_product_soldout_img_01",
@@ -6255,7 +6255,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_insurance_notice_img_01",
@@ -6296,7 +6296,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_ship_complete_img_01",
@@ -6337,7 +6337,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_doc_result_img_01",
@@ -6378,7 +6378,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_interview_result_img_01",
@@ -6419,7 +6419,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "link_delivery_status_img_01",
@@ -6489,7 +6489,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_support_request_img_01",
@@ -6523,7 +6523,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_support_reply_img_01",
@@ -6639,7 +6639,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_edu_fee_due_img_01",
@@ -6687,7 +6687,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_edu_fee_status_img_01",
@@ -6742,7 +6742,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "msg_participant_code_img_01",
@@ -6804,7 +6804,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "ticket_expired_non_01",
@@ -6865,7 +6865,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "vote_recieved_non_01",
@@ -6948,7 +6948,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "address_info_non_01",
@@ -7045,7 +7045,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "onlineclass_access_non_01",
@@ -7121,7 +7121,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "onlineclass_apply_non_01",
@@ -7175,7 +7175,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "signup_done_non_02",
@@ -7312,7 +7312,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "doc_received_img_04",
@@ -7382,7 +7382,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "doc_received_img_03",
@@ -7459,7 +7459,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "doc_received_img_02",
@@ -7536,7 +7536,7 @@
                 "isFavorite": false,
                 "industries": [],
                 "purposes": []
-            }
+            },
             {
                 "senderKeyType": "G",
                 "templateCode": "doc_received_img_06",

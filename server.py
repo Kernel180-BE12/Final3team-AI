@@ -220,11 +220,76 @@ async def create_template(request: TemplateCreationRequest):
                     )
                 )
             
-            # 에러 타입별 처리
+            # 에러 코드 및 타입별 처리
+            error_code = generation_result.get("error_code", "unknown")
             error_type = generation_result.get("error_type", "unknown")
             error_message = generation_result.get("error", "Template generation failed")
             
-            if error_type == "profanity":
+            # API에서 제공하는 error_code 우선 처리
+            if error_code == "MISSING_VARIABLES":
+                raise HTTPException(
+                    status_code=400,
+                    detail=create_error_response(
+                        "MISSING_VARIABLES",
+                        "필요한 변수가 부족합니다.",
+                        generation_result.get("message", error_message)
+                    )
+                )
+            elif error_code == "EMPTY_INPUT":
+                raise HTTPException(
+                    status_code=400,
+                    detail=create_error_response(
+                        "EMPTY_INPUT",
+                        "입력이 비어있습니다.",
+                        error_message
+                    )
+                )
+            elif error_code == "TEMPLATE_SELECTION_FAILED":
+                raise HTTPException(
+                    status_code=500,
+                    detail=create_error_response(
+                        "TEMPLATE_SELECTION_FAILED",
+                        "템플릿 선택에 실패했습니다.",
+                        error_message
+                    )
+                )
+            elif error_code == "QUALITY_VERIFICATION_FAILED":
+                raise HTTPException(
+                    status_code=422,
+                    detail=create_error_response(
+                        "QUALITY_VERIFICATION_FAILED",
+                        "템플릿 품질 검증에 실패했습니다.",
+                        error_message
+                    )
+                )
+            elif error_code == "BACKEND_HTTP_ERROR":
+                raise HTTPException(
+                    status_code=502,
+                    detail=create_error_response(
+                        "BACKEND_HTTP_ERROR",
+                        "백엔드 서버 오류가 발생했습니다.",
+                        error_message
+                    )
+                )
+            elif error_code == "BACKEND_CONNECTION_ERROR":
+                raise HTTPException(
+                    status_code=503,
+                    detail=create_error_response(
+                        "BACKEND_CONNECTION_ERROR",
+                        "백엔드 서버에 연결할 수 없습니다.",
+                        error_message
+                    )
+                )
+            elif error_code == "INTERNAL_ERROR":
+                raise HTTPException(
+                    status_code=500,
+                    detail=create_error_response(
+                        "INTERNAL_ERROR",
+                        "서버 내부 오류가 발생했습니다.",
+                        error_message
+                    )
+                )
+            elif error_type == "profanity":
                 raise HTTPException(
                     status_code=422,
                     detail=create_error_response(

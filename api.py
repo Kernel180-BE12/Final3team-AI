@@ -106,6 +106,7 @@ class TemplateAPI:
             return {
                 "success": False,
                 "error": "입력이 비어있습니다.",
+                "error_code": "EMPTY_INPUT",
                 "template": None,
                 "metadata": None
             }
@@ -117,6 +118,36 @@ class TemplateAPI:
             if options is None:
                 options = {}
             
+            # Agent1을 통한 변수 검증 (필수 변수 부족 시 에러 반환)
+            from src.agents.agent1 import Agent1
+            agent1 = Agent1()
+            validation_result = agent1.process_query(user_input, is_follow_up=False)
+            
+            # 필요한 변수가 부족한 경우 에러 반환
+            if validation_result.get('status') == 'reask_required':
+                return {
+                    "success": False,
+                    "error": f"필요한 변수가 부족합니다: {', '.join(validation_result.get('missing_variables', []))}",
+                    "error_code": "MISSING_VARIABLES",
+                    "missing_variables": validation_result.get('missing_variables', []),
+                    "message": validation_result.get('message', ''),
+                    "template": None,
+                    "metadata": {
+                        "validation_status": "incomplete",
+                        "reasoning": validation_result.get('reasoning', '')
+                    }
+                }
+            
+            # 다른 에러가 있는 경우
+            if validation_result.get('status') not in ['complete', 'ready_for_generation', 'success']:
+                return {
+                    "success": False,
+                    "error": validation_result.get('message', '요청 처리 중 오류가 발생했습니다.'),
+                    "error_code": validation_result.get('status', 'VALIDATION_ERROR').upper(),
+                    "template": None,
+                    "metadata": validation_result
+                }
+            
             # 3단계 템플릿 선택 실행
             selection_result = self.template_selector.select_template(user_input, options)
             
@@ -124,6 +155,7 @@ class TemplateAPI:
                 return {
                     "success": False,
                     "error": f"템플릿 선택 실패: {selection_result.error}",
+                    "error_code": "TEMPLATE_SELECTION_FAILED",
                     "template": None,
                     "metadata": {
                         "selection_path": selection_result.selection_path,
@@ -176,6 +208,7 @@ class TemplateAPI:
             return {
                 "success": False,
                 "error": str(e),
+                "error_code": "INTERNAL_ERROR",
                 "template": None,
                 "metadata": None
             }
@@ -585,6 +618,7 @@ class TemplateAPI:
                 return {
                     "success": False,
                     "error": f"HTTP {response.status_code}: {response.text}",
+                    "error_code": "BACKEND_HTTP_ERROR",
                     "message": "템플릿 저장에 실패했습니다",
                     "response": None
                 }
@@ -593,6 +627,7 @@ class TemplateAPI:
             return {
                 "success": False,
                 "error": f"백엔드 통신 실패: {str(e)}",
+                "error_code": "BACKEND_CONNECTION_ERROR",
                 "message": "백엔드 서버와 연결할 수 없습니다",
                 "response": None
             }
@@ -686,12 +721,15 @@ class TemplateAPI:
         
         # 검증 실패 시 최종 결과 반환
         current_result["quality_verified"] = False
+        if "ragas_evaluation" not in current_result:
+            current_result["ragas_evaluation"] = {}
         current_result["ragas_evaluation"]["final_status"] = "검증 실패"
         current_result["ragas_evaluation"]["reason"] = "품질 기준 미달 또는 평가 오류"
         
         return {
             "success": False,
             "error": "템플릿이 품질 기준을 통과하지 못했습니다.",
+            "error_code": "QUALITY_VERIFICATION_FAILED",
             "template": None,
             "quality_verification_failed": True,
             "ragas_evaluation": current_result.get("ragas_evaluation", {}),
