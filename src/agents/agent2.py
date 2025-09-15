@@ -311,7 +311,7 @@ class Agent2:
             
         except Exception as e:
             print(f" Tools 실행 오류: {e}")
-            return "오류로 인해 템플릿을 생성할 수 없습니다.", {}
+            return {"success": False, "error": f"Tools 실행 오류: {str(e)}"}, {}
         
         # 2단계: Agent(템플릿생성자)가 Tools 결과를 종합하여 템플릿 생성
         template = self._create_template_from_tools(preprocessed_input, tools_results)
@@ -335,7 +335,14 @@ class Agent2:
         }
         
         print(f" Agent2 템플릿 생성 완료")
-        return template, metadata
+        
+        # 성공적인 결과를 딕셔너리 형태로 반환
+        result = {
+            "success": True,
+            "template": template,
+            "variables": []  # TODO: 변수 추출 로직 추가 필요
+        }
+        return result, metadata
     
     def _create_template_from_tools(self, user_input: str, tools_results: Dict) -> str:
         """4개 Tools 결과를 종합하여 최종 템플릿 생성"""
