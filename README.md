@@ -18,7 +18,6 @@
 - **Google Gemini 2.0 Flash + OpenAI GPT-4**: LLM Fallback 시스템
 - **Agent1 & Agent2**: 2단계 AI 검증 시스템
 - **RAGAS 품질 게이트**: 생성된 템플릿 자동 품질 검증 (평균 0.8 이상)
-- **변수 형식 표준화**: `${최대15자 n}` 표준 형식 자동 변환
 
 ###  벡터 검색 엔진
 - **Chroma DB**: 로컬 벡터 데이터베이스
@@ -32,7 +31,7 @@
 
 ---
 
-## 시스템 아키텍처 🏗️
+## 시스템 아키텍처 
 
 ### 3단계 템플릿 선택 워크플로우
 ```
@@ -295,25 +294,3 @@ Jober_ai/
 - **Gemini API 장애**: OpenAI로 자동 전환
 - **실패 카운트 추적**: 연속 실패시 우선순위 조정
 - **복구 감지**: 정상 작동시 원래 우선순위 복원
-
----
-
-## 라이선스 
-
-MIT License - 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
-
----
-
-## 기여하기 
-
-1. 이 레포지토리를 Fork 하세요
-2. 새 기능 브랜치를 만드세요 (`git checkout -b feature/amazing-feature`)
-3. 변경사항을 커밋하세요 (`git commit -m 'Add amazing feature'`)
-4. 브랜치에 Push 하세요 (`git push origin feature/amazing-feature`)
-5. Pull Request를 열어주세요
-
----
-
-## 지원 
-
-문제가 있거나 질문이 있으시면 [Issues](https://github.com/your-username/Jober_ai/issues) 페이지에서 문의해주세요.
