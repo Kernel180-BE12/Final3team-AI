@@ -19,7 +19,7 @@ jobs:
         SLACK_CHANNEL: 'C09DC2W6YBD'  # 채널명 또는 채널 ID
         SLACK_COLOR: ${{ job.status }}
         SLACK_MESSAGE: |
-          📝 새로운 Push 이벤트가 발생했습니다!
+           새로운 Push 이벤트가 발생했습니다!
           Repository: ${{ github.repository }}
           Branch: ${{ github.ref_name }}
           Commit: ${{ github.event.head_commit.message }}

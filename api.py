@@ -111,7 +111,7 @@ class TemplateAPI:
             }
         
         try:
-            print(f"🎯 3단계 템플릿 선택 시스템 시작: '{user_input}'")
+            print(f" 3단계 템플릿 선택 시스템 시작: '{user_input}'")
             
             # 기본 옵션 설정
             if options is None:
@@ -136,7 +136,7 @@ class TemplateAPI:
             variables = selection_result.variables or []
             source = selection_result.source
             
-            print(f"✅ 템플릿 선택 완료: {source} (경로: {' -> '.join(selection_result.selection_path or [])})")
+            print(f" 템플릿 선택 완료: {source} (경로: {' -> '.join(selection_result.selection_path or [])})")
             
             # 메타데이터 구성
             metadata = {
@@ -150,7 +150,7 @@ class TemplateAPI:
             
             # 생성된 템플릿인 경우에만 RAGAS 검증 적용
             if source == "generated" and with_ragas_gate:
-                print("🔍 RAGAS 품질 검증 시작")
+                print(" RAGAS 품질 검증 시작")
                 ragas_result = self._apply_ragas_quality_gate(user_input, {
                     "success": True,
                     "template": template,
@@ -162,7 +162,7 @@ class TemplateAPI:
                 
                 metadata["ragas_verified"] = True
                 metadata["ragas_scores"] = ragas_result.get("metadata", {}).get("ragas_scores")
-                print("✅ RAGAS 품질 검증 통과")
+                print(" RAGAS 품질 검증 통과")
             
             # 최종 결과 반환
             return {
@@ -615,7 +615,7 @@ class TemplateAPI:
         
         for attempt in range(max_retries + 1):  # 최초 시도 + 재시도
             try:
-                print(f"🔍 RAGAS 품질 검증 {attempt + 1}/{max_retries + 1} 시도...")
+                print(f" RAGAS 품질 검증 {attempt + 1}/{max_retries + 1} 시도...")
                 
                 # 평가용 데이터 준비
                 evaluation_data = [{
@@ -644,16 +644,16 @@ class TemplateAPI:
                     }
                     
                     if quality_check["passed"]:
-                        print(f"✅ RAGAS 검증 통과! (평균: {quality_check['average_score']:.3f})")
+                        print(f" RAGAS 검증 통과! (평균: {quality_check['average_score']:.3f})")
                         current_result["quality_verified"] = True
                         return current_result
                     else:
-                        print(f"❌ RAGAS 검증 실패 (평균: {quality_check['average_score']:.3f})")
+                        print(f" RAGAS 검증 실패 (평균: {quality_check['average_score']:.3f})")
                         print(f"실패 이유: {quality_check['reason']}")
                         
                         # 최대 재시도 전이면 재생성
                         if attempt < max_retries:
-                            print(f"🔄 품질 개선을 위해 템플릿 재생성 중... ({attempt + 2}/{max_retries + 1})")
+                            print(f" 품질 개선을 위해 템플릿 재생성 중... ({attempt + 2}/{max_retries + 1})")
                             
                             # 개선 제안을 반영한 재생성 옵션
                             improved_options = options.copy() if options else {}
@@ -671,17 +671,17 @@ class TemplateAPI:
                                 current_result = retry_result
                                 continue
                             else:
-                                print("❌ 재생성 실패")
+                                print(" 재생성 실패")
                                 break
                         else:
-                            print("❌ 최대 재시도 횟수 초과")
+                            print(" 최대 재시도 횟수 초과")
                             break
                 else:
-                    print("❌ RAGAS 평가 실행 실패")
+                    print(" RAGAS 평가 실행 실패")
                     break
                     
             except Exception as e:
-                print(f"❌ RAGAS 검증 오류: {e}")
+                print(f" RAGAS 검증 오류: {e}")
                 break
         
         # 검증 실패 시 최종 결과 반환

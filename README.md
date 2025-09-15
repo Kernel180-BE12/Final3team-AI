@@ -7,25 +7,25 @@
 [![Chroma DB](https://img.shields.io/badge/ChromaDB-0.4.24-orange.svg)](https://www.trychroma.com/)
 [![RAGAS](https://img.shields.io/badge/RAGAS-0.2.0-purple.svg)](https://docs.ragas.io/)
 
-## 핵심 기능 ✨
+## 핵심 기능 
 
-### 🎯 3단계 템플릿 선택 시스템
+###  3단계 템플릿 선택 시스템
 1. **기존 승인 템플릿**: predata 패턴 기반 검색 (임계값 0.7)
 2. **공용 템플릿**: 105개 공용 템플릿 검색 (임계값 0.6)
 3. **새 템플릿 생성**: AI 기반 신규 생성 + RAGAS 품질 검증
 
-### 🤖 AI 기반 지능형 생성
+###  AI 기반 지능형 생성
 - **Google Gemini 2.0 Flash + OpenAI GPT-4**: LLM Fallback 시스템
 - **Agent1 & Agent2**: 2단계 AI 검증 시스템
 - **RAGAS 품질 게이트**: 생성된 템플릿 자동 품질 검증 (평균 0.8 이상)
 - **변수 형식 표준화**: `${최대15자 n}` 표준 형식 자동 변환
 
-### 🔍 벡터 검색 엔진
+###  벡터 검색 엔진
 - **Chroma DB**: 로컬 벡터 데이터베이스
 - **공용 템플릿 매칭**: 키워드 기반 유사도 검색
 - **실시간 캐싱**: 성능 최적화 캐시 시스템
 
-### ✅ 완벽한 컴플라이언스
+###  완벽한 컴플라이언스
 - **4개 Tool 병렬 검증**: BlackList, WhiteList, 가이드라인, 정보통신법
 - **정보통신망법 준수**: PDF 추출 기반 법령 자동 검증
 - **카카오 정책 준수**: 실시간 가이드라인 매칭
@@ -44,34 +44,34 @@
     ↓ (실패시)  
 3️⃣ AI 새 템플릿 생성 + RAGAS 검증
     ↓
-📋 표준 형식 변환 + 결과 반환
+ 표준 형식 변환 + 결과 반환
 ```
 
 ### 주요 컴포넌트
 
-**🔍 Template Selector**
+** Template Selector**
 - 3단계 선택 로직 관리
 - 유사도 임계값 설정 (기존: 0.7, 공용: 0.6)
 - 선택 경로 추적 및 메타데이터 제공
 
-**📚 Public Template Manager**
+** Public Template Manager**
 - 105개 공용 템플릿 관리
 - 키워드 기반 유사도 검색
 - `#{변수명}` → `${최대15자 n}` 자동 변환
 
-**🤖 LLM Provider Manager**
+** LLM Provider Manager**
 - Gemini → OpenAI 자동 Fallback
 - 실패 횟수 추적 및 우선순위 관리
 - 모델별 retry 로직
 
-**📊 RAGAS Evaluator**
+** RAGAS Evaluator**
 - 6개 메트릭 종합 평가 (faithfulness, relevancy 등)
 - 평균 0.8 이상 품질 게이트
 - 자동 재생성 로직
 
 ---
 
-## 빠른 시작 🚀
+## 빠른 시작 
 
 ### 1. 설치 및 환경 설정
 ```bash
@@ -215,7 +215,7 @@ curl -X POST http://localhost:8000/ai/templates \
 
 ---
 
-## 프로젝트 구조 📁
+## 프로젝트 구조 
 
 ```
 Jober_ai/
@@ -254,7 +254,7 @@ Jober_ai/
 
 ---
 
-## 주요 기술 스택 🛠️
+## 주요 기술 스택 
 
 ### AI & ML
 - **Google Gemini 2.0 Flash**: 최신 AI 모델 (주 LLM)
@@ -276,7 +276,7 @@ Jober_ai/
 
 ---
 
-## 품질 보증 🏆
+## 품질 보증 
 
 ### RAGAS 평가 메트릭
 1. **Faithfulness**: 생성된 내용의 신뢰성
@@ -298,13 +298,13 @@ Jober_ai/
 
 ---
 
-## 라이선스 📄
+## 라이선스 
 
 MIT License - 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
 
 ---
 
-## 기여하기 🤝
+## 기여하기 
 
 1. 이 레포지토리를 Fork 하세요
 2. 새 기능 브랜치를 만드세요 (`git checkout -b feature/amazing-feature`)
@@ -314,6 +314,6 @@ MIT License - 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
 
 ---
 
-## 지원 💬
+## 지원 
 
 문제가 있거나 질문이 있으시면 [Issues](https://github.com/your-username/Jober_ai/issues) 페이지에서 문의해주세요.

@@ -123,7 +123,7 @@ class ConversationState:
         [미완성 변수]
         {chr(10).join([f"- {k}: 없음" for k, v in self.variables.items() if v == '없음'])}
         
-        ⚠️ 매우 엄격한 판단 기준:
+         매우 엄격한 판단 기준:
         1. 누가 (To/Recipient): 반드시 명확해야 함 - "친구", "고객", "회원" 등
         2. 무엇을 (What/Subject): 구체적인 내용 필요 - "점심", "회의", "이벤트" 등  
         3. 어떻게 (How/Method): 알림/안내/확인 등 방식이 있어야 함
@@ -131,7 +131,7 @@ class ConversationState:
         5. 어디서 (Where/Place): 만남/방문이 관련된 경우 필수
         6. 왜 (Why/Reason): 복잡한 경우 이유가 필요할 수 있음
         
-        ❌ 불완성 판단 기준:
+         불완성 판단 기준:
         - 핵심 정보 3개(누가, 무엇을, 어떻게) 중 하나라도 추론하기 어려우면 INCOMPLETE
         - 알림톡 수신자가 혼란스러울 수 있으면 INCOMPLETE  
         - 실제 비즈니스에서 사용하기엔 정보 부족하면 INCOMPLETE

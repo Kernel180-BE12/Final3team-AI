@@ -382,4 +382,4 @@ if __name__ == "__main__":
             print(f"오류: {result.error}")
             
     except Exception as e:
-        print(f"❌ 테스트 실패: {e}")
+        print(f" 테스트 실패: {e}")

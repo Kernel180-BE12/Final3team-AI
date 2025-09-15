@@ -69,9 +69,9 @@ def setup_ec2_directories():
         try:
             Path(path_value).mkdir(parents=True, exist_ok=True)
             os.chmod(path_value, 0o755)
-            print(f"✅ {path_name}: {path_value}")
+            print(f" {path_name}: {path_value}")
         except Exception as e:
-            print(f"⚠️  {path_name} 생성 실패: {e}")
+            print(f"  {path_name} 생성 실패: {e}")
 
 def get_ec2_optimized_settings():
     """EC2 최적화된 설정 반환"""
@@ -86,12 +86,12 @@ def print_environment_info():
     print(f"🌍 환경: {'EC2' if is_ec2 else '로컬'}")
     print(f"📂 캐시 디렉토리: {paths['cache_dir']}")
     print(f"🗂️  Chroma DB: {paths['chroma_db_path']}")
-    print(f"📋 Predata: {paths['predata_path']}")
+    print(f" Predata: {paths['predata_path']}")
     
     if is_ec2:
         settings = get_ec2_optimized_settings()
-        print(f"⚡ 배치 크기: {settings['batch_size']}")
-        print(f"🔧 워커 수: {settings['max_workers']}")
+        print(f" 배치 크기: {settings['batch_size']}")
+        print(f" 워커 수: {settings['max_workers']}")
 
 if __name__ == "__main__":
     print("=== EC2 환경 설정 테스트 ===")

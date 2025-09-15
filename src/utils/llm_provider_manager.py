@@ -278,8 +278,8 @@ if __name__ == "__main__":
             "당신은 친근한 AI 어시스턴트입니다."
         )
         
-        print(f"✅ 성공: {provider} - {model}")
+        print(f" 성공: {provider} - {model}")
         print(f"응답: {response[:100]}...")
         
     except Exception as e:
-        print(f"❌ 오류: {e}")
+        print(f" 오류: {e}")

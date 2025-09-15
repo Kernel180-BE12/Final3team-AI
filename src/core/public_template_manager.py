@@ -269,4 +269,4 @@ if __name__ == "__main__":
             print(f"- {template.template_name} (유사도: {score:.3f})")
             
     except Exception as e:
-        print(f"❌ 오류: {e}")
+        print(f" 오류: {e}")

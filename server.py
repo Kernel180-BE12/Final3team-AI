@@ -127,10 +127,10 @@ template_api = get_template_api()
 async def log_requests(request: Request, call_next):
     if request.url.path == "/ai/templates" and request.method == "POST":
         body = await request.body()
-        print(f"🔍 Content-Type: {request.headers.get('content-type')}")
-        print(f"🔍 Content-Length: {request.headers.get('content-length')}")
-        print(f"🔍 Body Length: {len(body)} bytes")
-        print(f"🔍 원시 요청 데이터: '{body.decode('utf-8')}'")
+        print(f" Content-Type: {request.headers.get('content-type')}")
+        print(f" Content-Length: {request.headers.get('content-length')}")
+        print(f" Body Length: {len(body)} bytes")
+        print(f" 원시 요청 데이터: '{body.decode('utf-8')}'")
         
         # body를 다시 사용할 수 있도록 설정
         async def receive():
@@ -147,7 +147,7 @@ async def create_template(request: TemplateCreationRequest):
     """
     try:
         # 요청 데이터 로깅
-        print(f"📥 받은 요청: user_id={request.user_id}, content={request.request_content}")
+        print(f" 받은 요청: user_id={request.user_id}, content={request.request_content}")
         
         # Rate limiting 확인
         if not check_rate_limit(request.user_id):
@@ -204,7 +204,7 @@ async def create_template(request: TemplateCreationRequest):
         
         # 텍스트 전처리 (긴 텍스트에 적절한 공백 추가)
         processed_content = request.request_content.replace(".", ". ").replace("  ", " ").strip()
-        print(f"📝 전처리된 내용: {processed_content[:100]}...")
+        print(f" 전처리된 내용: {processed_content[:100]}...")
         # 1. api.py의 템플릿 생성 함수 호출 (전처리된 내용 사용)
         generation_result = template_api.generate_template(user_input=processed_content)
 
