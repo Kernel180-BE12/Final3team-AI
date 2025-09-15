@@ -179,7 +179,7 @@ class PublicTemplateManager:
     def convert_to_standard_format(self, template: PublicTemplate) -> Dict[str, Any]:
         """
         공용 템플릿을 표준 생성 템플릿 형식으로 변환
-        #{변수명} -> ${최대15자 n} 형식으로 변환
+        #{변수명} -> ${변수명} 형식으로 변환
         """
         content = template.template_content
         variables = []

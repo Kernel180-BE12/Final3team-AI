@@ -10,7 +10,8 @@ from dataclasses import dataclass
 
 from .index_manager import IndexManager
 from .public_template_manager import PublicTemplateManager, get_public_template_manager
-from ..agents.agent1 import Agent1
+from .template_matcher import TemplateMatcher
+from ..agents.agent2 import Agent2
 from ..utils.llm_provider_manager import get_llm_manager
 
 @dataclass
@@ -38,19 +39,32 @@ class TemplateSelector:
         self.public_template_manager = get_public_template_manager()
         self.llm_manager = get_llm_manager()
         
-        # Agent1은 필요시에만 초기화 (무거운 객체)
-        self._agent1 = None
+        # TemplateMatcher 초기화 (1단계용)
+        self._template_matcher = None
+        
+        # Agent2는 필요시에만 초기화 (무거운 객체)
+        self._agent2 = None
         
         # 단계별 임계값 설정
         self.existing_similarity_threshold = 0.7  # 기존 템플릿 유사도 임계값
         self.public_similarity_threshold = 0.6   # 공용 템플릿 유사도 임계값
         
     @property
-    def agent1(self) -> Agent1:
-        """지연 로딩으로 Agent1 초기화"""
-        if self._agent1 is None:
-            self._agent1 = Agent1()
-        return self._agent1
+    def template_matcher(self) -> TemplateMatcher:
+        """지연 로딩으로 TemplateMatcher 초기화"""
+        if self._template_matcher is None:
+            self._template_matcher = TemplateMatcher(
+                api_key=self.llm_manager.get_current_api_key(),
+                index_manager=self.index_manager
+            )
+        return self._template_matcher
+    
+    @property
+    def agent2(self) -> Agent2:
+        """지연 로딩으로 Agent2 초기화"""
+        if self._agent2 is None:
+            self._agent2 = Agent2(index_manager=self.index_manager)
+        return self._agent2
     
     def select_template(self, user_input: str, options: Dict[str, Any] = None) -> TemplateSelectionResult:
         """
@@ -105,63 +119,53 @@ class TemplateSelector:
             )
     
     def _search_existing_templates(self, user_input: str, options: Dict[str, Any]) -> TemplateSelectionResult:
-        """1단계: 기존 승인된 템플릿 검색 (predata 기반)"""
+        """1단계: 기존 승인된 템플릿 검색 (TemplateMatcher 사용)"""
         try:
             threshold = options.get('existing_threshold', self.existing_similarity_threshold)
             
-            self.logger.info(f"1단계: 기존 템플릿 검색 (임계값: {threshold})")
+            self.logger.info(f"1단계: 임베딩 기반 기존 템플릿 검색 (임계값: {threshold})")
             
-            # predata 캐시에서 기존 템플릿 정보 검색
-            predata_cache = self.index_manager.get_predata_cache()
+            # TemplateMatcher를 통한 유사 템플릿 검색
+            similar_templates = self.template_matcher.find_similar_templates(user_input, top_k=3)
             
-            if not predata_cache:
+            if not similar_templates:
                 return TemplateSelectionResult(
                     success=False,
                     source="existing",
-                    error="predata 캐시가 비어있습니다"
+                    error="유사한 기존 템플릿을 찾을 수 없습니다"
                 )
             
-            # predata 내용을 하나의 문서로 합쳐서 검색
-            combined_content = "\n".join(predata_cache.values())
+            # 가장 유사도가 높은 템플릿 선택
+            best_template = similar_templates[0]
+            similarity_score = best_template['similarity_score']
             
-            # 간단한 키워드 매칭으로 유사도 계산
-            similarity = self._calculate_predata_similarity(user_input, combined_content)
-            
-            if similarity >= threshold:
-                # 기존 승인된 템플릿 형태로 변환 (간단한 예시)
-                template_content = f"안녕하세요, ${{최대15자 1}}님!\n\n{user_input}에 대한 안내입니다.\n\n자세한 내용은 ${{최대15자 2}}를 확인해주세요.\n\n감사합니다."
+            if similarity_score >= threshold:
+                # 기존 템플릿을 표준 형식으로 변환
+                template_content = best_template['content']
                 
-                variables = [
-                    {
-                        "name": "${최대15자 1}",
-                        "description": "고객명",
-                        "required": True
-                    },
-                    {
-                        "name": "${최대15자 2}",
-                        "description": "상세정보",
-                        "required": True
-                    }
-                ]
+                # 표준 변수 형식으로 변환
+                standardized_template, variables = self._convert_to_standard_template(template_content)
                 
-                self.logger.info(f"기존 템플릿 패턴 발견 (유사도: {similarity:.3f})")
+                self.logger.info(f"기존 템플릿 발견: {best_template['category']} (유사도: {similarity_score:.3f})")
                 
                 return TemplateSelectionResult(
                     success=True,
-                    template=template_content,
+                    template=standardized_template,
                     variables=variables,
                     source="existing",
                     source_info={
-                        "similarity": similarity,
-                        "based_on": "predata_patterns",
-                        "pattern_type": "approved_template"
+                        "template_id": best_template['id'],
+                        "category": best_template['category'],
+                        "similarity": similarity_score,
+                        "recommendation_type": best_template['recommendation_type'],
+                        "keywords": best_template['keywords']
                     }
                 )
             
             return TemplateSelectionResult(
                 success=False,
                 source="existing",
-                error=f"기존 템플릿 유사도 부족 ({similarity:.3f} < {threshold})"
+                error=f"기존 템플릿 유사도 부족 ({similarity_score:.3f} < {threshold})"
             )
             
         except Exception as e:
@@ -258,8 +262,8 @@ class TemplateSelector:
         try:
             self.logger.info("3단계: 새 템플릿 생성")
             
-            # Agent1을 통한 템플릿 생성
-            result = self.agent1.process_template_request(user_input)
+            # Agent2를 통한 템플릿 생성
+            result, tools_data = self.agent2.generate_compliant_template(user_input)
             
             if not result.get("success", False):
                 return TemplateSelectionResult(
@@ -273,7 +277,7 @@ class TemplateSelector:
             template = result.get("template", "")
             variables = result.get("variables", [])
             
-            # 표준 변수 형식으로 변환 (#{변수명} -> ${최대15자 n})
+            # 표준 변수 형식으로 변환 (#{변수명} -> ${변수명})
             standardized_template, standardized_variables = self._standardize_variables(template, variables)
             
             return TemplateSelectionResult(
@@ -300,14 +304,17 @@ class TemplateSelector:
     def _standardize_variables(self, template: str, variables: List[Dict[str, Any]]) -> Tuple[str, List[Dict[str, Any]]]:
         """
         변수 형식을 표준 형식으로 변환
-        #{변수명} -> ${최대15자 n} 형식
+        #{변수명} -> ${변수명} 형식
         """
         standardized_template = template
         standardized_variables = []
         
-        for i, var in enumerate(variables, 1):
-            old_format = var.get("name", f"#{{{var.get('description', f'변수{i}')}}}")
-            new_format = f"${{최대15자 {i}}}"
+        for var in variables:
+            old_format = var.get("name", f"#{{{var.get('description', '변수')}}}")
+            # 의미있는 변수명 생성
+            description = var.get("description", "변수")
+            clean_name = description.replace(" ", "").replace("(", "").replace(")", "")
+            new_format = f"${{{clean_name}}}"
             
             # 템플릿에서 변수 교체
             standardized_template = standardized_template.replace(old_format, new_format)
@@ -315,12 +322,58 @@ class TemplateSelector:
             # 변수 정보 표준화
             standardized_variables.append({
                 "name": new_format,
-                "description": var.get("description", f"변수{i}"),
+                "description": var.get("description", "변수"),
                 "required": var.get("required", True),
                 "original_name": old_format
             })
         
         return standardized_template, standardized_variables
+    
+    def _convert_to_standard_template(self, template_content: str) -> Tuple[str, List[Dict[str, Any]]]:
+        """
+        기존 템플릿을 표준 변수 형식으로 변환
+        [제목] 형태나 특정 패턴을 ${변수명} 형식으로 변환
+        """
+        import re
+        
+        standardized_template = template_content
+        variables = []
+        
+        # [제목] 패턴을 변수로 변환
+        title_pattern = r'\[(.*?)\]'
+        titles = re.findall(title_pattern, standardized_template)
+        
+        for title in titles:
+            old_format = f"[{title}]"
+            clean_name = title.replace(" ", "").replace("(", "").replace(")", "")
+            new_format = f"${{{clean_name}}}"
+            standardized_template = standardized_template.replace(old_format, new_format)
+            
+            variables.append({
+                "name": new_format,
+                "description": title,
+                "required": True
+            })
+        
+        # 기본 변수가 없으면 기본 템플릿 구조 추가
+        if not variables:
+            # 간단한 템플릿 구조로 변환
+            standardized_template = f"안녕하세요, ${{고객명}}님!\n\n{template_content}\n\n자세한 내용은 ${{상세정보}}를 확인해주세요."
+            
+            variables = [
+                {
+                    "name": "${고객명}",
+                    "description": "고객명",
+                    "required": True
+                },
+                {
+                    "name": "${상세정보}",
+                    "description": "상세정보",
+                    "required": True
+                }
+            ]
+        
+        return standardized_template, variables
     
     def get_selection_stats(self) -> Dict[str, Any]:
         """선택 시스템 통계 정보"""
@@ -335,7 +388,7 @@ class TemplateSelector:
                 "stats": self.public_template_manager.get_template_stats()
             },
             "generation": {
-                "agent_ready": self._agent1 is not None,
+                "agent_ready": self._agent2 is not None,
                 "llm_status": self.llm_manager.get_current_status()
             }
         }

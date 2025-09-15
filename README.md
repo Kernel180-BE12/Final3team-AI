@@ -56,7 +56,7 @@
 ** Public Template Manager**
 - 105개 공용 템플릿 관리
 - 키워드 기반 유사도 검색
-- `#{변수명}` → `${최대15자 n}` 자동 변환
+- `#{변수명}` → `${변수명}` 자동 변환
 
 ** LLM Provider Manager**
 - Gemini → OpenAI 자동 Fallback
@@ -134,10 +134,10 @@ curl http://localhost:8000/health
 ```json
 {
   "success": true,
-  "template": "안녕하세요, ${최대15자 1}님!\n\n${최대15자 2} 국가건강검진 안내입니다...",
+  "template": "안녕하세요, ${고객명}님!\n\n${검진내용} 국가건강검진 안내입니다...",
   "variables": [
     {
-      "name": "${최대15자 1}",
+      "name": "${고객명}",
       "description": "고객명",
       "required": true
     }
