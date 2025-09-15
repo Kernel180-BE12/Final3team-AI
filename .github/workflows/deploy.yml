@@ -107,7 +107,7 @@ jobs:
           # Poetry로 의존성 설치
           poetry config virtualenvs.create true
           poetry config virtualenvs.in-project true
-          poetry install --no-dev
+          poetry install --only=main
           
           # FastAPI 서버 시작 (Poetry 가상환경에서)
           nohup poetry run python server.py > ~/app.log 2>&1 &
