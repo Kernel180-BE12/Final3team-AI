@@ -205,3 +205,31 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# JOBER AI 프로젝트 특정 파일들
+# Cache directories
+cache/
+chroma_db/
+*.cache
+
+# Temporary files
+TODO.txt
+*.todo
+finaltodo.txt
+firstTodo.txt
+langgraph.txt
+IMPLEMENTATION_CHECKLIST.md
+AI.png
+
+# Performance files
+performance_*.json
+*.metrics
+
+# Test files
+test_*.py
+
+# Notebooks
+notebooks/
+
+# Output files
+output/

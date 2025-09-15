@@ -1,8 +1,12 @@
 
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import json
+import time
+from datetime import datetime
+import re
+from collections import defaultdict
 
 # api.py에서 기존 로직을 가져옵니다.
 from api import get_template_api
@@ -57,6 +61,61 @@ class TemplateResponse(BaseModel):
     purposes: List[Purpose]
 
 
+# --- 유틸리티 함수 ---
+
+# Rate limiting을 위한 메모리 저장소
+request_counts = defaultdict(list)
+RATE_LIMIT_PER_MINUTE = 10
+RATE_LIMIT_WINDOW = 60  # seconds
+
+def create_error_response(code: str, message: str, details: Optional[str] = None, retry_after: Optional[int] = None) -> Dict[str, Any]:
+    """표준화된 에러 응답 생성"""
+    error_response = {
+        "error": {
+            "code": code,
+            "message": message
+        },
+        "timestamp": datetime.now().isoformat() + "Z"
+    }
+    if details:
+        error_response["error"]["details"] = details
+    if retry_after:
+        error_response["retryAfter"] = retry_after
+    return error_response
+
+def is_meaningful_text(text: str) -> bool:
+    """의미있는 텍스트인지 판별"""
+    if not text or not text.strip():
+        return False
+    
+    # 특수문자와 공백만 있는지 체크
+    cleaned = re.sub(r'[^\w\s가-힣]', '', text.strip())
+    if not cleaned:
+        return False
+    
+    # 너무 짧은 텍스트
+    if len(cleaned) < 2:
+        return False
+        
+    return True
+
+def check_rate_limit(user_id: int) -> bool:
+    """사용자별 요청 제한 확인"""
+    current_time = time.time()
+    user_requests = request_counts[user_id]
+    
+    # 1분 이전 요청들 제거
+    request_counts[user_id] = [req_time for req_time in user_requests 
+                              if current_time - req_time < RATE_LIMIT_WINDOW]
+    
+    # 현재 요청 수 확인
+    if len(request_counts[user_id]) >= RATE_LIMIT_PER_MINUTE:
+        return False
+    
+    # 현재 요청 추가
+    request_counts[user_id].append(current_time)
+    return True
+
 # --- FastAPI 애플리케이션 설정 ---
 
 app = FastAPI()
@@ -90,12 +149,58 @@ async def create_template(request: TemplateCreationRequest):
         # 요청 데이터 로깅
         print(f"📥 받은 요청: user_id={request.user_id}, content={request.request_content}")
         
+        # Rate limiting 확인
+        if not check_rate_limit(request.user_id):
+            raise HTTPException(
+                status_code=429, 
+                detail=create_error_response(
+                    "RATE_LIMIT_EXCEEDED",
+                    "너무 많은 요청을 보내셨습니다. 잠시 후 다시 시도해주세요.",
+                    "1분당 최대 10회 요청 가능합니다.",
+                    30
+                )
+            )
+        
         # 요청 필드 검증
         if not request.request_content or not request.request_content.strip():
-            raise HTTPException(status_code=400, detail="requestContent is required and cannot be empty")
+            raise HTTPException(
+                status_code=400, 
+                detail=create_error_response(
+                    "INVALID_INPUT",
+                    "requestContent is required and cannot be empty"
+                )
+            )
         
         if not request.user_id or request.user_id <= 0:
-            raise HTTPException(status_code=400, detail="userId is required and must be greater than 0")
+            raise HTTPException(
+                status_code=400, 
+                detail=create_error_response(
+                    "INVALID_INPUT",
+                    "userId is required and must be greater than 0"
+                )
+            )
+            
+        # 콘텐츠 길이 검증
+        if len(request.request_content.strip()) > 500:
+            raise HTTPException(
+                status_code=413, 
+                detail=create_error_response(
+                    "CONTENT_TOO_LARGE",
+                    "입력 텍스트가 너무 깁니다. 500자 이하로 입력해주세요.",
+                    f"현재 입력: {len(request.request_content.strip())}자, 최대 허용: 500자"
+                )
+            )
+            
+        # 의미있는 텍스트인지 검증
+        if not is_meaningful_text(request.request_content):
+            raise HTTPException(
+                status_code=400, 
+                detail=create_error_response(
+                    "INVALID_INPUT",
+                    "입력 내용이 올바르지 않습니다. 의미있는 텍스트를 입력해주세요.",
+                    "특수문자만 입력되었거나 공백만 포함된 요청입니다."
+                )
+            )
         
         # 텍스트 전처리 (긴 텍스트에 적절한 공백 추가)
         processed_content = request.request_content.replace(".", ". ").replace("  ", " ").strip()
@@ -104,11 +209,67 @@ async def create_template(request: TemplateCreationRequest):
         generation_result = template_api.generate_template(user_input=processed_content)
 
         if not generation_result.get("success"):
-            # 템플릿 생성 실패 시 (예: 중복)
+            # 템플릿 생성 실패 시 세분화된 처리
             if generation_result.get("is_duplicate"):
-                 raise HTTPException(status_code=409, detail=generation_result)
-            # 기타 실패
-            raise HTTPException(status_code=500, detail=generation_result.get("error", "Template generation failed"))
+                raise HTTPException(
+                    status_code=409, 
+                    detail=create_error_response(
+                        "DUPLICATE_TEMPLATE",
+                        "유사한 템플릿이 이미 존재합니다.",
+                        generation_result.get("error", "")
+                    )
+                )
+            
+            # 에러 타입별 처리
+            error_type = generation_result.get("error_type", "unknown")
+            error_message = generation_result.get("error", "Template generation failed")
+            
+            if error_type == "profanity":
+                raise HTTPException(
+                    status_code=422,
+                    detail=create_error_response(
+                        "INAPPROPRIATE_CONTENT",
+                        "부적절한 내용이 감지되었습니다.",
+                        "입력 내용을 수정하여 다시 시도해주세요."
+                    )
+                )
+            elif error_type == "policy_violation":
+                raise HTTPException(
+                    status_code=422,
+                    detail=create_error_response(
+                        "POLICY_VIOLATION",
+                        "정책 위반 내용이 감지되었습니다.",
+                        error_message
+                    )
+                )
+            elif "timeout" in error_message.lower() or "시간" in error_message:
+                raise HTTPException(
+                    status_code=504,
+                    detail=create_error_response(
+                        "PROCESSING_TIMEOUT",
+                        "템플릿 생성 시간이 초과되었습니다. 다시 시도해주세요.",
+                        "AI 처리 시간 초과 (30초 제한)"
+                    )
+                )
+            elif "api" in error_message.lower() or "service" in error_message.lower():
+                raise HTTPException(
+                    status_code=503,
+                    detail=create_error_response(
+                        "AI_SERVICE_ERROR",
+                        "AI 서비스에 일시적 문제가 발생했습니다. 잠시 후 다시 시도해주세요.",
+                        "Gemini API 또는 OpenAPI 연결 오류"
+                    )
+                )
+            else:
+                # 기타 내부 서버 오류
+                raise HTTPException(
+                    status_code=500,
+                    detail=create_error_response(
+                        "INTERNAL_SERVER_ERROR",
+                        "서버 내부 오류가 발생했습니다.",
+                        error_message
+                    )
+                )
 
         # 2. 생성된 결과를 DB 저장용 JSON 포맷으로 변환
         json_export = template_api.export_to_json(
@@ -118,7 +279,14 @@ async def create_template(request: TemplateCreationRequest):
         )
 
         if not json_export.get("success"):
-            raise HTTPException(status_code=500, detail=json_export.get("error", "Failed to export template to JSON"))
+            raise HTTPException(
+                status_code=500, 
+                detail=create_error_response(
+                    "JSON_EXPORT_ERROR",
+                    "템플릿 데이터 변환에 실패했습니다.",
+                    json_export.get("error", "Failed to export template to JSON")
+                )
+            )
 
         exported_data = json_export["data"]
         template_data = exported_data["template"]
@@ -141,8 +309,8 @@ async def create_template(request: TemplateCreationRequest):
                 {
                     "id": i + 1, # 임시 ID
                     "variableKey": var.get("variable_key"),
-                    "placeholder": "#" + var.get("placeholder"),
-                    "inputType": var.get("input_type")
+                    "placeholder": "#" + var.get("placeholder"), 
+                    "inputType": var.get("input_type", "TEXT")  # 기본값 설정
                 } for i, var in enumerate(variable_data)
             ],
             "industries": [], # TODO: 업종(Industry) 매핑 로직 필요
@@ -151,8 +319,39 @@ async def create_template(request: TemplateCreationRequest):
 
         return response_data
 
+    except HTTPException:
+        # 이미 처리된 HTTPException은 다시 발생
+        raise
+    except ConnectionError as e:
+        # DB나 외부 서비스 연결 오류
+        raise HTTPException(
+            status_code=502,
+            detail=create_error_response(
+                "CONNECTION_ERROR",
+                "데이터베이스 또는 외부 서비스 연결에 실패했습니다.",
+                f"연결 오류: {str(e)}"
+            )
+        )
+    except TimeoutError as e:
+        # 타임아웃 오류
+        raise HTTPException(
+            status_code=504,
+            detail=create_error_response(
+                "TIMEOUT_ERROR",
+                "요청 처리 시간이 초과되었습니다.",
+                f"타임아웃: {str(e)}"
+            )
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # 예상치 못한 기타 오류
+        raise HTTPException(
+            status_code=500,
+            detail=create_error_response(
+                "UNEXPECTED_ERROR",
+                "예상치 못한 오류가 발생했습니다.",
+                str(e)
+            )
+        )
 
 
 @app.get("/health")
