@@ -29,9 +29,14 @@ echo "📥 코드 다운로드..."
 # git clone [your-repo-url] Jober_ai
 # cd Jober_ai
 
-# 5. Python 의존성 설치
+# 5. Poetry 설치 및 의존성 설치
+echo "📚 Poetry 설치..."
+curl -sSL https://install.python-poetry.org | python3.11 -
+export PATH="/home/ec2-user/.local/bin:$PATH"
+
 echo "📚 Python 패키지 설치..."
-python3.11 -m pip install --user -r requirements.txt
+cd /home/ec2-user/Jober_ai
+poetry install --only=main
 
 # 6. 환경 설정 확인
 echo "🔧 환경 설정 확인..."
@@ -54,7 +59,7 @@ User=ec2-user
 WorkingDirectory=/home/ec2-user/Jober_ai
 Environment=PATH=/home/ec2-user/.local/bin:/usr/bin:/bin
 Environment=PYTHONPATH=/home/ec2-user/Jober_ai
-ExecStart=/usr/bin/python3.11 server.py
+ExecStart=/home/ec2-user/.local/bin/poetry run python server.py
 Restart=always
 RestartSec=10
 StandardOutput=journal
