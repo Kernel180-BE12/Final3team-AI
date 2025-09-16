@@ -42,8 +42,7 @@ IntentClassifier = intent_classifier_module.IntentClassifier
 class ConversationState:
     """대화 상태 관리 클래스"""
     
-    # 필수 변수 정의 (클래스 상수)
-    MANDATORY_VARIABLES = ['누가 (To/Recipient)', '무엇을 (What/Subject)', '어떻게 (How/Method)']
+    # 필수 변수는 이제 상황별로 동적 결정 (VariableExtractor에서 처리)
     
     def __init__(self):
         self.variables = {
@@ -67,29 +66,36 @@ class ConversationState:
         return {k: v for k, v in self.variables.items() if v != '없음'}
         
     def get_missing_variables(self) -> List[str]:
-        """누락된 변수들 반환"""
-        return [var for var in self.MANDATORY_VARIABLES if self.variables.get(var, '없음') == '없음']
+        """누락된 변수들 반환 (모든 변수 중 누락된 것)"""
+        return [var for var, value in self.variables.items() if value == '없음' or not value.strip()]
         
-    def check_mandatory_variables(self) -> Dict[str, Any]:
+    def check_mandatory_variables(self, required_vars: List[str] = None) -> Dict[str, Any]:
         """
-        필수 변수 완성도 체크
-        
+        필수 변수 완성도 체크 (동적)
+
+        Args:
+            required_vars: 필수 변수 리스트 (없으면 기본값 사용)
+
         Returns:
             필수 변수 체크 결과
         """
+        # 기본값: 무엇을만 필수
+        if required_vars is None:
+            required_vars = ['무엇을 (What/Subject)']
+
         missing_mandatory = []
-        
-        for var in self.MANDATORY_VARIABLES:
+
+        for var in required_vars:
             value = self.variables.get(var, '없음')
             # '없음'으로 시작하거나 빈 값이면 미완성으로 처리
             if value == '없음' or value.startswith('없음') or not value.strip():
                 missing_mandatory.append(var)
-        
+
         return {
             'is_complete': len(missing_mandatory) == 0,
             'missing_mandatory': missing_mandatory,
-            'total_mandatory': len(self.MANDATORY_VARIABLES),
-            'completed_mandatory': len(self.MANDATORY_VARIABLES) - len(missing_mandatory)
+            'total_mandatory': len(required_vars),
+            'completed_mandatory': len(required_vars) - len(missing_mandatory)
         }
     
     def ai_judge_completeness(self, user_input: str, intent: Dict[str, Any], ai_model) -> Dict[str, Any]:
@@ -289,7 +295,7 @@ class Agent1:
         
         # 3. 변수 유효성 검증
         validation = self.variable_extractor.validate_variables(variables)
-        mandatory_check = self.variable_extractor.check_mandatory_variables(variables)
+        mandatory_check = self.variable_extractor.check_mandatory_variables(variables, user_input)
         
         analysis_result = {
             'user_input': user_input,

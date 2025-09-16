@@ -3,7 +3,7 @@ Agent1용 변수 추출기
 사용자 입력에서 6W (Who, What, How, When, Where, Why) 변수를 추출
 """
 
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import google.generativeai as genai
 
 
@@ -46,26 +46,41 @@ class VariableExtractor:
     def _create_extraction_prompt(self, query: str) -> str:
         """변수 추출용 프롬프트 생성"""
         return f"""
-        사용자의 요청을 분석하여 다음 변수들을 추출해줘. 각 변수에 대한 정보가 없으면 "없음"이라고 명확히 답변해줘.
+사용자의 알림톡 요청을 분석하여 다음 6W 변수들을 추출해주세요.
+명시되지 않은 정보는 문맥을 통해 합리적으로 추론하거나, 정말 알 수 없는 경우만 "없음"으로 답변하세요.
 
-        - 누가 (To/Recipient): 수신자, 대상자, 참여자
-        - 무엇을 (What/Subject): 주제, 내용, 서비스명, 상품명
-        - 어떻게 (How/Method): 방법, 절차, 수단
-        - 언제 (When/Time): 날짜, 시간, 기간
-        - 어디서 (Where/Place): 장소, 위치, 주소
-        - 왜 (Why/Reason): 목적, 이유, 사유
+변수 정의 및 추론 가이드:
+- 누가 (To/Recipient): 메시지 수신자
+  → 명시 안된 경우: "고객님", "회원님", "참가자분들" 등으로 추론
+- 무엇을 (What/Subject): 알림의 주요 내용이나 이벤트
+  → 핵심 키워드에서 추출 (예: "독서모임", "결제 완료", "예약 확인")
+- 어떻게 (How/Method): 안내 방식이나 행동 요청
+  → "알림톡"이 기본, 추가로 "확인", "참석", "안내" 등
+- 언제 (When/Time): 날짜, 시간 정보
+  → "내일", "오늘", 구체적 시간 모두 포함
+- 어디서 (Where/Place): 장소, 위치 정보
+  → 구체적 주소나 일반적 장소명
+- 왜 (Why/Reason): 목적이나 이유
+  → 명시 안된 경우 "서비스 안내" 등으로 추론
 
-        ---
-        요청: "{query}"
-        ---
+추론 예시:
+"내일 12시에 강남 카페에서 독서모임"
+→ 누가: "독서모임 참가자분들" (추론)
+→ 무엇을: "독서모임"
+→ 언제: "내일 12시"
+→ 어디서: "강남 카페"
 
-        추출된 변수:
-        - 누가 (To/Recipient):
-        - 무엇을 (What/Subject):
-        - 어떻게 (How/Method):
-        - 언제 (When/Time):
-        - 어디서 (Where/Place):
-        - 왜 (Why/Reason):
+---
+요청: "{query}"
+---
+
+추출된 변수:
+- 누가 (To/Recipient):
+- 무엇을 (What/Subject):
+- 어떻게 (How/Method):
+- 언제 (When/Time):
+- 어디서 (Where/Place):
+- 왜 (Why/Reason):
         """
     
     def _parse_variables(self, response: str) -> Dict[str, str]:
@@ -138,28 +153,59 @@ class VariableExtractor:
                 missing.append(key)
         
         return missing
-    
-    def check_mandatory_variables(self, variables: Dict[str, str]) -> Dict[str, any]:
+
+    def determine_required_variables_by_context(self, user_input: str) -> List[str]:
+        """상황별로 필요한 변수 동적 결정"""
+        user_input_lower = user_input.lower()
+
+        # 모임/회의/이벤트 - 시간과 장소가 중요
+        if any(keyword in user_input_lower for keyword in ['모임', '회의', '미팅', '만남', '행사', '이벤트']):
+            return ['무엇을 (What/Subject)', '언제 (When/Time)', '어디서 (Where/Place)']
+
+        # 예약/방문 - 시간과 장소 필수
+        elif any(keyword in user_input_lower for keyword in ['예약', '방문', '진료', '상담', '검진']):
+            return ['무엇을 (What/Subject)', '언제 (When/Time)', '어디서 (Where/Place)']
+
+        # 쿠폰/할인/이벤트 - 기간이 중요
+        elif any(keyword in user_input_lower for keyword in ['쿠폰', '할인', '특가', '세일', '프로모션']):
+            return ['무엇을 (What/Subject)', '언제 (When/Time)']
+
+        # 배송/주문 - 대상과 내용이 중요
+        elif any(keyword in user_input_lower for keyword in ['배송', '주문', '결제', '구매', '발송']):
+            return ['누가 (To/Recipient)', '무엇을 (What/Subject)']
+
+        # 공지/안내 - 내용만 있으면 충분
+        elif any(keyword in user_input_lower for keyword in ['공지', '안내', '알림', '공지사항', '안내사항']):
+            return ['무엇을 (What/Subject)']
+
+        # 기본값 - 최소한의 필수 정보
+        else:
+            return ['무엇을 (What/Subject)']
+
+    def check_mandatory_variables(self, variables: Dict[str, str], user_input: str = "") -> Dict[str, any]:
         """
-        필수 변수 확인 (누가, 무엇을, 어떻게)
-        
+        상황별 필수 변수 확인 (동적)
+
         Args:
             variables: 추출된 변수 딕셔너리
-            
+            user_input: 사용자 입력 (상황 판단용)
+
         Returns:
             필수 변수 확인 결과
         """
-        mandatory_vars = ['누가 (To/Recipient)', '무엇을 (What/Subject)', '어떻게 (How/Method)']
+        # 상황별 필수 변수 결정
+        mandatory_vars = self.determine_required_variables_by_context(user_input)
         missing_mandatory = []
-        
+
         for var in mandatory_vars:
-            if variables.get(var, '없음') == '없음':
+            if variables.get(var, '없음') == '없음' or not variables.get(var, '').strip():
                 missing_mandatory.append(var)
-        
+
         return {
             'is_complete': len(missing_mandatory) == 0,
             'missing_mandatory': missing_mandatory,
-            'completeness_score': (len(mandatory_vars) - len(missing_mandatory)) / len(mandatory_vars)
+            'completeness_score': (len(mandatory_vars) - len(missing_mandatory)) / len(mandatory_vars) if mandatory_vars else 1.0,
+            'required_variables': mandatory_vars  # 어떤 변수가 필수였는지 정보 추가
         }
 
 

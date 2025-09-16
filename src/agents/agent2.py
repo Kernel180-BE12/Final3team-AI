@@ -335,12 +335,15 @@ class Agent2:
         }
         
         print(f" Agent2 템플릿 생성 완료")
-        
+
+        # 변수 추출
+        variables = self._extract_variables_from_template(template)
+
         # 성공적인 결과를 딕셔너리 형태로 반환
         result = {
             "success": True,
             "template": template,
-            "variables": []  # TODO: 변수 추출 로직 추가 필요
+            "variables": variables
         }
         return result, metadata
     
@@ -447,6 +450,24 @@ class Agent2:
 감사합니다."""
         
         return template
+
+    def _extract_variables_from_template(self, template: str) -> List[Dict]:
+        """템플릿에서 #{변수명} 형식의 변수 추출"""
+        import re
+        variables = []
+        # #{변수명} 패턴 찾기
+        pattern = r'#\{([^}]+)\}'
+        matches = re.findall(pattern, template)
+
+        for var_name in set(matches):  # 중복 제거
+            variables.append({
+                "variable_key": var_name,
+                "placeholder": f"#{{{var_name}}}",
+                "input_type": "TEXT",
+                "required": True
+            })
+
+        return variables
 
 
 # 테스트 실행 블록

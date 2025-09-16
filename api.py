@@ -354,10 +354,10 @@ class TemplateAPI:
     
     def _generate_title_from_input(self, user_input: str) -> str:
         """사용자 입력에서 템플릿 제목 생성"""
-        # 키워드 기반 제목 생성
+        # 1단계: 키워드 기반 제목 생성 (빠른 처리)
         keywords = {
             '쿠폰': '쿠폰 발급 안내',
-            '할인': '할인 혜택 안내', 
+            '할인': '할인 혜택 안내',
             '행사': '특별 행사 안내',
             '이벤트': '이벤트 참가 안내',
             '모임': '모임 참석 안내',
@@ -370,16 +370,50 @@ class TemplateAPI:
             '치과': '치과 진료 안내',
             '가격': '가격 변경 안내'
         }
-        
+
         for keyword, title in keywords.items():
             if keyword in user_input:
                 return title
-                
-        # 기본 제목 (30자 제한)
+
+        # 2단계: AI 기반 제목 생성 (키워드 매칭 실패 시)
+        try:
+            ai_title = self._generate_title_with_ai(user_input)
+            if ai_title and len(ai_title.strip()) > 0:
+                return ai_title
+        except Exception as e:
+            print(f" AI 제목 생성 실패: {e}")
+
+        # 3단계: 최종 폴백 (AI도 실패 시)
         if len(user_input) > 30:
             return user_input[:27] + "..."
         return user_input
-    
+
+    def _generate_title_with_ai(self, user_input: str) -> str:
+        """AI를 사용한 제목 생성"""
+        prompt = f"""다음 사용자 요청에 적합한 알림톡 템플릿 제목을 생성해주세요.
+제목은 간결하고 명확하며, 15자 이내로 작성해주세요.
+"안내", "알림", "확인" 등의 적절한 접미사를 포함하세요.
+
+사용자 요청: {user_input}
+
+제목만 응답해주세요:"""
+
+        try:
+            response = invoke_llm_with_fallback(
+                prompt=prompt,
+                llm_manager=self.llm_manager,
+                max_length=100
+            )
+            title = response.strip().replace('"', '').replace("'", "")
+
+            # 길이 제한 및 정제
+            if len(title) > 20:
+                title = title[:17] + "..."
+
+            return title
+        except Exception as e:
+            raise e
+
     def _generate_field_value(self, title: str, user_input: str) -> str:
         """field 값 생성 (템플릿 식별자)"""
         # 기업 베스트 템플릿의 field 패턴 분석하여 생성
