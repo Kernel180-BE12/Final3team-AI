@@ -371,28 +371,17 @@ class Agent2:
                 result.get("data_loaded", False) for result in tools_results.values()
             )
         }
-<<<<<<< HEAD
         
         print(f" Agent2 템플릿 생성 완료")
 
         # 변수 추출
         variables = self._extract_variables_from_template(template)
-=======
-
-        print(f" Agent2 템플릿 생성 완료 (분류 포함)")
->>>>>>> 40cb8e3693977a4335ed512cc5cf3875ba8be136
 
         # 성공적인 결과를 딕셔너리 형태로 반환
         result = {
             "success": True,
             "template": template,
-<<<<<<< HEAD
             "variables": variables
-=======
-            "variables": [],  # TODO: 변수 추출 로직 추가 필요
-            "industry": [{"id": classification_result["industry"]["id"], "name": classification_result["industry"]["name"]}],
-            "purpose": [{"id": classification_result["purpose"]["id"], "name": classification_result["purpose"]["name"]}]
->>>>>>> 40cb8e3693977a4335ed512cc5cf3875ba8be136
         }
         return result, metadata
     
@@ -500,7 +489,6 @@ class Agent2:
         
         return template
 
-<<<<<<< HEAD
     def _extract_variables_from_template(self, template: str) -> List[Dict]:
         """템플릿에서 #{변수명} 형식의 변수 추출"""
         import re
@@ -518,43 +506,6 @@ class Agent2:
             })
 
         return variables
-=======
-    def _classify_industry_purpose(self, user_input: str, agent1_variables: Dict = None) -> Dict:
-        """Industry/Purpose 자동 분류 (Agent1 문맥 활용)"""
-        if not self.industry_classifier:
-            # 분류기가 없으면 기본값 반환
-            return {
-                "industry": {"id": 9, "name": "기타", "confidence": 0.1},
-                "purpose": {"id": 11, "name": "기타", "confidence": 0.1},
-                "overall_confidence": 0.1,
-                "method": "fallback_default",
-                "error": "분류기 초기화 실패"
-            }
-
-        try:
-            # Agent1 결과가 있으면 문맥 기반 분류 사용
-            if agent1_variables and isinstance(agent1_variables, dict):
-                result = self.industry_classifier.classify_with_agent1_context(user_input, agent1_variables)
-                method_desc = "문맥 기반 (Agent1 활용)"
-            else:
-                # 기존 키워드 기반 분류
-                result = self.industry_classifier.classify(user_input)
-                method_desc = "키워드 기반"
-
-            print(f" 자동 분류 완료 ({method_desc}): Industry={result['industry']['name']}({result['industry']['confidence']:.2f}), Purpose={result['purpose']['name']}({result['purpose']['confidence']:.2f})")
-            return result
-
-        except Exception as e:
-            print(f"⚠️ 분류 실행 실패: {e}")
-            # 폴백: 기본값 반환
-            return {
-                "industry": {"id": 9, "name": "기타", "confidence": 0.1},
-                "purpose": {"id": 11, "name": "기타", "confidence": 0.1},
-                "overall_confidence": 0.1,
-                "method": "fallback_error",
-                "error": str(e)
-            }
->>>>>>> 40cb8e3693977a4335ed512cc5cf3875ba8be136
 
 
 # 테스트 실행 블록
