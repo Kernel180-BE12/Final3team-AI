@@ -7,14 +7,12 @@ import re
 import requests
 from datetime import datetime
 from typing import Dict, Optional, List
-import config
 from config import GEMINI_API_KEY
 from src.core import EntityExtractor
 from src.core.index_manager import get_index_manager
 from src.utils import DataProcessor
 from src.agents.agent1 import Agent1
 from src.agents.agent2 import Agent2
-from src.evaluation.ragas_evaluator import TemplateRAGASEvaluator
 from src.utils.llm_provider_manager import get_llm_manager, invoke_llm_with_fallback
 from src.core.template_selector import get_template_selector
 
@@ -38,8 +36,6 @@ class TemplateAPI:
         # LLM 공급자 관리자 초기화
         self.llm_manager = get_llm_manager()
         
-        # RAGAS 평가기 초기화 추가
-        self.evaluator = TemplateRAGASEvaluator(GEMINI_API_KEY)
         
         # 3단계 템플릿 선택기 초기화
         self.template_selector = get_template_selector()
@@ -91,17 +87,16 @@ class TemplateAPI:
         from src.utils.sample_templates import get_sample_templates
         return get_sample_templates()
     
-    def generate_template(self, user_input: str, options: Optional[Dict] = None, with_ragas_gate: bool = True) -> Dict:
+    def generate_template(self, user_input: str, options: Optional[Dict] = None) -> Dict:
         """
         템플릿 생성 메인 API (3단계 선택 시스템 적용)
         
         Args:
             user_input: 사용자 요청
             options: 생성 옵션 (use_agent2, method, force_generation 등)
-            with_ragas_gate: RAGAS 품질 검증 게이트 사용 여부 (기본: True)
             
         Returns:
-            생성 결과 딕셔너리 (검증 통과한 템플릿만 반환)
+            생성 결과 딕셔너리
         """
         if not user_input or not user_input.strip():
             return {
@@ -177,25 +172,8 @@ class TemplateAPI:
                 "selection_path": selection_result.selection_path,
                 "source_info": selection_result.source_info,
                 "variables": variables,
-                "created_at": datetime.now().isoformat(),
-                "ragas_verified": False
+                "created_at": datetime.now().isoformat()
             }
-            
-            # 생성된 템플릿인 경우에만 RAGAS 검증 적용 (config에서 설정 확인)
-            if source == "generated" and with_ragas_gate and config.ENABLE_RAGAS_EVALUATION:
-                print(" RAGAS 품질 검증 시작")
-                ragas_result = self._apply_ragas_quality_gate(user_input, {
-                    "success": True,
-                    "template": template,
-                    "metadata": metadata
-                }, options)
-                
-                if not ragas_result.get("success"):
-                    return ragas_result
-                
-                metadata["ragas_verified"] = True
-                metadata["ragas_scores"] = ragas_result.get("metadata", {}).get("ragas_scores")
-                print(" RAGAS 품질 검증 통과")
             
             # 최종 결과 반환
             return {
@@ -228,8 +206,7 @@ class TemplateAPI:
                     "agent1": "ready",
                     "agent2": "ready",
                     "index_manager": "ready",
-                    "llm_manager": "ready",
-                    "ragas_evaluator": "ready",
+                    "llm_manager": "ready", 
                     "template_selector": "ready"
                 },
                 "template_selection": template_selector_stats,
@@ -633,110 +610,6 @@ class TemplateAPI:
                 "response": None
             }
     
-    def _apply_ragas_quality_gate(self, user_input: str, initial_result: Dict, options: Optional[Dict] = None) -> Dict:
-        """
-        RAGAS 품질 검증 게이트 적용
-        품질 기준을 통과할 때까지 재생성하거나 최종 실패 처리
-        
-        Args:
-            user_input: 사용자 입력
-            initial_result: 초기 템플릿 생성 결과
-            options: 생성 옵션
-            
-        Returns:
-            검증 통과한 결과 또는 실패 결과
-        """
-        max_retries = self.evaluator.QUALITY_THRESHOLDS["max_retries"]
-        current_result = initial_result
-        
-        for attempt in range(max_retries + 1):  # 최초 시도 + 재시도
-            try:
-                print(f" RAGAS 품질 검증 {attempt + 1}/{max_retries + 1} 시도...")
-                
-                # 평가용 데이터 준비
-                evaluation_data = [{
-                    "user_input": user_input,
-                    "template": current_result["template"],
-                    "metadata": current_result["metadata"]
-                }]
-                
-                # 평가 데이터셋 생성
-                dataset = self.evaluator.create_evaluation_dataset(evaluation_data)
-                
-                # RAGAS 평가 실행
-                evaluation_results = self.evaluator.evaluate_templates(dataset)
-                
-                if evaluation_results:
-                    # 품질 검증 확인
-                    quality_check = self.evaluator.check_quality_pass(evaluation_results)
-                    
-                    # 평가 정보를 결과에 추가
-                    current_result["ragas_evaluation"] = {
-                        "attempt": attempt + 1,
-                        "scores": evaluation_results,
-                        "quality_check": quality_check,
-                        "average_score": quality_check["average_score"],
-                        "passed": quality_check["passed"]
-                    }
-                    
-                    if quality_check["passed"]:
-                        print(f" RAGAS 검증 통과! (평균: {quality_check['average_score']:.3f})")
-                        current_result["quality_verified"] = True
-                        return current_result
-                    else:
-                        print(f" RAGAS 검증 실패 (평균: {quality_check['average_score']:.3f})")
-                        print(f"실패 이유: {quality_check['reason']}")
-                        
-                        # 최대 재시도 전이면 재생성
-                        if attempt < max_retries:
-                            print(f" 품질 개선을 위해 템플릿 재생성 중... ({attempt + 2}/{max_retries + 1})")
-                            
-                            # 개선 제안을 반영한 재생성 옵션
-                            improved_options = options.copy() if options else {}
-                            improved_options["improvement_suggestions"] = quality_check["suggestions"]
-                            improved_options["failed_metrics"] = quality_check["failed_metrics"]
-                            
-                            # 재생성 (검증 게이트 비활성화하여 무한루프 방지)
-                            retry_result = self.generate_template(
-                                user_input, 
-                                improved_options, 
-                                with_ragas_gate=False
-                            )
-                            
-                            if retry_result.get("success"):
-                                current_result = retry_result
-                                continue
-                            else:
-                                print(" 재생성 실패")
-                                break
-                        else:
-                            print(" 최대 재시도 횟수 초과")
-                            break
-                else:
-                    print(" RAGAS 평가 실행 실패")
-                    break
-                    
-            except Exception as e:
-                print(f" RAGAS 검증 오류: {e}")
-                break
-        
-        # 검증 실패 시 최종 결과 반환
-        current_result["quality_verified"] = False
-        if "ragas_evaluation" not in current_result:
-            current_result["ragas_evaluation"] = {}
-        current_result["ragas_evaluation"]["final_status"] = "검증 실패"
-        current_result["ragas_evaluation"]["reason"] = "품질 기준 미달 또는 평가 오류"
-        
-        return {
-            "success": False,
-            "error": "템플릿이 품질 기준을 통과하지 못했습니다.",
-            "error_code": "QUALITY_VERIFICATION_FAILED",
-            "template": None,
-            "quality_verification_failed": True,
-            "ragas_evaluation": current_result.get("ragas_evaluation", {}),
-            "suggestions": current_result.get("ragas_evaluation", {}).get("quality_check", {}).get("suggestions", []),
-            "last_attempt": current_result
-        }
     
     def generate_and_send(self, user_input: str, backend_url: str, 
                          options: Optional[Dict] = None) -> Dict:

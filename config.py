@@ -10,5 +10,3 @@ GEMINI_API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     raise ValueError("GOOGLE_API_KEY가 .env 파일에 설정되지 않았습니다.")
 
-# RAGAS 품질 평가 기능 ON/OFF 설정
-ENABLE_RAGAS_EVALUATION = os.getenv("ENABLE_RAGAS_EVALUATION", "false").lower() == "true"
