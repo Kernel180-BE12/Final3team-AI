@@ -374,7 +374,7 @@ async def create_template(request: TemplateCreationRequest):
                 {
                     "id": i + 1, # 임시 ID
                     "variableKey": var.get("variable_key"),
-                    "placeholder": "#" + var.get("placeholder"), 
+                    "placeholder": var.get("placeholder"), 
                     "inputType": var.get("input_type", "TEXT")  # 기본값 설정
                 } for i, var in enumerate(variable_data)
             ],
