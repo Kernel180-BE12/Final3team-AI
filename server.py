@@ -467,13 +467,24 @@ def _get_metadata_industries(generation_result: Dict, content: str, category_id:
     
     # 3. 내용 기반 키워드 추론
     if any(word in content for word in ["교육", "강의", "수업", "학원"]):
-        return [{"id": 1, "name": "교육"}]
-    elif any(word in content for word in ["게임", "앱", "플레이"]):
-        return [{"id": 1, "name": "엔터테인먼트"}] 
-    elif any(word in content for word in ["쇼핑", "구매", "상품"]):
-        return [{"id": 1, "name": "쇼핑"}]
+        return [{"id": 1, "name": "학원"}]
+    elif any(word in content for word in ["온라인", "인터넷", "웹"]):
+        return [{"id": 2, "name": "온라인 강의"}]
+    elif any(word in content for word in ["운동", "헬스", "피트니스", "요가"]):
+        return [{"id": 3, "name": "피트니스"}]
+    elif any(word in content for word in ["공연", "행사", "이벤트", "콘서트"]):
+        return [{"id": 4, "name": "공연/행사"}]
+    elif any(word in content for word in ["모임", "동호회"]):
+        return [{"id": 5, "name": "모임"}]
+    elif any(word in content for word in ["동문", "동창", "졸업"]):
+        return [{"id": 6, "name": "동문회"}]
+    elif any(word in content for word in ["병원", "의료", "진료", "건강"]):
+        return [{"id": 7, "name": "병원"}]
+    elif any(word in content for word in ["부동산", "집", "아파트", "매매", "임대"]):
+        return [{"id": 8, "name": "부동산"}]
     
-    return []
+    # 4. 어떤 업종도 매칭되지 않으면 "기타"로 분류
+    return [{"id": 9, "name": "기타"}]
 
 def _get_metadata_purposes(generation_result: Dict, content: str, original_input: str) -> List[Dict]:
     """메타데이터에서 목적 정보 추출 또는 추론"""
