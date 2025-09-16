@@ -19,7 +19,7 @@ from config import GEMINI_API_KEY
 
 class Agent2:
     """AI.png 구조에 맞는 Agent2 구현 (데이터 캐싱 최적화)"""
-    
+
     def __init__(self, api_key: str = None, gemini_model: str = "gemini-2.0-flash-exp", index_manager=None):
         self.api_key = api_key or GEMINI_API_KEY
         self.llm = ChatGoogleGenerativeAI(
@@ -50,7 +50,7 @@ class Agent2:
         self.industry_classifier = self._init_classifier()
 
         print(" Agent2 초기화 완료 - AI.png 구조 적용 (캐시 최적화 + 자동 분류)")
-    
+
     def _get_predata_cache(self):
         """ 캐시된 predata 가져오기 (Tools 간 공유)"""
         if self._predata_cache is None:
@@ -60,20 +60,20 @@ class Agent2:
                 # 폴백: 직접 로딩
                 self._predata_cache = self._load_predata_direct()
         return self._predata_cache
-    
+
     def _load_predata_direct(self):
         """폴백: 직접 predata 로딩"""
         import os
         from pathlib import Path
-        
+
         data = {}
-        predata_dir = Path("predata") 
-        files = ["cleaned_black_list.md", "cleaned_white_list.md", 
+        predata_dir = Path("predata")
+        files = ["cleaned_black_list.md", "cleaned_white_list.md",
                 "cleaned_add_infotalk.md", "cleaned_alrimtalk.md",
                 "cleaned_content-guide.md", "cleaned_message.md",
-                "cleaned_run_message.md", "cleaned_zipguide.md", 
+                "cleaned_run_message.md", "cleaned_zipguide.md",
                 "pdf_extraction_results.txt"]
-        
+
         for filename in files:
             file_path = predata_dir / filename
             if file_path.exists():
@@ -90,25 +90,25 @@ class Agent2:
             def __init__(self, parent_agent):
                 self.parent = parent_agent
                 self.blacklist_data = None
-            
+
             def _get_blacklist_data(self):
                 if self.blacklist_data is None:
                     predata = self.parent._get_predata_cache()
                     self.blacklist_data = predata.get("cleaned_black_list.md", "")
                 return self.blacklist_data
-            
+
             def invoke(self, input_data):
                 """금지어 패턴 분석"""
                 user_input = input_data.get("user_input", "")
                 blacklist_data = self._get_blacklist_data()
-                
+
                 # 위험 키워드 식별
                 risk_keywords = []
                 high_risk_patterns = ["할인", "이벤트", "무료", "특가", "프로모션", "경품", "추첨"]
                 for pattern in high_risk_patterns:
                     if pattern in user_input:
                         risk_keywords.append(pattern)
-                
+
                 # BlackList 데이터에서 관련 제한사항 찾기
                 restrictions = []
                 if risk_keywords and blacklist_data:
@@ -118,7 +118,7 @@ class Agent2:
                         restrictions.append("스팸성 내용 금지")
                     if "위반" in blacklist_data:
                         restrictions.append("가이드라인 위반 시 계정 차단")
-                
+
                 return {
                     "tool_name": "BlackList",
                     "risk_level": "HIGH" if risk_keywords else "LOW",
@@ -127,15 +127,15 @@ class Agent2:
                     "data_loaded": len(blacklist_data) > 0,
                     "compliance_check": "FAILED" if risk_keywords else "PASSED"
                 }
-        
+
         return BlackListTool(self)
-    
+
     def _init_whitelist_tool(self):
         """WhiteList Tool 초기화"""
         class WhiteListTool:
             def __init__(self):
                 self.whitelist_data = self._load_whitelist()
-            
+
             def _load_whitelist(self):
                 try:
                     base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -145,18 +145,18 @@ class Agent2:
                 except Exception as e:
                     print(f" WhiteList 로드 실패: {e}")
                     return ""
-            
+
             def invoke(self, input_data):
                 """승인 패턴 분석"""
                 user_input = input_data.get("user_input", "")
-                
+
                 # 카테고리 분류
                 category = "일반안내"
                 if "예약" in user_input: category = "예약확인"
                 elif "결제" in user_input: category = "결제안내"
                 elif "포인트" in user_input: category = "포인트안내"
                 elif "배송" in user_input: category = "배송안내"
-                
+
                 # WhiteList에서 승인 패턴 찾기
                 approved_patterns = []
                 if self.whitelist_data:
@@ -164,7 +164,7 @@ class Agent2:
                         approved_patterns.append("정당한 서비스 안내")
                     if "허용" in self.whitelist_data:
                         approved_patterns.append("고객 요청 정보")
-                
+
                 return {
                     "tool_name": "WhiteList",
                     "category": category,
@@ -173,15 +173,15 @@ class Agent2:
                     "data_loaded": len(self.whitelist_data) > 0,
                     "approval_status": "APPROVED"
                 }
-        
+
         return WhiteListTool()
-    
+
     def _init_guideline_tool(self):
         """가이드라인 Tool 초기화"""
         class GuidelineTool:
             def __init__(self):
                 self.guidelines_data = self._load_guidelines()
-            
+
             def _load_guidelines(self):
                 try:
                     base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -193,23 +193,23 @@ class Agent2:
                         "cleaned_run_message.md",
                         "cleaned_zipguide.md"
                     ]
-                    
+
                     all_data = ""
                     for filename in guideline_files:
                         file_path = os.path.join(base_path, "predata", filename)
                         if os.path.exists(file_path):
                             with open(file_path, 'r', encoding='utf-8') as f:
                                 all_data += f.read() + "\n"
-                    
+
                     return all_data
                 except Exception as e:
                     print(f" 가이드라인 로드 실패: {e}")
                     return ""
-            
+
             def invoke(self, input_data):
                 """가이드라인 준수사항 분석"""
                 user_input = input_data.get("user_input", "")
-                
+
                 # 가이드라인 요구사항 추출
                 requirements = []
                 if self.guidelines_data:
@@ -219,7 +219,7 @@ class Agent2:
                         requirements.append("권장사항 준수")
                     if "금지" in self.guidelines_data:
                         requirements.append("금지사항 회피")
-                
+
                 # 템플릿 구조 권장사항
                 template_structure = [
                     "인사말 포함",
@@ -227,7 +227,7 @@ class Agent2:
                     "연락처 정보",
                     "수신거부 안내"
                 ]
-                
+
                 return {
                     "tool_name": "가이드라인",
                     "requirements": requirements,
@@ -236,15 +236,15 @@ class Agent2:
                     "data_loaded": len(self.guidelines_data) > 0,
                     "guideline_version": "2024_standard"
                 }
-        
+
         return GuidelineTool()
-    
+
     def _init_law_tool(self):
         """정보통신법 Tool 초기화"""
         class LawTool:
             def __init__(self):
                 self.law_data = self._load_law_data()
-            
+
             def _load_law_data(self):
                 try:
                     base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -254,16 +254,16 @@ class Agent2:
                 except Exception as e:
                     print(f" 정보통신법 데이터 로드 실패: {e}")
                     return ""
-            
+
             def invoke(self, input_data):
                 """정보통신망법 준수사항 분석"""
                 user_input = input_data.get("user_input", "")
-                
+
                 # 메시지 유형 분류
                 message_type = "정보성"
                 if any(word in user_input for word in ["할인", "이벤트", "특가"]):
                     message_type = "광고성"
-                
+
                 # 법적 요구사항
                 legal_requirements = []
                 if self.law_data:
@@ -274,7 +274,7 @@ class Agent2:
                     if message_type == "광고성":
                         legal_requirements.append("[광고] 표기 의무")
                         legal_requirements.append("수신동의자에게만 발송")
-                
+
                 return {
                     "tool_name": "정보통신법",
                     "message_type": message_type,
@@ -283,7 +283,7 @@ class Agent2:
                     "data_loaded": len(self.law_data) > 0,
                     "law_version": "정보통신망법_최신"
                 }
-        
+
         return LawTool()
 
     def _init_classifier(self):
@@ -306,7 +306,7 @@ class Agent2:
         except Exception as e:
             print(f"⚠️ 분류기 초기화 실패: {e}")
             return None
-    
+
     def _preprocess_dates(self, user_input: str) -> str:
         """날짜 표현을 구체적인 날짜로 변환"""
         try:
@@ -321,32 +321,32 @@ class Agent2:
         except Exception as e:
             print(f"⚠️ 날짜 전처리 실패: {e}")
             return user_input  # 원본 반환
-    
+
     def generate_compliant_template(self, user_input: str, agent1_variables: Dict[str, str] = None) -> Tuple[str, Dict]:
         """
         AI.png 구조에 따른 완벽 준수 템플릿 생성
         4개 Tools 병렬 실행 -> Agent(템플릿생성자) -> 최종 템플릿
         """
         print(f" Agent2: 4개 Tools 병렬 분석 시작")
-        
+
         # 0단계: 날짜 전처리 (내일, 모레 등을 구체적 날짜로 변환)
         preprocessed_input = self._preprocess_dates(user_input)
         if preprocessed_input != user_input:
             print(f" 날짜 전처리: '{user_input}' → '{preprocessed_input}'")
-        
+
         # 1단계: 4개 Tools 병렬 실행
         input_data = {"user_input": preprocessed_input}
-        
+
         try:
             tools_results = {}
             for tool_name, tool in self.tools.items():
                 tools_results[tool_name] = tool.invoke(input_data)
             print(f" 4개 Tools 분석 완료")
-            
+
         except Exception as e:
             print(f" Tools 실행 오류: {e}")
             return {"success": False, "error": f"Tools 실행 오류: {str(e)}"}, {}
-        
+
         # 2단계: Agent(템플릿생성자)가 Tools 결과를 종합하여 템플릿 생성
         template = self._create_template_from_tools(preprocessed_input, tools_results)
 
@@ -371,7 +371,8 @@ class Agent2:
                 result.get("data_loaded", False) for result in tools_results.values()
             )
         }
-        
+<<<<<<< HEAD
+
         print(f" Agent2 템플릿 생성 완료")
 
         # 변수 추출
@@ -381,19 +382,25 @@ class Agent2:
         result = {
             "success": True,
             "template": template,
+<<<<<<< HEAD
             "variables": variables
+=======
+            "variables": [],  # TODO: 변수 추출 로직 추가 필요
+            "industry": [{"id": classification_result["industry"]["id"], "name": classification_result["industry"]["name"]}],
+            "purpose": [{"id": classification_result["purpose"]["id"], "name": classification_result["purpose"]["name"]}]
+>>>>>>> 40cb8e3693977a4335ed512cc5cf3875ba8be136
         }
         return result, metadata
-    
+
     def _create_template_from_tools(self, user_input: str, tools_results: Dict) -> str:
         """4개 Tools 결과를 종합하여 최종 템플릿 생성"""
-        
+
         # Tools 결과 요약
         blacklist = tools_results["blacklist"]
         whitelist = tools_results["whitelist"]
         guideline = tools_results["guideline"]
         law = tools_results["law"]
-        
+
         # LLM에 전달할 프롬프트 구성
         system_prompt = """당신은 Agent2의 템플릿생성자입니다.
 4개 Tools(BlackList, WhiteList, 가이드라인, 정보통신법)의 분석 결과를 바탕으로 
@@ -451,25 +458,25 @@ class Agent2:
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=human_prompt)
             ]
-            
+
             response = self.llm.invoke(messages)
             return response.content
-            
+
         except Exception as e:
             print(f" 템플릿 생성 LLM 오류: {e}")
-            
+
             # 폴백 템플릿 생성
             fallback_template = self._create_fallback_template(user_input, tools_results)
             return fallback_template
-    
+
     def _create_fallback_template(self, user_input: str, tools_results: Dict) -> str:
         """LLM 오류 시 폴백 템플릿"""
         law = tools_results["law"]
         whitelist = tools_results["whitelist"]
-        
+
         # 광고성 메시지 여부에 따른 접두사
         prefix = "[광고] " if law["message_type"] == "광고성" else ""
-        
+
         template = f"""{prefix}안녕하세요, #{{고객명}}님.
 
 {user_input}에 대해 안내드립니다.
@@ -486,7 +493,7 @@ class Agent2:
 ※ 본 메시지는 {whitelist['category']} 목적으로 발송되는 {'광고성 정보 전송에 동의하신 분께 발송되는' if law['message_type'] == '광고성' else '서비스 안내'} 메시지입니다.
 
 감사합니다."""
-        
+
         return template
 
     def _extract_variables_from_template(self, template: str) -> List[Dict]:
@@ -506,25 +513,62 @@ class Agent2:
             })
 
         return variables
+=======
+    def _classify_industry_purpose(self, user_input: str, agent1_variables: Dict = None) -> Dict:
+        """Industry/Purpose 자동 분류 (Agent1 문맥 활용)"""
+        if not self.industry_classifier:
+            # 분류기가 없으면 기본값 반환
+            return {
+                "industry": {"id": 9, "name": "기타", "confidence": 0.1},
+                "purpose": {"id": 11, "name": "기타", "confidence": 0.1},
+                "overall_confidence": 0.1,
+                "method": "fallback_default",
+                "error": "분류기 초기화 실패"
+            }
+
+        try:
+            # Agent1 결과가 있으면 문맥 기반 분류 사용
+            if agent1_variables and isinstance(agent1_variables, dict):
+                result = self.industry_classifier.classify_with_agent1_context(user_input, agent1_variables)
+                method_desc = "문맥 기반 (Agent1 활용)"
+            else:
+                # 기존 키워드 기반 분류
+                result = self.industry_classifier.classify(user_input)
+                method_desc = "키워드 기반"
+
+            print(f" 자동 분류 완료 ({method_desc}): Industry={result['industry']['name']}({result['industry']['confidence']:.2f}), Purpose={result['purpose']['name']}({result['purpose']['confidence']:.2f})")
+            return result
+
+        except Exception as e:
+            print(f"⚠️ 분류 실행 실패: {e}")
+            # 폴백: 기본값 반환
+            return {
+                "industry": {"id": 9, "name": "기타", "confidence": 0.1},
+                "purpose": {"id": 11, "name": "기타", "confidence": 0.1},
+                "overall_confidence": 0.1,
+                "method": "fallback_error",
+                "error": str(e)
+            }
+>>>>>>> 40cb8e3693977a4335ed512cc5cf3875ba8be136
 
 
 # 테스트 실행 블록
 if __name__ == "__main__":
     print("Agent2 테스트 시작...")
-    
+
     try:
         # Agent2 인스턴스 생성
         agent = Agent2()
         print("Agent2 인스턴스 생성 성공!")
-        
+
         # 간단한 테스트
         test_input = "긴급 점검 안내드립니다"
         print(f"테스트 입력: {test_input}")
-        
+
         result, tools_data = agent.generate_compliant_template(test_input)
         print(f"생성된 템플릿:\n{result}")
         print(f"도구 데이터: {tools_data}")
-        
+
     except Exception as e:
         print(f"오류 발생: {e}")
         import traceback
