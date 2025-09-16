@@ -6,7 +6,7 @@ import json
 import os
 import re
 from typing import List, Dict, Any, Optional, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 import logging
 
@@ -19,8 +19,8 @@ class PublicTemplate:
     template_type: str
     variables: List[Dict[str, Any]]
     buttons: List[Dict[str, Any]]
-    industries: List[str] = None
-    purposes: List[str] = None
+    industry: List[str] = field(default_factory=list)
+    purpose: List[str] = field(default_factory=list)
     image_url: Optional[str] = None
     
 class PublicTemplateManager:
@@ -54,8 +54,14 @@ class PublicTemplateManager:
             if isinstance(data, list) and len(data) > 0:
                 # data[0]이 response wrapper인 경우
                 template_data = data[0].get('data', {}).get('templates', [])
+            elif isinstance(data, dict):
+                # 객체 형태에서 템플릿 데이터 추출
+                template_data = data.get('data', {}).get('templates', [])
+                if not template_data:
+                    template_data = data.get('templates', [])
             else:
-                template_data = data.get('templates', [])
+                # data가 빈 리스트이거나 다른 타입인 경우
+                template_data = []
             
             for template_json in template_data:
                 try:
@@ -66,8 +72,8 @@ class PublicTemplateManager:
                         template_type=template_json.get('templateEmphasizeType', 'TEXT'),
                         variables=template_json.get('variables', []),
                         buttons=template_json.get('buttons', []),
-                        industries=template_json.get('industries', []),
-                        purposes=template_json.get('purposes', []),
+                        industry=template_json.get('industries', []),
+                        purpose=template_json.get('purposes', []),
                         image_url=template_json.get('templateImageUrl')
                     )
                     self.templates.append(template)

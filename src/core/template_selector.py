@@ -247,8 +247,8 @@ class TemplateSelector:
                     "similarity": similarity,
                     "original_variables": len(best_template.variables),
                     "buttons": best_template.buttons,
-                    "industries": best_template.industries or [],
-                    "purposes": best_template.purposes or []
+                    "industry": best_template.industry or [],
+                    "purpose": best_template.purpose or []
                 }
             )
             

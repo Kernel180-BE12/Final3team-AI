@@ -57,8 +57,8 @@ class TemplateResponse(BaseModel):
     type: str
     buttons: List[Button]
     variables: List[Variable]
-    industries: List[Industry]
-    purposes: List[Purpose]
+    industry: List[Industry]
+    purpose: List[Purpose]
 
 
 # --- 유틸리티 함수 ---
@@ -358,7 +358,7 @@ async def create_template(request: TemplateCreationRequest):
         variable_data = exported_data["variables"]
 
         # 3. 최종 응답 모델(TemplateResponse)에 맞춰 데이터 매핑
-        # 참고: 현재 로직은 buttons, industries, purposes를 생성하지 않으므로, 빈 리스트로 반환합니다.
+        # 참고: 현재 로직은 buttons, industry, purpose를 생성하지 않으므로, 빈 리스트로 반환합니다.
         #      이 부분은 필요 시 추가 로직 구현이 필요합니다.
         #      id는 DB 저장 후 실제 ID를 받아와야 하지만, 여기서는 예시로 1을 사용합니다.
         response_data = {
@@ -378,8 +378,8 @@ async def create_template(request: TemplateCreationRequest):
                     "inputType": var.get("input_type", "TEXT")  # 기본값 설정
                 } for i, var in enumerate(variable_data)
             ],
-            "industries": _get_metadata_industries(generation_result, template_data["content"], template_data["category_id"]),
-            "purposes": _get_metadata_purposes(generation_result, template_data["content"], processed_content)
+            "industry": _get_metadata_industries(generation_result, template_data["content"], template_data["category_id"]),
+            "purpose": _get_metadata_purpose(generation_result, template_data["content"], processed_content)
         }
 
         return response_data
@@ -486,12 +486,12 @@ def _get_metadata_industries(generation_result: Dict, content: str, category_id:
     # 4. 어떤 업종도 매칭되지 않으면 "기타"로 분류
     return [{"id": 9, "name": "기타"}]
 
-def _get_metadata_purposes(generation_result: Dict, content: str, original_input: str) -> List[Dict]:
+def _get_metadata_purpose(generation_result: Dict, content: str, original_input: str) -> List[Dict]:
     """메타데이터에서 목적 정보 추출 또는 추론"""
     # 1. 직접 매칭된 템플릿의 목적 사용  
-    purposes = generation_result.get("metadata", {}).get("source_info", {}).get("purposes", [])
-    if purposes:
-        return [{"id": i + 1, "name": purpose} for i, purpose in enumerate(purposes)]
+    purpose = generation_result.get("metadata", {}).get("source_info", {}).get("purpose", [])
+    if purpose:
+        return [{"id": i + 1, "name": p} for i, p in enumerate(purpose)]
     
     # 2. 내용 기반 목적 추론
     purpose_keywords = {
@@ -502,17 +502,17 @@ def _get_metadata_purposes(generation_result: Dict, content: str, original_input
         "회원 관리": ["회원", "가입", "등급", "포인트"]
     }
     
-    detected_purposes = []
+    detected_purpose = []
     combined_text = content + " " + original_input
     
     for purpose, keywords in purpose_keywords.items():
         if any(keyword in combined_text for keyword in keywords):
-            detected_purposes.append(purpose)
+            detected_purpose.append(purpose)
     
-    if not detected_purposes:
-        detected_purposes = ["공지/안내"]
+    if not detected_purpose:
+        detected_purpose = ["공지/안내"]
     
-    return [{"id": i + 1, "name": purpose} for i, purpose in enumerate(detected_purposes)]
+    return [{"id": i + 1, "name": purpose} for i, purpose in enumerate(detected_purpose)]
 
 
 @app.get("/health")
