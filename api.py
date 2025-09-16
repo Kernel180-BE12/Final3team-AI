@@ -15,6 +15,7 @@ from src.agents.agent1 import Agent1
 from src.agents.agent2 import Agent2
 from src.utils.llm_provider_manager import get_llm_manager, invoke_llm_with_fallback
 from src.core.template_selector import get_template_selector
+from src.utils.common_init import initialize_core_components, setup_guidelines_and_indexes
 
 
 class TemplateAPI:
@@ -25,8 +26,7 @@ class TemplateAPI:
         print(" Template API 초기화 중...")
         
         # 공통 초기화 모듈 사용
-        from src.utils.common_init import initialize_core_components, setup_guidelines_and_indexes
-        
+
         (self.index_manager, self.entity_extractor, 
         self.data_processor, self.agent2) = initialize_core_components()
         
@@ -70,7 +70,6 @@ class TemplateAPI:
                 self.entity_extractor.guidelines = guidelines
             
             if templates:
-                import re
                 clean_templates = [re.sub(r"#\{[^}]+\}", "{VARIABLE}", t) for t in templates]
                 self.template_generator.template_collection = self.index_manager.get_chroma_collection(
                     collection_name="templates",
@@ -115,7 +114,6 @@ class TemplateAPI:
                 options = {}
             
             # Agent1을 통한 변수 검증 (필수 변수 부족 시 에러 반환)
-            from src.agents.agent1 import Agent1
             agent1 = Agent1()
             validation_result = agent1.process_query(user_input, is_follow_up=False)
             
