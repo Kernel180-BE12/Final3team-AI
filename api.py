@@ -75,7 +75,7 @@ class TemplateAPI:
             
             if templates:
                 import re
-                clean_templates = [re.sub(r"#\{[^}]+\}", "[VARIABLE]", t) for t in templates]
+                clean_templates = [re.sub(r"#\{[^}]+\}", "{VARIABLE}", t) for t in templates]
                 self.template_generator.template_collection = self.index_manager.get_chroma_collection(
                     collection_name="templates",
                     data=clean_templates,

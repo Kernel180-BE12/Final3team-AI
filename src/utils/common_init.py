@@ -64,7 +64,7 @@ def setup_guidelines_and_indexes(index_manager, entity_extractor):
         import re
         clean_templates = []
         for template in templates:
-            clean_template = re.sub(r"#\{[^}]+\}", "[VARIABLE]", template)
+            clean_template = re.sub(r"#\{[^}]+\}", "{VARIABLE}", template)
             clean_templates.append(clean_template)
 
         template_generator.template_collection = index_manager.get_chroma_collection(
