@@ -28,7 +28,7 @@ class TemplateAPI:
         from src.utils.common_init import initialize_core_components, setup_guidelines_and_indexes
         
         (self.index_manager, self.entity_extractor, 
-         self.data_processor, self.agent2) = initialize_core_components()
+        self.data_processor, self.agent2) = initialize_core_components()
         
         # Agent1 초기화 추가
         self.agent1 = Agent1()
