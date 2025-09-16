@@ -552,6 +552,32 @@ class TemplateAPI:
             detected_category = '009003'  # 포인트적립
         elif any(keyword in user_input or keyword in title for keyword in ['피드백', '만족도', '후기']):
             detected_category = '005001'  # 피드백
+        elif any(keyword in user_input or keyword in title for keyword in ['요금', '청구', '결제서', '인보이스']):
+            detected_category = '005002'  # 요금청구
+        elif any(keyword in user_input or keyword in title for keyword in ['계약', '견적', '협의', '상담']):
+            detected_category = '005003'  # 계약/견적
+        elif any(keyword in user_input or keyword in title for keyword in ['안전', '피해', '예방', '경고']):
+            detected_category = '005004'  # 안전/피해예방
+        elif any(keyword in user_input or keyword in title for keyword in ['뉴스레터', '소식', '업데이트']):
+            detected_category = '005005'  # 뉴스레터
+        elif any(keyword in user_input or keyword in title for keyword in ['거래', '매매', '판매']):
+            detected_category = '005006'  # 거래알림
+        elif any(keyword in user_input or keyword in title for keyword in ['수신동의', '동의', '수신']):
+            detected_category = '007001'  # 수신동의
+        elif any(keyword in user_input or keyword in title for keyword in ['개인정보', '프라이버시', '정보보호']):
+            detected_category = '007002'  # 개인정보
+        elif any(keyword in user_input or keyword in title for keyword in ['약관', '이용조건', '변경']):
+            detected_category = '007003'  # 약관변경
+        elif any(keyword in user_input or keyword in title for keyword in ['휴면', '비활성', '장기미접속']):
+            detected_category = '007004'  # 휴면관련
+        elif any(keyword in user_input or keyword in title for keyword in ['내부', '업무', '직원']):
+            detected_category = '008002'  # 내부업무알림
+        elif any(keyword in user_input or keyword in title for keyword in ['쿠폰사용', '쿠폰소모']):
+            detected_category = '009002'  # 쿠폰사용
+        elif any(keyword in user_input or keyword in title for keyword in ['포인트사용', '포인트소모']):
+            detected_category = '009004'  # 포인트사용
+        elif any(keyword in user_input or keyword in title for keyword in ['포인트안내', '쿠폰안내']):
+            detected_category = '009005'  # 쿠폰/포인트안내
             
         # 업종 ID 매핑 (실제로는 DB에서 조회해야 함)
         industry_id_mapping = {
@@ -559,7 +585,8 @@ class TemplateAPI:
             '부동산': 2, 
             '교육': 3,
             '서비스업': 4,
-            '기타': 5
+            '배송업': 5,
+            '기타': 6
         }
         
         return detected_category, industry_id_mapping.get(detected_industry, 5)
