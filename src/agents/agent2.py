@@ -371,7 +371,6 @@ class Agent2:
                 result.get("data_loaded", False) for result in tools_results.values()
             )
         }
-<<<<<<< HEAD
 
         print(f" Agent2 템플릿 생성 완료")
 
@@ -382,13 +381,9 @@ class Agent2:
         result = {
             "success": True,
             "template": template,
-<<<<<<< HEAD
-            "variables": variables
-=======
-            "variables": [],  # TODO: 변수 추출 로직 추가 필요
+            "variables": variables,
             "industry": [{"id": classification_result["industry"]["id"], "name": classification_result["industry"]["name"]}],
             "purpose": [{"id": classification_result["purpose"]["id"], "name": classification_result["purpose"]["name"]}]
->>>>>>> 40cb8e3693977a4335ed512cc5cf3875ba8be136
         }
         return result, metadata
 
@@ -513,7 +508,7 @@ class Agent2:
             })
 
         return variables
-=======
+
     def _classify_industry_purpose(self, user_input: str, agent1_variables: Dict = None) -> Dict:
         """Industry/Purpose 자동 분류 (Agent1 문맥 활용)"""
         if not self.industry_classifier:
@@ -549,7 +544,6 @@ class Agent2:
                 "method": "fallback_error",
                 "error": str(e)
             }
->>>>>>> 40cb8e3693977a4335ed512cc5cf3875ba8be136
 
 
 # 테스트 실행 블록
