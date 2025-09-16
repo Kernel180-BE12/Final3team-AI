@@ -19,6 +19,8 @@ class PublicTemplate:
     template_type: str
     variables: List[Dict[str, Any]]
     buttons: List[Dict[str, Any]]
+    industries: List[str] = None
+    purposes: List[str] = None
     image_url: Optional[str] = None
     
 class PublicTemplateManager:
@@ -64,6 +66,8 @@ class PublicTemplateManager:
                         template_type=template_json.get('templateEmphasizeType', 'TEXT'),
                         variables=template_json.get('variables', []),
                         buttons=template_json.get('buttons', []),
+                        industries=template_json.get('industries', []),
+                        purposes=template_json.get('purposes', []),
                         image_url=template_json.get('templateImageUrl')
                     )
                     self.templates.append(template)

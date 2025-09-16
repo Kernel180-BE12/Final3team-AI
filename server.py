@@ -369,7 +369,7 @@ async def create_template(request: TemplateCreationRequest):
             "content": template_data["content"],
             "imageUrl": template_data["image_url"],
             "type": "MESSAGE", # api.py에서 "MESSAGE"로 고정되어 있음
-            "buttons": [], # TODO: 버튼 생성 로직 필요
+            "buttons": _get_metadata_buttons(generation_result, template_data["content"]),
             "variables": [
                 {
                     "id": i + 1, # 임시 ID
@@ -378,8 +378,8 @@ async def create_template(request: TemplateCreationRequest):
                     "inputType": var.get("input_type", "TEXT")  # 기본값 설정
                 } for i, var in enumerate(variable_data)
             ],
-            "industries": [], # TODO: 업종(Industry) 매핑 로직 필요
-            "purposes": [] # TODO: 목적(Purpose) 매핑 로직 필요
+            "industries": _get_metadata_industries(generation_result, template_data["content"], template_data["category_id"]),
+            "purposes": _get_metadata_purposes(generation_result, template_data["content"], processed_content)
         }
 
         return response_data
@@ -417,6 +417,91 @@ async def create_template(request: TemplateCreationRequest):
                 str(e)
             )
         )
+
+def _get_metadata_buttons(generation_result: Dict, content: str) -> List[Dict]:
+    """메타데이터에서 버튼 정보 추출 또는 추론"""
+    # 1. 직접 매칭된 템플릿의 버튼 사용
+    buttons = generation_result.get("metadata", {}).get("source_info", {}).get("buttons", [])
+    if buttons:
+        return [{
+            "id": i + 1,
+            "name": btn.get("name", "버튼"),
+            "ordering": btn.get("ordering", i + 1),
+            "linkPc": btn.get("linkPc"),
+            "linkAnd": btn.get("linkAnd"),
+            "linkIos": btn.get("linkIos")
+        } for i, btn in enumerate(buttons)]
+    
+    # 2. 생성된 경우 버튼 필요성 추론
+    button_keywords = ["자세히", "확인", "신청", "예약", "문의"]
+    if any(keyword in content for keyword in button_keywords):
+        return [{
+            "id": 1,
+            "name": "자세히 보기",
+            "ordering": 1,
+            "linkPc": "https://example.com",
+            "linkAnd": None,
+            "linkIos": None
+        }]
+    
+    return []
+
+def _get_metadata_industries(generation_result: Dict, content: str, category_id: str) -> List[Dict]:
+    """메타데이터에서 업종 정보 추출 또는 추론"""
+    # 1. 직접 매칭된 템플릿의 업종 사용
+    industries = generation_result.get("metadata", {}).get("source_info", {}).get("industries", [])
+    if industries:
+        return [{"id": i + 1, "name": industry} for i, industry in enumerate(industries)]
+    
+    # 2. 카테고리 기반 추론
+    category_industry_map = {
+        "004001": ["교육"],  # 교육/강의
+        "001001": ["엔터테인먼트"],  # 게임
+        "002001": ["쇼핑"],  # 쇼핑몰/이커머스
+        "003001": ["의료"]   # 의료/건강
+    }
+    
+    if category_id in category_industry_map:
+        industries = category_industry_map[category_id]
+        return [{"id": i + 1, "name": industry} for i, industry in enumerate(industries)]
+    
+    # 3. 내용 기반 키워드 추론
+    if any(word in content for word in ["교육", "강의", "수업", "학원"]):
+        return [{"id": 1, "name": "교육"}]
+    elif any(word in content for word in ["게임", "앱", "플레이"]):
+        return [{"id": 1, "name": "엔터테인먼트"}] 
+    elif any(word in content for word in ["쇼핑", "구매", "상품"]):
+        return [{"id": 1, "name": "쇼핑"}]
+    
+    return []
+
+def _get_metadata_purposes(generation_result: Dict, content: str, original_input: str) -> List[Dict]:
+    """메타데이터에서 목적 정보 추출 또는 추론"""
+    # 1. 직접 매칭된 템플릿의 목적 사용  
+    purposes = generation_result.get("metadata", {}).get("source_info", {}).get("purposes", [])
+    if purposes:
+        return [{"id": i + 1, "name": purpose} for i, purpose in enumerate(purposes)]
+    
+    # 2. 내용 기반 목적 추론
+    purpose_keywords = {
+        "공지/안내": ["공지", "안내", "알림", "설명회", "공지사항"],
+        "예약알림/리마인드": ["예약", "리마인드", "일정", "예정", "신청"],
+        "할인/혜택": ["할인", "혜택", "특가", "세일", "쿠폰"],
+        "이벤트/프로모션": ["이벤트", "프로모션", "경품", "참여"],
+        "회원 관리": ["회원", "가입", "등급", "포인트"]
+    }
+    
+    detected_purposes = []
+    combined_text = content + " " + original_input
+    
+    for purpose, keywords in purpose_keywords.items():
+        if any(keyword in combined_text for keyword in keywords):
+            detected_purposes.append(purpose)
+    
+    if not detected_purposes:
+        detected_purposes = ["공지/안내"]
+    
+    return [{"id": i + 1, "name": purpose} for i, purpose in enumerate(detected_purposes)]
 
 
 @app.get("/health")

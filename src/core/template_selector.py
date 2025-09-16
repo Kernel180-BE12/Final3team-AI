@@ -245,7 +245,10 @@ class TemplateSelector:
                     "template_code": converted["source_code"],
                     "template_name": converted["source_name"],
                     "similarity": similarity,
-                    "original_variables": len(best_template.variables)
+                    "original_variables": len(best_template.variables),
+                    "buttons": best_template.buttons,
+                    "industries": best_template.industries or [],
+                    "purposes": best_template.purposes or []
                 }
             )
             
