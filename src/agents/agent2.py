@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 Agent2 - AI.png 구조에 맞는 템플릿 생성 에이전트
-4개 Tools (BlackList, WhiteList, 가이드라인, 정보통신법)과 연동하여 
+4개 Tools (BlackList, WhiteList, 가이드라인, 정보통신법)과 연동하여
 가이드라인과 법령을 모르는 사용자를 위한 완벽 준수 템플릿 생성
++ Industry/Purpose 자동 분류 기능 통합
 """
 import os
 import sys
@@ -26,17 +27,17 @@ class Agent2:
             google_api_key=self.api_key,
             temperature=0.3
         )
-        
+
         #  인덱스 매니저로 데이터 공유 (중복 로딩 방지)
         self.index_manager = index_manager
         self._predata_cache = None
-        
+
         # 4개 Tools 초기화 (캐시된 데이터 사용)
         self.blacklist_tool = self._init_blacklist_tool()
-        self.whitelist_tool = self._init_whitelist_tool() 
+        self.whitelist_tool = self._init_whitelist_tool()
         self.guideline_tool = self._init_guideline_tool()
         self.law_tool = self._init_law_tool()
-        
+
         # 4개 Tools 병렬 실행 준비
         self.tools = {
             "blacklist": self.blacklist_tool,
@@ -44,8 +45,11 @@ class Agent2:
             "guideline": self.guideline_tool,
             "law": self.law_tool
         }
-        
-        print(" Agent2 초기화 완료 - AI.png 구조 적용 (캐시 최적화)")
+
+        # Industry/Purpose 분류기 초기화
+        self.industry_classifier = self._init_classifier()
+
+        print(" Agent2 초기화 완료 - AI.png 구조 적용 (캐시 최적화 + 자동 분류)")
     
     def _get_predata_cache(self):
         """ 캐시된 predata 가져오기 (Tools 간 공유)"""
@@ -281,12 +285,42 @@ class Agent2:
                 }
         
         return LawTool()
+
+    def _init_classifier(self):
+        """Industry/Purpose 분류기 초기화"""
+        try:
+            # 절대 임포트 시도
+            try:
+                from ..tools.industry_classifier import get_classifier
+            except ImportError:
+                # 직접 실행시 절대 경로 사용
+                sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+                from tools.industry_classifier import get_classifier
+
+            classifier = get_classifier()
+            print(" Industry/Purpose 분류기 초기화 완료")
+            return classifier
+        except ImportError as e:
+            print(f"⚠️ 분류기 모듈 로드 실패: {e}")
+            return None
+        except Exception as e:
+            print(f"⚠️ 분류기 초기화 실패: {e}")
+            return None
     
     def _preprocess_dates(self, user_input: str) -> str:
         """날짜 표현을 구체적인 날짜로 변환"""
-        from ..tools.date_preprocessor import DatePreprocessor
-        preprocessor = DatePreprocessor()
-        return preprocessor.preprocess_dates(user_input)
+        try:
+            try:
+                from ..tools.date_preprocessor import DatePreprocessor
+            except ImportError:
+                # 직접 실행시 절대 경로 사용
+                from tools.date_preprocessor import DatePreprocessor
+
+            preprocessor = DatePreprocessor()
+            return preprocessor.preprocess_dates(user_input)
+        except Exception as e:
+            print(f"⚠️ 날짜 전처리 실패: {e}")
+            return user_input  # 원본 반환
     
     def generate_compliant_template(self, user_input: str, agent1_variables: Dict[str, str] = None) -> Tuple[str, Dict]:
         """
@@ -315,14 +349,18 @@ class Agent2:
         
         # 2단계: Agent(템플릿생성자)가 Tools 결과를 종합하여 템플릿 생성
         template = self._create_template_from_tools(preprocessed_input, tools_results)
-        
+
+        # 3단계: Industry/Purpose 자동 분류 (Agent1 변수 활용)
+        classification_result = self._classify_industry_purpose(preprocessed_input, agent1_variables)
+
         # 메타데이터 준비
         metadata = {
             "original_input": user_input,
             "preprocessed_input": preprocessed_input,
             "date_preprocessing_applied": preprocessed_input != user_input,
             "tools_results": tools_results,
-            "generation_method": "Agent2_4Tools_Parallel",
+            "classification_result": classification_result,
+            "generation_method": "Agent2_4Tools_Parallel_AutoClassify",
             "compliance_status": {
                 "blacklist_passed": tools_results["blacklist"]["compliance_check"] == "PASSED",
                 "whitelist_approved": tools_results["whitelist"]["approval_status"] == "APPROVED",
@@ -333,17 +371,28 @@ class Agent2:
                 result.get("data_loaded", False) for result in tools_results.values()
             )
         }
+<<<<<<< HEAD
         
         print(f" Agent2 템플릿 생성 완료")
 
         # 변수 추출
         variables = self._extract_variables_from_template(template)
+=======
+
+        print(f" Agent2 템플릿 생성 완료 (분류 포함)")
+>>>>>>> 40cb8e3693977a4335ed512cc5cf3875ba8be136
 
         # 성공적인 결과를 딕셔너리 형태로 반환
         result = {
             "success": True,
             "template": template,
+<<<<<<< HEAD
             "variables": variables
+=======
+            "variables": [],  # TODO: 변수 추출 로직 추가 필요
+            "industry": [{"id": classification_result["industry"]["id"], "name": classification_result["industry"]["name"]}],
+            "purpose": [{"id": classification_result["purpose"]["id"], "name": classification_result["purpose"]["name"]}]
+>>>>>>> 40cb8e3693977a4335ed512cc5cf3875ba8be136
         }
         return result, metadata
     
@@ -451,6 +500,7 @@ class Agent2:
         
         return template
 
+<<<<<<< HEAD
     def _extract_variables_from_template(self, template: str) -> List[Dict]:
         """템플릿에서 #{변수명} 형식의 변수 추출"""
         import re
@@ -468,6 +518,43 @@ class Agent2:
             })
 
         return variables
+=======
+    def _classify_industry_purpose(self, user_input: str, agent1_variables: Dict = None) -> Dict:
+        """Industry/Purpose 자동 분류 (Agent1 문맥 활용)"""
+        if not self.industry_classifier:
+            # 분류기가 없으면 기본값 반환
+            return {
+                "industry": {"id": 9, "name": "기타", "confidence": 0.1},
+                "purpose": {"id": 11, "name": "기타", "confidence": 0.1},
+                "overall_confidence": 0.1,
+                "method": "fallback_default",
+                "error": "분류기 초기화 실패"
+            }
+
+        try:
+            # Agent1 결과가 있으면 문맥 기반 분류 사용
+            if agent1_variables and isinstance(agent1_variables, dict):
+                result = self.industry_classifier.classify_with_agent1_context(user_input, agent1_variables)
+                method_desc = "문맥 기반 (Agent1 활용)"
+            else:
+                # 기존 키워드 기반 분류
+                result = self.industry_classifier.classify(user_input)
+                method_desc = "키워드 기반"
+
+            print(f" 자동 분류 완료 ({method_desc}): Industry={result['industry']['name']}({result['industry']['confidence']:.2f}), Purpose={result['purpose']['name']}({result['purpose']['confidence']:.2f})")
+            return result
+
+        except Exception as e:
+            print(f"⚠️ 분류 실행 실패: {e}")
+            # 폴백: 기본값 반환
+            return {
+                "industry": {"id": 9, "name": "기타", "confidence": 0.1},
+                "purpose": {"id": 11, "name": "기타", "confidence": 0.1},
+                "overall_confidence": 0.1,
+                "method": "fallback_error",
+                "error": str(e)
+            }
+>>>>>>> 40cb8e3693977a4335ed512cc5cf3875ba8be136
 
 
 # 테스트 실행 블록
