@@ -505,7 +505,7 @@ class TemplateAPI:
                 break
         
         # 카테고리 감지
-        detected_category = '004001'  # 기본값: 이용안내/공지
+        detected_category = '999999'  # 기본값: 기타
         
         # 키워드 기반 상세 카테고리 분류
         if any(keyword in user_input or keyword in title for keyword in ['회원가입', '가입', '신규']):
