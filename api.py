@@ -383,10 +383,15 @@ class TemplateAPI:
         except Exception as e:
             print(f" AI 제목 생성 실패: {e}")
 
-        # 3단계: 최종 폴백 (AI도 실패 시)
+        # 3단계: 최종 폴백 (AI도 실패 시) - 의미있는 기본 제목 생성
         if len(user_input) > 30:
-            return user_input[:27] + "..."
-        return user_input
+            return "알림톡 템플릿"
+
+        # 사용자 입력을 기반으로 한 의미있는 제목 생성
+        if any(word in user_input for word in ['안내', '알림', '확인', '신청', '예약']):
+            return user_input[:15] + " 안내" if len(user_input) > 15 else user_input + " 안내"
+        else:
+            return "알림톡 템플릿"
 
     def _generate_title_with_ai(self, user_input: str) -> str:
         """AI를 사용한 제목 생성"""
@@ -399,9 +404,8 @@ class TemplateAPI:
 제목만 응답해주세요:"""
 
         try:
-            response = invoke_llm_with_fallback(
+            response, _, _ = invoke_llm_with_fallback(
                 prompt=prompt,
-                llm_manager=self.llm_manager,
                 max_length=100
             )
             title = response.strip().replace('"', '').replace("'", "")
