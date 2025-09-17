@@ -403,8 +403,7 @@ class TemplateAPI:
 
         try:
             response, _, _ = invoke_llm_with_fallback(
-                prompt=prompt,
-                max_tokens=100
+                prompt=prompt
             )
             title = response.strip().replace('"', '').replace("'", "")
 
