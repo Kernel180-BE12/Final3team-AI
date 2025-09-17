@@ -625,7 +625,7 @@ class TemplateAPI:
             '기타': 6
         }
         
-        return detected_category, industry_id_mapping.get(detected_industry, 5)
+        return detected_category, industry_id_mapping.get(detected_industry, 6)
     
     def send_to_backend(self, json_data: Dict, backend_url: str, 
                        headers: Optional[Dict] = None) -> Dict:
