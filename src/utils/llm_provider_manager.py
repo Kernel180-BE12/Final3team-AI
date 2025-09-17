@@ -144,71 +144,142 @@ class LLMProviderManager:
     def invoke_with_fallback(self, messages: List[BaseMessage], **kwargs) -> Tuple[str, str, str]:
         """
         Fallback을 포함한 LLM 호출
-        
+
         Args:
             messages: 메시지 리스트
             **kwargs: 추가 파라미터
-            
+
         Returns:
             (response_content, provider_used, model_used)
         """
         last_error = None
-        
+
         for provider in self.providers:
             if not provider["available"]:
                 continue
-                
+
             if self.failure_counts[provider["name"]] >= self.max_failures:
                 continue
-            
+
             for model in provider["models"]:
                 try:
                     self.logger.info(f"시도 중: {provider['name']} - {model}")
-                    
+
                     llm_instance = self._create_llm_instance(provider["name"], model)
                     response = llm_instance.invoke(messages, **kwargs)
-                    
+
                     # 성공 시 실패 카운트 리셋
                     self.failure_counts[provider["name"]] = 0
-                    
+
                     self.current_provider = provider["name"]
                     self.current_model = model
-                    
+
                     self.logger.info(f"성공: {provider['name']} - {model}")
                     return response.content, provider["name"], model
-                    
+
                 except Exception as e:
                     last_error = e
                     self.logger.warning(f"{provider['name']} - {model} 실패: {e}")
                     self.failure_counts[provider["name"]] += 1
-                    
+
                     # 잠시 대기 후 다음 시도
                     time.sleep(1)
                     continue
-        
+
+        # 모든 공급자 실패
+        raise RuntimeError(f"모든 LLM 공급자에서 실패했습니다. 마지막 오류: {last_error}")
+
+    async def ainvoke_with_fallback(self, messages: List[BaseMessage], **kwargs) -> Tuple[str, str, str]:
+        """
+        비동기 Fallback을 포함한 LLM 호출
+
+        Args:
+            messages: 메시지 리스트
+            **kwargs: 추가 파라미터
+
+        Returns:
+            (response_content, provider_used, model_used)
+        """
+        import asyncio
+
+        last_error = None
+
+        for provider in self.providers:
+            if not provider["available"]:
+                continue
+
+            if self.failure_counts[provider["name"]] >= self.max_failures:
+                continue
+
+            for model in provider["models"]:
+                try:
+                    self.logger.info(f"비동기 시도 중: {provider['name']} - {model}")
+
+                    llm_instance = self._create_llm_instance(provider["name"], model)
+                    response = await llm_instance.ainvoke(messages, **kwargs)
+
+                    # 성공 시 실패 카운트 리셋
+                    self.failure_counts[provider["name"]] = 0
+
+                    self.current_provider = provider["name"]
+                    self.current_model = model
+
+                    self.logger.info(f"비동기 성공: {provider['name']} - {model}")
+                    return response.content, provider["name"], model
+
+                except Exception as e:
+                    last_error = e
+                    self.logger.warning(f"{provider['name']} - {model} 비동기 실패: {e}")
+                    self.failure_counts[provider["name"]] += 1
+
+                    # 잠시 대기 후 다음 시도
+                    await asyncio.sleep(1)
+                    continue
+
         # 모든 공급자 실패
         raise RuntimeError(f"모든 LLM 공급자에서 실패했습니다. 마지막 오류: {last_error}")
     
     def invoke_simple(self, prompt: str, system_message: str = None, **kwargs) -> Tuple[str, str, str]:
         """
         간단한 텍스트 프롬프트로 LLM 호출
-        
+
         Args:
             prompt: 사용자 프롬프트
             system_message: 시스템 메시지 (선택사항)
             **kwargs: 추가 파라미터
-            
+
         Returns:
             (response_content, provider_used, model_used)
         """
         messages = []
-        
+
         if system_message:
             messages.append(SystemMessage(content=system_message))
-        
+
         messages.append(HumanMessage(content=prompt))
-        
+
         return self.invoke_with_fallback(messages, **kwargs)
+
+    async def ainvoke_simple(self, prompt: str, system_message: str = None, **kwargs) -> Tuple[str, str, str]:
+        """
+        비동기 간단한 텍스트 프롬프트로 LLM 호출
+
+        Args:
+            prompt: 사용자 프롬프트
+            system_message: 시스템 메시지 (선택사항)
+            **kwargs: 추가 파라미터
+
+        Returns:
+            (response_content, provider_used, model_used)
+        """
+        messages = []
+
+        if system_message:
+            messages.append(SystemMessage(content=system_message))
+
+        messages.append(HumanMessage(content=prompt))
+
+        return await self.ainvoke_with_fallback(messages, **kwargs)
     
     def get_current_status(self) -> Dict[str, Any]:
         """현재 상태 반환"""
@@ -247,17 +318,33 @@ def get_llm_manager() -> LLMProviderManager:
 def invoke_llm_with_fallback(prompt: str, system_message: str = None, **kwargs) -> Tuple[str, str, str]:
     """
     편의 함수: Fallback을 포함한 LLM 호출
-    
+
     Args:
         prompt: 사용자 프롬프트
         system_message: 시스템 메시지
         **kwargs: 추가 파라미터
-        
+
     Returns:
         (response, provider_used, model_used)
     """
     manager = get_llm_manager()
     return manager.invoke_simple(prompt, system_message, **kwargs)
+
+
+async def ainvoke_llm_with_fallback(prompt: str, system_message: str = None, **kwargs) -> Tuple[str, str, str]:
+    """
+    편의 함수: 비동기 Fallback을 포함한 LLM 호출
+
+    Args:
+        prompt: 사용자 프롬프트
+        system_message: 시스템 메시지
+        **kwargs: 추가 파라미터
+
+    Returns:
+        (response, provider_used, model_used)
+    """
+    manager = get_llm_manager()
+    return await manager.ainvoke_simple(prompt, system_message, **kwargs)
 
 
 if __name__ == "__main__":

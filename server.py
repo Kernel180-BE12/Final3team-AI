@@ -1,5 +1,6 @@
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import json
@@ -251,8 +252,8 @@ async def create_template(request: TemplateCreationRequest):
         # 텍스트 전처리 (긴 텍스트에 적절한 공백 추가)
         processed_content = request.request_content.replace(".", ". ").replace("  ", " ").strip()
         print(f" 전처리된 내용: {processed_content[:100]}...")
-        # 1. api.py의 템플릿 생성 함수 호출 (전처리된 내용 + 컨텍스트 사용)
-        generation_result = template_api.generate_template(
+        # 1. api.py의 비동기 템플릿 생성 함수 호출 (전처리된 내용 + 컨텍스트 사용)
+        generation_result = await template_api.generate_template_async(
             user_input=processed_content,
             conversation_context=request.conversation_context
         )
@@ -628,6 +629,121 @@ async def debug_raw(request_data: dict):
         "keys": list(request_data.keys()),
         "status": "OK"
     }
+
+
+@app.post("/ai/templates/stream")
+async def stream_template_generation(request: TemplateCreationRequest):
+    """
+    AI를 사용하여 템플릿을 실시간 스트리밍으로 생성
+    """
+    async def generate_stream():
+        try:
+            # 요청 검증 (기존 create_template과 동일)
+            if not check_rate_limit(request.user_id):
+                yield f"data: {json.dumps(create_error_response('RATE_LIMIT_EXCEEDED', '너무 많은 요청을 보내셨습니다.', None, 30), ensure_ascii=False)}\n\n"
+                return
+
+            if not request.request_content or not request.request_content.strip():
+                yield f"data: {json.dumps(create_error_response('INVALID_INPUT', 'requestContent is required'), ensure_ascii=False)}\n\n"
+                return
+
+            if not request.user_id or request.user_id <= 0:
+                yield f"data: {json.dumps(create_error_response('INVALID_INPUT', 'userId is required'), ensure_ascii=False)}\n\n"
+                return
+
+            if len(request.request_content.strip()) > 500:
+                yield f"data: {json.dumps(create_error_response('CONTENT_TOO_LARGE', '입력 텍스트가 너무 깁니다.'), ensure_ascii=False)}\n\n"
+                return
+
+            if not is_meaningful_text(request.request_content):
+                yield f"data: {json.dumps(create_error_response('INVALID_INPUT', '의미있는 텍스트를 입력해주세요.'), ensure_ascii=False)}\n\n"
+                return
+
+            # 진행 상황 스트리밍
+            yield f"data: {json.dumps({'status': 'processing', 'message': '요청을 처리하고 있습니다...', 'progress': 10}, ensure_ascii=False)}\n\n"
+
+            processed_content = request.request_content.replace(".", ". ").replace("  ", " ").strip()
+
+            yield f"data: {json.dumps({'status': 'processing', 'message': 'AI 템플릿 생성 중...', 'progress': 30}, ensure_ascii=False)}\n\n"
+
+            # 비동기 템플릿 생성
+            generation_result = await template_api.generate_template_async(
+                user_input=processed_content,
+                conversation_context=request.conversation_context
+            )
+
+            yield f"data: {json.dumps({'status': 'processing', 'message': '템플릿 변환 중...', 'progress': 70}, ensure_ascii=False)}\n\n"
+
+            if not generation_result.get("success"):
+                # 에러 처리 (기존 로직과 동일)
+                error_code = generation_result.get("error_code", "unknown")
+                error_message = generation_result.get("error", "Template generation failed")
+
+                if error_code == "INCOMPLETE_INFORMATION":
+                    error_response = create_error_response("INCOMPLETE_INFORMATION", "추가 정보가 필요합니다", generation_result.get("reask_data"))
+                elif error_code == "PROFANITY_RETRY":
+                    error_response = create_error_response("PROFANITY_RETRY", "비속어가 감지되었습니다", generation_result.get("retry_data"))
+                else:
+                    error_response = create_error_response("TEMPLATE_GENERATION_ERROR", error_message)
+
+                yield f"data: {json.dumps(error_response, ensure_ascii=False)}\n\n"
+                return
+
+            # JSON 변환
+            json_export = template_api.export_to_json(
+                result=generation_result,
+                user_input=processed_content,
+                user_id=request.user_id
+            )
+
+            if not json_export.get("success"):
+                yield f"data: {json.dumps(create_error_response('JSON_EXPORT_ERROR', '템플릿 데이터 변환에 실패했습니다.'), ensure_ascii=False)}\n\n"
+                return
+
+            yield f"data: {json.dumps({'status': 'processing', 'message': '최종 결과 준비 중...', 'progress': 90}, ensure_ascii=False)}\n\n"
+
+            # 최종 응답 준비 (기존 로직과 동일)
+            exported_data = json_export["data"]
+            template_data = exported_data["template"]
+            variable_data = exported_data["variables"]
+
+            response_data = {
+                "id": 1,
+                "userId": template_data["user_id"],
+                "categoryId": template_data["category_id"],
+                "title": template_data["title"],
+                "content": template_data["content"],
+                "imageUrl": template_data["image_url"],
+                "type": "MESSAGE",
+                "buttons": _get_metadata_buttons(generation_result, template_data["content"]),
+                "variables": [
+                    {
+                        "id": i + 1,
+                        "variableKey": var.get("variable_key"),
+                        "placeholder": var.get("placeholder"),
+                        "inputType": var.get("input_type", "TEXT")
+                    } for i, var in enumerate(variable_data)
+                ],
+                "industry": _get_metadata_industries(generation_result, template_data["content"], template_data["category_id"]),
+                "purpose": _get_metadata_purpose(generation_result, template_data["content"], processed_content)
+            }
+
+            # 최종 성공 응답
+            yield f"data: {json.dumps({'status': 'completed', 'message': '완료되었습니다!', 'progress': 100, 'result': response_data}, ensure_ascii=False)}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps(create_error_response('UNEXPECTED_ERROR', f'예상치 못한 오류: {str(e)}'), ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*"
+        }
+    )
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ from src.core.index_manager import get_index_manager
 from src.utils import DataProcessor
 from src.agents.agent1 import Agent1
 from src.agents.agent2 import Agent2
-from src.utils.llm_provider_manager import get_llm_manager, invoke_llm_with_fallback
+from src.utils.llm_provider_manager import get_llm_manager, invoke_llm_with_fallback, ainvoke_llm_with_fallback
 from src.core.template_selector import get_template_selector
 from src.utils.common_init import initialize_core_components, setup_guidelines_and_indexes
 
@@ -87,6 +87,34 @@ class TemplateAPI:
         return get_sample_templates()
     
     def generate_template(self, user_input: str, options: Optional[Dict] = None, conversation_context: str = None) -> Dict:
+        """
+        템플릿 생성 메인 API (3단계 선택 시스템 적용) - 동기 버전
+
+        Args:
+            user_input: 사용자 요청
+            options: 생성 옵션 (use_agent2, method, force_generation 등)
+            conversation_context: 이전 대화 컨텍스트 (재질문 후 추가 입력시)
+
+        Returns:
+            생성 결과 딕셔너리
+        """
+        return self._generate_template_sync(user_input, options, conversation_context)
+
+    async def generate_template_async(self, user_input: str, options: Optional[Dict] = None, conversation_context: str = None) -> Dict:
+        """
+        템플릿 생성 메인 API (3단계 선택 시스템 적용) - 비동기 버전
+
+        Args:
+            user_input: 사용자 요청
+            options: 생성 옵션 (use_agent2, method, force_generation 등)
+            conversation_context: 이전 대화 컨텍스트 (재질문 후 추가 입력시)
+
+        Returns:
+            생성 결과 딕셔너리
+        """
+        return await self._generate_template_async(user_input, options, conversation_context)
+
+    def _generate_template_sync(self, user_input: str, options: Optional[Dict] = None, conversation_context: str = None) -> Dict:
         """
         템플릿 생성 메인 API (3단계 선택 시스템 적용)
 
@@ -194,7 +222,7 @@ class TemplateAPI:
                 "variables": variables,
                 "created_at": datetime.now().isoformat()
             }
-            
+
             # 최종 결과 반환
             return {
                 "success": True,
@@ -202,7 +230,136 @@ class TemplateAPI:
                 "variables": variables,
                 "metadata": metadata
             }
-            
+
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "error_code": "INTERNAL_ERROR",
+                "template": None,
+                "metadata": None
+            }
+
+    async def _generate_template_async(self, user_input: str, options: Optional[Dict] = None, conversation_context: str = None) -> Dict:
+        """
+        템플릿 생성 메인 API (3단계 선택 시스템 적용) - 비동기 버전
+
+        Args:
+            user_input: 사용자 요청
+            options: 생성 옵션 (use_agent2, method, force_generation 등)
+            conversation_context: 이전 대화 컨텍스트 (재질문 후 추가 입력시)
+
+        Returns:
+            생성 결과 딕셔너리
+        """
+        if not user_input or not user_input.strip():
+            return {
+                "success": False,
+                "error": "입력이 비어있습니다.",
+                "error_code": "EMPTY_INPUT",
+                "template": None,
+                "metadata": None
+            }
+
+        try:
+            print(f" 비동기 3단계 템플릿 선택 시스템 시작: '{user_input}'")
+
+            # 기본 옵션 설정
+            if options is None:
+                options = {}
+
+            # Agent1을 통한 변수 검증 (컨텍스트 조합 처리)
+            agent1 = Agent1()
+
+            # 컨텍스트가 있으면 조합해서 처리
+            if conversation_context:
+                combined_input = f"{conversation_context} {user_input}"
+                print(f" 컨텍스트 조합: '{conversation_context}' + '{user_input}' = '{combined_input}'")
+                # TODO: Agent1에 async 메서드 추가 필요 (현재는 동기 호출 유지)
+                validation_result = agent1.process_query(combined_input, is_follow_up=True)
+            else:
+                validation_result = agent1.process_query(user_input, is_follow_up=False)
+
+            # 필요한 변수가 부족한 경우 재질문 데이터 반환
+            if validation_result.get('status') == 'reask_required':
+                return {
+                    "success": False,
+                    "error_code": "INCOMPLETE_INFORMATION",
+                    "error": "추가 정보가 필요합니다",
+                    "reask_data": {
+                        "confirmed_variables": validation_result.get('selected_variables', {}),
+                        "missing_variables": validation_result.get('missing_variables', []),
+                        "contextual_question": validation_result.get('message', ''),
+                        "original_input": conversation_context if conversation_context else user_input,
+                        "validation_status": "incomplete",
+                        "reasoning": validation_result.get('reasoning', '')
+                    }
+                }
+
+            # 비속어 재시도 요청 처리
+            if validation_result.get('status') == 'profanity_retry':
+                return {
+                    "success": False,
+                    "error_code": "PROFANITY_RETRY",
+                    "error": validation_result.get('message', '비속어가 감지되었습니다. 다시 입력해주세요.'),
+                    "retry_data": {
+                        "retry_type": validation_result.get('retry_type', 'profanity'),
+                        "original_input": validation_result.get('original_input', user_input),
+                        "message": validation_result.get('message', '')
+                    }
+                }
+
+            # 다른 에러가 있는 경우
+            if validation_result.get('status') not in ['complete', 'ready_for_generation', 'success']:
+                return {
+                    "success": False,
+                    "error": validation_result.get('message', '요청 처리 중 오류가 발생했습니다.'),
+                    "error_code": validation_result.get('status', 'VALIDATION_ERROR').upper(),
+                    "template": None,
+                    "metadata": validation_result
+                }
+
+            # 3단계 템플릿 선택 실행
+            # TODO: template_selector에 async 메서드 추가 필요 (현재는 동기 호출 유지)
+            selection_result = self.template_selector.select_template(user_input, options)
+
+            if not selection_result.success:
+                return {
+                    "success": False,
+                    "error": f"템플릿 선택 실패: {selection_result.error}",
+                    "error_code": "TEMPLATE_SELECTION_FAILED",
+                    "template": None,
+                    "metadata": {
+                        "selection_path": selection_result.selection_path,
+                        "source": selection_result.source
+                    }
+                }
+
+            # 선택된 템플릿 정보
+            template = selection_result.template
+            variables = selection_result.variables or []
+            source = selection_result.source
+
+            print(f" 비동기 템플릿 선택 완료: {source} (경로: {' -> '.join(selection_result.selection_path or [])})")
+
+            # 메타데이터 구성
+            metadata = {
+                "source": source,
+                "selection_path": selection_result.selection_path,
+                "source_info": selection_result.source_info,
+                "variables": variables,
+                "created_at": datetime.now().isoformat(),
+                "async_generated": True
+            }
+
+            # 최종 결과 반환
+            return {
+                "success": True,
+                "template": template,
+                "variables": variables,
+                "metadata": metadata
+            }
+
         except Exception as e:
             return {
                 "success": False,
@@ -425,6 +582,30 @@ class TemplateAPI:
 
         try:
             response, _, _ = invoke_llm_with_fallback(
+                prompt=prompt
+            )
+            title = response.strip().replace('"', '').replace("'", "")
+
+            # 길이 제한 및 정제
+            if len(title) > 20:
+                title = title[:20]
+
+            return title
+        except Exception as e:
+            raise e
+
+    async def _generate_title_with_ai_async(self, user_input: str) -> str:
+        """AI를 사용한 제목 생성 (비동기 버전)"""
+        prompt = f"""다음 사용자 요청에 적합한 알림톡 템플릿 제목을 생성해주세요.
+제목은 간결하고 명확하며, 20자 이내로 작성해주세요.
+"안내", "알림", "확인" 등의 적절한 접미사를 포함하세요.
+
+사용자 요청: {user_input}
+
+제목만 응답해주세요:"""
+
+        try:
+            response, _, _ = await ainvoke_llm_with_fallback(
                 prompt=prompt
             )
             title = response.strip().replace('"', '').replace("'", "")
