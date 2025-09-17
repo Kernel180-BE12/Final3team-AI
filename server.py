@@ -7,6 +7,7 @@ import time
 from datetime import datetime
 import re
 from collections import defaultdict
+import threading
 
 # api.py에서 기존 로직을 가져옵니다.
 from api import get_template_api
@@ -63,10 +64,13 @@ class TemplateResponse(BaseModel):
 
 # --- 유틸리티 함수 ---
 
-# Rate limiting을 위한 메모리 저장소
+# Rate limiting을 위한 메모리 저장소 (개선된 버전)
 request_counts = defaultdict(list)
 RATE_LIMIT_PER_MINUTE = 10
 RATE_LIMIT_WINDOW = 60  # seconds
+rate_limit_lock = threading.Lock()  # 동시성 보호
+last_cleanup_time = time.time()     # 마지막 정리 시간
+CLEANUP_INTERVAL = 300              # 5분마다 정리
 
 def create_error_response(code: str, message: str, details: Optional[str] = None, retry_after: Optional[int] = None) -> Dict[str, Any]:
     """표준화된 에러 응답 생성"""
@@ -99,22 +103,56 @@ def is_meaningful_text(text: str) -> bool:
         
     return True
 
-def check_rate_limit(user_id: int) -> bool:
-    """사용자별 요청 제한 확인"""
+def cleanup_old_requests():
+    """오래된 요청 기록 정리하여 메모리 누수 방지"""
+    global last_cleanup_time
     current_time = time.time()
-    user_requests = request_counts[user_id]
-    
-    # 1분 이전 요청들 제거
-    request_counts[user_id] = [req_time for req_time in user_requests 
-                              if current_time - req_time < RATE_LIMIT_WINDOW]
-    
-    # 현재 요청 수 확인
-    if len(request_counts[user_id]) >= RATE_LIMIT_PER_MINUTE:
-        return False
-    
-    # 현재 요청 추가
-    request_counts[user_id].append(current_time)
-    return True
+
+    # 5분마다만 정리 실행
+    if current_time - last_cleanup_time < CLEANUP_INTERVAL:
+        return
+
+    with rate_limit_lock:
+        # 모든 사용자의 오래된 요청 제거
+        for user_id in list(request_counts.keys()):
+            request_counts[user_id] = [
+                req_time for req_time in request_counts[user_id]
+                if current_time - req_time < RATE_LIMIT_WINDOW
+            ]
+            # 빈 리스트면 사용자 기록 완전 삭제
+            if not request_counts[user_id]:
+                del request_counts[user_id]
+
+        last_cleanup_time = current_time
+        print(f"🧹 Rate limit 메모리 정리 완료: {len(request_counts)}명 활성 사용자")
+
+def check_rate_limit(user_id: int) -> bool:
+    """사용자별 요청 제한 확인 (동시성 보호 + 메모리 누수 방지)"""
+
+    # 주기적 메모리 정리
+    cleanup_old_requests()
+
+    current_time = time.time()
+
+    with rate_limit_lock:  # 동시성 보호
+        user_requests = request_counts[user_id]
+
+        # 1분 이전 요청들 제거
+        valid_requests = [
+            req_time for req_time in user_requests
+            if current_time - req_time < RATE_LIMIT_WINDOW
+        ]
+        request_counts[user_id] = valid_requests
+
+        # 현재 요청 수 확인
+        if len(valid_requests) >= RATE_LIMIT_PER_MINUTE:
+            print(f"🚫 Rate limit 초과: user_id={user_id}, 요청수={len(valid_requests)}")
+            return False
+
+        # 현재 요청 추가
+        request_counts[user_id].append(current_time)
+        print(f"✅ Rate limit 통과: user_id={user_id}, 요청수={len(valid_requests)+1}")
+        return True
 
 # --- FastAPI 애플리케이션 설정 ---
 
