@@ -70,27 +70,30 @@ class TemplateValidator:
         """
         validation_results = []
 
+        # 🔍 DEBUG: Tools 결과 로깅
+        print(f"🔍 DEBUG - Tools Results: {tools_results}")
+
         # 1. BlackList 검증
         blacklist_result = self._validate_blacklist_compliance(
-            template, tools_results.get("blacklist", {}), user_input
+            template, tools_results.get("tools_results", {}).get("blacklist", {}), user_input
         )
         validation_results.append(blacklist_result)
 
         # 2. WhiteList 검증
         whitelist_result = self._validate_whitelist_usage(
-            template, tools_results.get("whitelist", {}), user_input
+            template, tools_results.get("tools_results", {}).get("whitelist", {}), user_input
         )
         validation_results.append(whitelist_result)
 
         # 3. Guideline 검증
         guideline_result = self._validate_guideline_compliance(
-            template, tools_results.get("guideline", {}), user_input
+            template, tools_results.get("tools_results", {}).get("guideline", {}), user_input
         )
         validation_results.append(guideline_result)
 
         # 4. Law 검증
         law_result = self._validate_law_compliance(
-            template, tools_results.get("law", {}), user_input
+            template, tools_results.get("tools_results", {}).get("law", {}), user_input
         )
         validation_results.append(law_result)
 
@@ -107,7 +110,11 @@ class TemplateValidator:
 
         # BlackList Tool에서 감지된 위반사항 확인
         compliance_check = blacklist_result.get("compliance_check", "UNKNOWN")
-        violations = blacklist_result.get("violations", [])
+        violations = blacklist_result.get("risk_keywords", [])
+
+        # 🔍 DEBUG: BlackList 결과 로깅
+        print(f"🔍 DEBUG - BlackList Result: {blacklist_result}")
+        print(f"🔍 DEBUG - compliance_status: {compliance_check}")
 
         if compliance_check == "FAILED":
             # 치명적 실패
@@ -115,11 +122,15 @@ class TemplateValidator:
             for violation in violations:
                 issues.append(f"금지어 사용: {violation}")
 
-        elif compliance_check == "WARNING":
-            # 경고 수준
+        elif compliance_check == "REVIEW_REQUIRED":
+            # 검토 필요 (경고 수준)
             score = 0.6
             for violation in violations:
                 issues.append(f"주의 표현: {violation}")
+
+        elif compliance_check == "PASSED":
+            # 정상 통과
+            score = 1.0
 
         elif compliance_check != "PASSED":
             # 알 수 없는 상태
@@ -367,10 +378,7 @@ class TemplateValidator:
 
         # 성공/실패 판정
         success = overall_score >= self.pass_threshold and len(failed_checks) == 0
-        should_regenerate = overall_score < self.regeneration_threshold or any(
-            result.tool_name in ['blacklist', 'law'] and result.status == ValidationStatus.FAILED
-            for result in validation_results
-        )
+        should_regenerate = not success  # 통과하지 않으면 무조건 재생성
 
         # 권장사항 생성
         recommendation = self._generate_recommendation(overall_score, validation_results, success)
