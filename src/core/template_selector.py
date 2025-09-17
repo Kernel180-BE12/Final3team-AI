@@ -27,6 +27,15 @@ class TemplateSelectionResult:
     error: Optional[str] = None
     selection_path: Optional[List[str]] = None  # 선택 경로 추적
 
+    # 변수 수집 관련 필드들 (새로 추가)
+    status: Optional[str] = None
+    mapped_variables: Optional[Dict] = None
+    missing_variables: Optional[List] = None
+    partial_template: Optional[str] = None
+    mapping_coverage: Optional[float] = None
+    industry: Optional[List] = None
+    purpose: Optional[List] = None
+
 class TemplateSelector:
     """
     3단계 템플릿 선택 시스템
@@ -284,6 +293,22 @@ class TemplateSelector:
                 result, tools_data = self.agent2.generate_compliant_template(user_input)
 
                 if not result.get("success", False):
+                    # 새로운 응답: 변수 수집 필요
+                    if result.get("status") == "need_more_variables":
+                        return TemplateSelectionResult(
+                            success=False,
+                            source="generated",
+                            status="need_more_variables",
+                            mapped_variables=result.get("mapped_variables", {}),
+                            missing_variables=result.get("missing_variables", []),
+                            partial_template=result.get("template", ""),
+                            mapping_coverage=result.get("mapping_coverage", 0),
+                            industry=result.get("industry", []),
+                            purpose=result.get("purpose", []),
+                            selection_path=selection_path
+                        )
+
+                    # 기존 실패 처리
                     if attempt == self.max_regeneration_attempts - 1:  # 마지막 시도
                         return TemplateSelectionResult(
                             success=False,

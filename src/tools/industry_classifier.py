@@ -23,12 +23,12 @@ class IndustryClassifier:
         try:
             from konlpy.tag import Okt
             self.okt = Okt()
-            print("✅ KoNLPy 형태소 분석기 초기화 완료")
+            print("KoNLPy 형태소 분석기 초기화 완료")
         except ImportError:
-            print("⚠️ KoNLPy가 설치되지 않았습니다. pip install konlpy 실행 필요")
+            print("KoNLPy가 설치되지 않았습니다. pip install konlpy 실행 필요")
             self.okt = None
         except Exception as e:
-            print(f"⚠️ 형태소 분석기 초기화 실패: {e}")
+            print(f"형태소 분석기 초기화 실패: {e}")
             self.okt = None
 
     def _init_keywords(self):

@@ -8,10 +8,24 @@ Agent2 - AI.png 구조에 맞는 템플릿 생성 에이전트
 import os
 import sys
 import json
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any, Union, Optional
+from typing_extensions import TypedDict
 from langchain.schema import HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.schema.runnable import RunnableParallel
+
+# 타입 정의
+class TemplateVariable(TypedDict):
+    variable_key: str
+    placeholder: str
+    input_type: str
+    required: bool
+
+class MappingResult(TypedDict):
+    mapped_variables: Dict[str, str]
+    unmapped_variables: List[TemplateVariable]
+    mapping_details: List[Dict[str, str]]
+    mapping_coverage: float
 
 # 상위 디렉토리의 config 모듈을 import하기 위해 path 추가
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
@@ -301,10 +315,10 @@ class Agent2:
             print(" Industry/Purpose 분류기 초기화 완료")
             return classifier
         except ImportError as e:
-            print(f"⚠️ 분류기 모듈 로드 실패: {e}")
+            print(f"분류기 모듈 로드 실패: {e}")
             return None
         except Exception as e:
-            print(f"⚠️ 분류기 초기화 실패: {e}")
+            print(f"분류기 초기화 실패: {e}")
             return None
 
     def _preprocess_dates(self, user_input: str) -> str:
@@ -376,6 +390,27 @@ class Agent2:
 
         # 변수 추출
         variables = self._extract_variables_from_template(template)
+
+        # 4단계: Agent1 변수와 템플릿 변수 매핑 (새로 추가)
+        if agent1_variables:
+            mapping_result = self._map_agent1_to_template_variables(agent1_variables, variables)
+
+            if mapping_result["unmapped_variables"]:
+                # 누락된 변수가 있으면 재질문 응답 반환
+                print(f"변수 매핑 불완전: {len(mapping_result['unmapped_variables'])}개 변수 누락")
+                return {
+                    "success": False,
+                    "status": "need_more_variables",
+                    "mapped_variables": mapping_result["mapped_variables"],
+                    "missing_variables": mapping_result["unmapped_variables"],
+                    "template": template,  # 부분 완성된 템플릿
+                    "mapping_coverage": mapping_result["mapping_coverage"],
+                    "industry": [{"id": classification_result["industry"]["id"], "name": classification_result["industry"]["name"]}],
+                    "purpose": [{"id": classification_result["purpose"]["id"], "name": classification_result["purpose"]["name"]}]
+                }, metadata
+            else:
+                # 모든 변수 매핑 완료
+                print(f"변수 매핑 완료: {mapping_result['mapping_coverage']:.1%}")
 
         # 성공적인 결과를 딕셔너리 형태로 반환
         result = {
@@ -491,7 +526,7 @@ class Agent2:
 
         return template
 
-    def _extract_variables_from_template(self, template: str) -> List[Dict]:
+    def _extract_variables_from_template(self, template: str) -> List[TemplateVariable]:
         """템플릿에서 #{변수명} 형식의 변수 추출"""
         import re
         variables = []
@@ -542,6 +577,42 @@ class Agent2:
                 "purpose": {"id": 11, "name": "기타", "confidence": 0.1},
                 "overall_confidence": 0.1,
                 "method": "fallback_error",
+                "error": str(e)
+            }
+
+    def _map_agent1_to_template_variables(self, agent1_variables: Dict[str, str], template_variables: List[TemplateVariable]) -> MappingResult:
+        """
+        Agent1 변수를 템플릿 변수에 매핑
+
+        Args:
+            agent1_variables: Agent1에서 추출된 6W 변수
+            template_variables: 템플릿에서 추출된 변수 리스트
+
+        Returns:
+            매핑 결과
+        """
+        try:
+            # Variable Mapper 가져오기
+            from ..tools.variable_mapper import get_variable_mapper
+
+            mapper = get_variable_mapper()
+            mapping_result = mapper.map_variables(agent1_variables, template_variables)
+
+            # 수집 요청도 함께 생성
+            if mapping_result["unmapped_variables"]:
+                collection_request = mapper.create_collection_request(mapping_result["unmapped_variables"])
+                mapping_result["collection_request"] = collection_request
+
+            return mapping_result
+
+        except Exception as e:
+            print(f"변수 매핑 중 오류: {e}")
+            # 폴백: 모든 변수를 누락으로 처리
+            return {
+                "mapped_variables": {},
+                "unmapped_variables": template_variables,
+                "mapping_details": [],
+                "mapping_coverage": 0.0,
                 "error": str(e)
             }
 
