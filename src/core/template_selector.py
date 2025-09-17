@@ -55,7 +55,7 @@ class TemplateSelector:
 
         # 단계별 임계값 설정
         self.existing_similarity_threshold = 0.8  # 기존 템플릿 유사도 임계값
-        self.public_similarity_threshold = 0.6   # 공용 템플릿 유사도 임계값
+        self.public_similarity_threshold = 0.85  # 공용 템플릿 유사도 임계값 (0.75→0.85로 상향)
 
         # 재생성 설정
         self.max_regeneration_attempts = 3
