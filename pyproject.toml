@@ -60,9 +60,8 @@ grpcio-status = "^1.62.0,<2.0.0"
 jsonpatch = "^1.33,<2.0"
 pyyaml = "^6.0.0"
 
-# 평가 도구 (RAGAS)
+# 평가 도구
 datasets = "^2.0.0"
-ragas = "^0.1.0"
 
 [tool.poetry.group.dev.dependencies]
 # 개발 도구

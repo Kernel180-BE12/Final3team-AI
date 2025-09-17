@@ -5,19 +5,18 @@
 [![Python](https://img.shields.io/badge/Python-3.11.13-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115.0-green.svg)](https://fastapi.tiangolo.com/)
 [![Chroma DB](https://img.shields.io/badge/ChromaDB-0.4.24-orange.svg)](https://www.trychroma.com/)
-[![RAGAS](https://img.shields.io/badge/RAGAS-0.2.0-purple.svg)](https://docs.ragas.io/)
 
 ## 핵심 기능 
 
 ###  3단계 템플릿 선택 시스템
 1. **기존 승인 템플릿**: predata 패턴 기반 검색 (임계값 0.7)
 2. **공용 템플릿**: 105개 공용 템플릿 검색 (임계값 0.6)
-3. **새 템플릿 생성**: AI 기반 신규 생성 + RAGAS 품질 검증
+3. **새 템플릿 생성**: AI 기반 신규 생성 + 자체 품질 검증
 
 ###  AI 기반 지능형 생성
 - **Google Gemini 2.0 Flash + OpenAI GPT-4**: LLM Fallback 시스템
 - **Agent1 & Agent2**: 2단계 AI 검증 시스템
-- **RAGAS 품질 게이트**: 생성된 템플릿 자동 품질 검증 (평균 0.8 이상)
+- **자체 품질 검증**: 생성된 템플릿 자동 품질 검증 시스템
 
 ###  벡터 검색 엔진
 - **Chroma DB**: 로컬 벡터 데이터베이스
@@ -41,7 +40,7 @@
     ↓ (실패시)
 2️⃣ 공용 템플릿 검색 (105개 템플릿)
     ↓ (실패시)  
-3️⃣ AI 새 템플릿 생성 + RAGAS 검증
+3️⃣ AI 새 템플릿 생성 + 자체 검증
     ↓
  표준 형식 변환 + 결과 반환
 ```
@@ -63,9 +62,9 @@
 - 실패 횟수 추적 및 우선순위 관리
 - 모델별 retry 로직
 
-** RAGAS Evaluator**
-- 6개 메트릭 종합 평가 (faithfulness, relevancy 등)
-- 평균 0.8 이상 품질 게이트
+** Template Validator**
+- 자체 품질 검증 시스템
+- 다중 메트릭 종합 평가
 - 자동 재생성 로직
 
 ---
@@ -149,7 +148,7 @@ curl http://localhost:8000/health
       "template_code": "guide_img_02",
       "similarity": 0.85
     },
-    "ragas_verified": false
+    "quality_verified": false
   }
 }
 ```
@@ -164,7 +163,7 @@ curl http://localhost:8000/health
   "components": {
     "template_selector": "ready",
     "llm_manager": "ready",
-    "ragas_evaluator": "ready"
+    "template_validator": "ready"
   },
   "template_selection": {
     "existing_templates": {
@@ -200,8 +199,8 @@ print(f'소스: {result.source}')
 # LLM Fallback 테스트
 python test_llm_fallback.py
 
-# RAGAS 품질 검증 테스트  
-python test_ragas_gate.py
+# 자체 품질 검증 테스트
+python test_template_validator.py
 ```
 
 ### API 통합 테스트
@@ -234,7 +233,7 @@ Jober_ai/
 │   │   ├── agent1.py                  # 입력 검증 에이전트
 │   │   └── agent2.py                  # 4개 Tool 병렬 검증
 │   ├── evaluation/                    # 품질 검증 ⭐
-│   │   └── ragas_evaluator.py         # RAGAS 평가기
+│   │   └── template_validator.py      # 자체 품질 검증기
 │   ├── utils/                         # 유틸리티
 │   │   ├── llm_provider_manager.py    # LLM Fallback 시스템 ⭐
 │   │   ├── common_init.py             # 공통 초기화
@@ -258,7 +257,7 @@ Jober_ai/
 ### AI & ML
 - **Google Gemini 2.0 Flash**: 최신 AI 모델 (주 LLM)
 - **OpenAI GPT-4**: Fallback LLM
-- **RAGAS 0.2.0**: 생성 품질 평가
+- **자체 검증 시스템**: 생성 품질 평가
 - **LangChain**: AI 에이전트 프레임워크
 
 ### 백엔드
@@ -277,18 +276,17 @@ Jober_ai/
 
 ## 품질 보증 
 
-### RAGAS 평가 메트릭
-1. **Faithfulness**: 생성된 내용의 신뢰성
-2. **Answer Relevancy**: 답변의 관련성  
-3. **Context Precision**: 컨텍스트의 정확성
-4. **Context Recall**: 컨텍스트 재현율
-5. **Answer Correctness**: 답변의 정확성
-6. **Answer Similarity**: 답변 유사성
+### 자체 품질 검증 메트릭
+1. **템플릿 구조**: 기본 구조 및 필수 요소 검증
+2. **변수 유효성**: 변수 형식 및 일관성 확인
+3. **정책 준수**: 가이드라인 및 법령 준수 여부
+4. **내용 품질**: 의미론적 일관성 및 완성도
+5. **사용성**: 실제 사용 가능성 평가
 
 ### 품질 게이트
-- **평균 점수 0.8 이상**: 자동 승인
-- **0.8 미만**: 자동 재생성 (최대 3회)
-- **메트릭별 가중치**: 각 메트릭의 중요도 반영
+- **종합 점수 기반**: 자동 승인/재생성 결정
+- **다단계 검증**: 여러 관점에서 품질 평가
+- **재생성 로직**: 품질 미달 시 자동 재생성 (최대 3회)
 
 ### Fallback 시스템
 - **Gemini API 장애**: OpenAI로 자동 전환
