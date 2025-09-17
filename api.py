@@ -86,14 +86,15 @@ class TemplateAPI:
         from src.utils.sample_templates import get_sample_templates
         return get_sample_templates()
     
-    def generate_template(self, user_input: str, options: Optional[Dict] = None) -> Dict:
+    def generate_template(self, user_input: str, options: Optional[Dict] = None, conversation_context: str = None) -> Dict:
         """
         템플릿 생성 메인 API (3단계 선택 시스템 적용)
-        
+
         Args:
             user_input: 사용자 요청
             options: 생성 옵션 (use_agent2, method, force_generation 등)
-            
+            conversation_context: 이전 대화 컨텍스트 (재질문 후 추가 입력시)
+
         Returns:
             생성 결과 딕셔너리
         """
@@ -113,25 +114,46 @@ class TemplateAPI:
             if options is None:
                 options = {}
             
-            # Agent1을 통한 변수 검증 (필수 변수 부족 시 에러 반환)
+            # Agent1을 통한 변수 검증 (컨텍스트 조합 처리)
             agent1 = Agent1()
-            validation_result = agent1.process_query(user_input, is_follow_up=False)
+
+            # 컨텍스트가 있으면 조합해서 처리
+            if conversation_context:
+                combined_input = f"{conversation_context} {user_input}"
+                print(f" 컨텍스트 조합: '{conversation_context}' + '{user_input}' = '{combined_input}'")
+                validation_result = agent1.process_query(combined_input, is_follow_up=True)
+            else:
+                validation_result = agent1.process_query(user_input, is_follow_up=False)
             
-            # 필요한 변수가 부족한 경우 에러 반환
+            # 필요한 변수가 부족한 경우 재질문 데이터 반환
             if validation_result.get('status') == 'reask_required':
                 return {
                     "success": False,
-                    "error": f"필요한 변수가 부족합니다: {', '.join(validation_result.get('missing_variables', []))}",
-                    "error_code": "MISSING_VARIABLES",
-                    "missing_variables": validation_result.get('missing_variables', []),
-                    "message": validation_result.get('message', ''),
-                    "template": None,
-                    "metadata": {
+                    "error_code": "INCOMPLETE_INFORMATION",
+                    "error": "추가 정보가 필요합니다",
+                    "reask_data": {
+                        "confirmed_variables": validation_result.get('selected_variables', {}),
+                        "missing_variables": validation_result.get('missing_variables', []),
+                        "contextual_question": validation_result.get('message', ''),
+                        "original_input": conversation_context if conversation_context else user_input,
                         "validation_status": "incomplete",
                         "reasoning": validation_result.get('reasoning', '')
                     }
                 }
             
+            # 비속어 재시도 요청 처리
+            if validation_result.get('status') == 'profanity_retry':
+                return {
+                    "success": False,
+                    "error_code": "PROFANITY_RETRY",
+                    "error": validation_result.get('message', '비속어가 감지되었습니다. 다시 입력해주세요.'),
+                    "retry_data": {
+                        "retry_type": validation_result.get('retry_type', 'profanity'),
+                        "original_input": validation_result.get('original_input', user_input),
+                        "message": validation_result.get('message', '')
+                    }
+                }
+
             # 다른 에러가 있는 경우
             if validation_result.get('status') not in ['complete', 'ready_for_generation', 'success']:
                 return {

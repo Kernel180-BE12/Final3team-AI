@@ -32,11 +32,17 @@ variable_extractor_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(variable_extractor_module)
 VariableExtractor = variable_extractor_module.VariableExtractor
 
-# intent_classifier 직접 로드  
+# intent_classifier 직접 로드
 spec = importlib.util.spec_from_file_location("intent_classifier", project_root / "src" / "tools" / "intent_classifier.py")
 intent_classifier_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(intent_classifier_module)
 IntentClassifier = intent_classifier_module.IntentClassifier
+
+# profanity_checker 직접 로드
+spec = importlib.util.spec_from_file_location("profanity_checker", project_root / "src" / "tools" / "profanity_checker.py")
+profanity_checker_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(profanity_checker_module)
+ProfanityChecker = profanity_checker_module.ProfanityChecker
 
 
 class ConversationState:
@@ -191,13 +197,11 @@ class Agent1:
         # 도구들 초기화
         self.variable_extractor = VariableExtractor(self.api_key)
         self.intent_classifier = IntentClassifier(self.api_key)
-        
+        self.profanity_checker = ProfanityChecker()
+
         # 정책 문서 로드
         self.policy_content = self._load_policy_document()
-        
-        # 비속어 키워드 로드
-        self.profanity_keywords = self._load_profanity_keywords()
-        
+
         # 대화 상태 초기화
         self.conversation_state = None
         
@@ -230,50 +234,25 @@ class Agent1:
             print(f"정책 문서 로드 실패: {e}")
             return ""
     
-    def _load_profanity_keywords(self) -> set:
-        """비속어 키워드 로드"""
-        try:
-            keyword_path = project_root / "predata" / "cleaned_blacklist_keyword.txt"
-            if keyword_path.exists():
-                with open(keyword_path, 'r', encoding='utf-8') as f:
-                    keywords = set()
-                    for line in f:
-                        keyword = line.strip()
-                        if keyword:
-                            keywords.add(keyword.lower())
-                    print(f"비속어 키워드 {len(keywords)}개 로드 완료")
-                    return keywords
-            else:
-                print("비속어 키워드 파일을 찾을 수 없습니다.")
-                return set()
-        except Exception as e:
-            print(f"비속어 키워드 로드 실패: {e}")
-            return set()
-    
     def check_initial_profanity(self, text: str) -> bool:
         """
-        초기 비속어 검출 (blacklist_keyword 파일 기반)
-        
+        초기 비속어 검출 (새로운 ProfanityChecker 도구 사용)
+
         Args:
             text: 검사할 텍스트
-            
+
         Returns:
             True: 비속어 검출됨, False: 정상
         """
-        if not self.profanity_keywords:
-            return False
-            
-        text_lower = text.lower()
-        
-        # 공백 제거해서도 체크
-        text_no_space = text_lower.replace(" ", "")
-        
-        for keyword in self.profanity_keywords:
-            if keyword in text_lower or keyword in text_no_space:
-                print(f"비속어 검출: '{keyword}'")
+        try:
+            result = self.profanity_checker.check_text(text)
+            if not result['is_clean']:
+                print(f"비속어 검출: {', '.join(result['detected_words'])}")
                 return True
-        
-        return False
+            return False
+        except Exception as e:
+            print(f"비속어 검사 중 오류: {e}")
+            return False
     
     def analyze_query(self, user_input: str) -> Dict[str, Any]:
         """
@@ -530,14 +509,13 @@ class Agent1:
         if not is_follow_up or self.conversation_state is None:
             self.conversation_state = ConversationState()
         
-        # 1. 초기 비속어 검출
+        # 1. 초기 비속어 검출 - 재시도 요청으로 변경
         if self.check_initial_profanity(user_input):
-            self.conversation_state = None  # 상태 초기화
             return {
-                'status': 'error',
-                'error_type': 'profanity',
-                'message': "비속어가 검출되었습니다. 프롬프트를 다시 작성해주세요.",
-                'restart_required': True
+                'status': 'profanity_retry',
+                'message': "비속어가 검출되었습니다. 다시 입력해주세요.",
+                'retry_type': 'profanity',
+                'original_input': user_input
             }
         
         # 2. 질의 분석 (새로운 입력만)
@@ -591,11 +569,11 @@ class Agent1:
             }
         
         if has_profanity:
-            self.conversation_state = None  # 상태 초기화
             return {
-                'status': 'profanity_violation',
-                'message': "비속어가 감지되었습니다. 프롬프트를 다시 작성해주세요.",
-                'restart_required': True
+                'status': 'profanity_retry',
+                'message': "비속어가 감지되었습니다. 다시 입력해주세요.",
+                'retry_type': 'final_profanity',
+                'original_input': user_input
             }
         
         # 9. 모든 검사 통과 - 성공 결과 반환

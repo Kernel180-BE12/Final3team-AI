@@ -19,7 +19,8 @@ class TemplateCreationRequest(BaseModel):
     """Spring Boot에서 오는 요청을 위한 모델"""
     user_id: int = Field(..., alias='userId')
     request_content: str = Field(..., alias='requestContent')
-    
+    conversation_context: Optional[str] = Field(None, alias='conversationContext')  # 재질문 컨텍스트
+
     class Config:
         allow_population_by_field_name = True  # snake_case와 camelCase 둘 다 허용
         populate_by_name = True
@@ -72,7 +73,7 @@ rate_limit_lock = threading.Lock()  # 동시성 보호
 last_cleanup_time = time.time()     # 마지막 정리 시간
 CLEANUP_INTERVAL = 300              # 5분마다 정리
 
-def create_error_response(code: str, message: str, details: Optional[str] = None, retry_after: Optional[int] = None) -> Dict[str, Any]:
+def create_error_response(code: str, message: str, details: Optional[Any] = None, retry_after: Optional[int] = None) -> Dict[str, Any]:
     """표준화된 에러 응답 생성"""
     error_response = {
         "error": {
@@ -81,8 +82,15 @@ def create_error_response(code: str, message: str, details: Optional[str] = None
         },
         "timestamp": datetime.now().isoformat() + "Z"
     }
-    if details:
+
+    # 재질문 데이터는 별도 필드로 처리
+    if code == "INCOMPLETE_INFORMATION" and details:
+        error_response["reask_data"] = details
+    elif code == "PROFANITY_RETRY" and details:
+        error_response["retry_data"] = details
+    elif details:
         error_response["error"]["details"] = details
+
     if retry_after:
         error_response["retryAfter"] = retry_after
     return error_response
@@ -243,8 +251,11 @@ async def create_template(request: TemplateCreationRequest):
         # 텍스트 전처리 (긴 텍스트에 적절한 공백 추가)
         processed_content = request.request_content.replace(".", ". ").replace("  ", " ").strip()
         print(f" 전처리된 내용: {processed_content[:100]}...")
-        # 1. api.py의 템플릿 생성 함수 호출 (전처리된 내용 사용)
-        generation_result = template_api.generate_template(user_input=processed_content)
+        # 1. api.py의 템플릿 생성 함수 호출 (전처리된 내용 + 컨텍스트 사용)
+        generation_result = template_api.generate_template(
+            user_input=processed_content,
+            conversation_context=request.conversation_context
+        )
 
         if not generation_result.get("success"):
             # 템플릿 생성 실패 시 세분화된 처리
@@ -264,7 +275,25 @@ async def create_template(request: TemplateCreationRequest):
             error_message = generation_result.get("error", "Template generation failed")
             
             # API에서 제공하는 error_code 우선 처리
-            if error_code == "MISSING_VARIABLES":
+            if error_code == "INCOMPLETE_INFORMATION":
+                raise HTTPException(
+                    status_code=400,
+                    detail=create_error_response(
+                        "INCOMPLETE_INFORMATION",
+                        "추가 정보가 필요합니다",
+                        generation_result.get("reask_data")
+                    )
+                )
+            elif error_code == "PROFANITY_RETRY":
+                raise HTTPException(
+                    status_code=400,
+                    detail=create_error_response(
+                        "PROFANITY_RETRY",
+                        "비속어가 감지되었습니다. 다시 입력해주세요",
+                        generation_result.get("retry_data")
+                    )
+                )
+            elif error_code == "MISSING_VARIABLES":
                 raise HTTPException(
                     status_code=400,
                     detail=create_error_response(
