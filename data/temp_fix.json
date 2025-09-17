@@ -576,7 +576,7 @@
                 "templateCode": "counseling_img_03",
                 "templateName": "(전용) 문의 접수 안내 (링크형) / 위즈케이",
                 "templateEmphasizeType": "IMAGE",
-                "templateContent": "안녕하세요. #{수신자명}님,\n\n‘#{상담명}' 안내 담당자입니다.\n‘#{상담명}'에 대해 문의주셔서 감사드립니다.\n\n잠시만 기다려 주시면 담당자가 안내 전화를 드릴 예정입니다.\n\n추가 문의가 있으시면 언제든 답장해 주세요.\n\n*본 알림톡은 '#{상담명}' 정보를 요청하신 분들께 발송되는 메시지입니다.",
+                "templateContent": "안녕하세요. #{수신자명}님,\n\n#{상담명}' 안내 담당자입니다.\n#{상담명}'에 대해 문의주셔서 감사드립니다.\n\n잠시만 기다려 주시면 담당자가 안내 전화를 드릴 예정입니다.\n\n추가 문의가 있으시면 언제든 답장해 주세요.\n\n*본 알림톡은 '#{상담명}' 정보를 요청하신 분들께 발송되는 메시지입니다.",
                 "templateImageUrl": "https://mud-kage.kakao.com/dn/go3Bk/btsPuHxrXnE/OWEQ9snuHscwsK7vKpCm50/img_l.jpg",
                 "templateExtra": null,
                 "buttons": [
@@ -6003,7 +6003,7 @@
                 "templateCode": "JOBER0529_1642750597339",
                 "templateName": "회원가입 완료 안내 (링크형)",
                 "templateEmphasizeType": "IMAGE",
-                "templateContent": "안녕하세요 #{수신자명} 고객님,\n#{발신 스페이스} 회원가입 및 SNS 수신 동의에 감사드립니다.\n\n※ 수신 동의 취소는 홈페이지에서 진행하실 수 있습니다.\n\n감사합니다.",
+                "templateContent": "안녕하세요 #{수신자명} 고객님,\n#{발신 스페이스} 회원가입 및 SNS 수신 동의에 감사드립니다.\n\n 수신 동의 취소는 홈페이지에서 진행하실 수 있습니다.\n\n감사합니다.",
                 "templateImageUrl": "https://mud-kage.kakao.com/dn/bSgiwM/btsOh47Up6k/8OSQ51eryqhAkgJdLWp7XK/img_l.jpg",
                 "templateExtra": null,
                 "buttons": [
@@ -6064,7 +6064,7 @@
                 "templateCode": "JOBER0529_1650507513114",
                 "templateName": "회원가입 (링크형)",
                 "templateEmphasizeType": "IMAGE",
-                "templateContent": "안녕하세요. #{수신자명} 고객님,\n#{발신 스페이스} 회원이 되신 것을 진심으로 환영합니다.\n\n회원가입 혜택으로 지금 #{상품} 구매 시 할인된 가격으로 구매하실 수 있습니다.\n\n※ 이 메시지는 고객님의 동의에 의해 전송되는 메시지입니다.",
+                "templateContent": "안녕하세요. #{수신자명} 고객님,\n#{발신 스페이스} 회원이 되신 것을 진심으로 환영합니다.\n\n회원가입 혜택으로 지금 #{상품} 구매 시 할인된 가격으로 구매하실 수 있습니다.\n\n 이 메시지는 고객님의 동의에 의해 전송되는 메시지입니다.",
                 "templateImageUrl": "https://mud-kage.kakao.com/dn/cSYbJU/btsOhUdkUp1/S2EjaObwS0ivJskX6j3KhK/img_l.jpg",
                 "templateExtra": null,
                 "buttons": [
@@ -6261,7 +6261,7 @@
                 "templateCode": "JOBER0411_1656221993271",
                 "templateName": "행사 안내",
                 "templateEmphasizeType": "IMAGE",
-                "templateContent": "안녕하세요 #{수신자명} 고객님,\n#{행사명} 행사에 참여해주셔서 감사합니다.\n\n▶ 성함 : #{성함}\n▶ 날짜 : #{날짜}\n▶ 장소 : #{장소}\n\n날짜와 장소를 확인해주세요.\n\n※ 해당 메시지는 고객님의 알림 신청에 의해 발송되는 일회성 메시지입니다.",
+                "templateContent": "안녕하세요 #{수신자명} 고객님,\n#{행사명} 행사에 참여해주셔서 감사합니다.\n\n▶ 성함 : #{성함}\n▶ 날짜 : #{날짜}\n▶ 장소 : #{장소}\n\n날짜와 장소를 확인해주세요.\n\n 해당 메시지는 고객님의 알림 신청에 의해 발송되는 일회성 메시지입니다.",
                 "templateImageUrl": "https://mud-kage.kakao.com/dn/CDFqw/btsNh1b1oD4/EaXRSDLLX6nxj3yQApKW7K/img_l.jpg",
                 "templateExtra": null,
                 "buttons": [],
@@ -6333,7 +6333,7 @@
                 "templateCode": "JOBER0529_1656221993271",
                 "templateName": "행사 안내 (링크형)",
                 "templateEmphasizeType": "IMAGE",
-                "templateContent": "안녕하세요 #{수신자명} 고객님,\n#{행사명} 행사에 참여해주셔서 감사합니다.\n\n▶ 성함 : #{성함}\n▶ 날짜 : #{날짜}\n▶ 장소 : #{장소}\n\n날짜와 장소를 확인해주세요.\n\n※ 해당 메시지는 고객님의 알림 신청에 의해 발송되는 일회성 메시지입니다.",
+                "templateContent": "안녕하세요 #{수신자명} 고객님,\n#{행사명} 행사에 참여해주셔서 감사합니다.\n\n▶ 성함 : #{성함}\n▶ 날짜 : #{날짜}\n▶ 장소 : #{장소}\n\n날짜와 장소를 확인해주세요.\n\n 해당 메시지는 고객님의 알림 신청에 의해 발송되는 일회성 메시지입니다.",
                 "templateImageUrl": "https://mud-kage.kakao.com/dn/lcLTh/btsOiqJEGwx/U9j0pog64v4wx94l1gPaK1/img_l.jpg",
                 "templateExtra": null,
                 "buttons": [
@@ -6419,7 +6419,7 @@
                 "templateCode": "JOBER0529_1642751733148",
                 "templateName": "행사 안내2 (링크형)",
                 "templateEmphasizeType": "IMAGE",
-                "templateContent": "안녕하세요 #{수신자명} 고객님,\n참여 신청하신 행사 입장 안내드립니다.\n\n▶일정: #{일정}\n▶장소: #{장소}\n\n※ 해당 메시지는 고객님의 알림 신청에 의해 발송되는 일회성 메시지입니다.",
+                "templateContent": "안녕하세요 #{수신자명} 고객님,\n참여 신청하신 행사 입장 안내드립니다.\n\n▶일정: #{일정}\n▶장소: #{장소}\n\n 해당 메시지는 고객님의 알림 신청에 의해 발송되는 일회성 메시지입니다.",
                 "templateImageUrl": "https://mud-kage.kakao.com/dn/dAqIzW/btsOipYkDZO/0Q4zDxQXSr9QKfvKZU8k6k/img_l.jpg",
                 "templateExtra": null,
                 "buttons": [
@@ -6491,7 +6491,7 @@
                 "templateCode": "location_info_img_02",
                 "templateName": "(공용) 행사장 위치 안내 01",
                 "templateEmphasizeType": "IMAGE",
-                "templateContent": "[행사장 위치 안내]\n\n안녕하세요 #{수신자} 고객님,\n신청하신 #{행사명} 행사장 위치를 안내드립니다.\n\n▶ 장소 : #{장소}\n▶ 행사 시간 : #{방문가능시간}\n\n#{추가 메시지 - 문의사항은 고객센터로 연락 부탁드립니다.}\n\n※ 해당 메시지는 고객님의 알림 신청에 의해 발송되는 일회성 메시지입니다.",
+                "templateContent": "[행사장 위치 안내]\n\n안녕하세요 #{수신자} 고객님,\n신청하신 #{행사명} 행사장 위치를 안내드립니다.\n\n▶ 장소 : #{장소}\n▶ 행사 시간 : #{방문가능시간}\n\n#{추가 메시지 - 문의사항은 고객센터로 연락 부탁드립니다.}\n\n 해당 메시지는 고객님의 알림 신청에 의해 발송되는 일회성 메시지입니다.",
                 "templateImageUrl": "https://mud-kage.kakao.com/dn/cj7xtE/btsOjpZgEAi/RSYDv1hKYdCNBoHKE4VkGK/img_l.jpg",
                 "templateExtra": null,
                 "buttons": [
@@ -8563,7 +8563,7 @@
                 "templateCode": "price_noti_non_01",
                 "templateName": "(공용) 통신 가격 변동 안내_기본형_01",
                 "templateEmphasizeType": "NONE",
-                "templateContent": "[가격 변경 안내]\n\n안녕하세요, #{수신자}님.\n요청하신 통신 가격에 변경 사항이 있어 다음과 같이 안내드립니다.\n\n▶ 변경 적용일: #{적용일}\n▶ 주요 변경 내용:\n#{주요 변경 내용}\n\n#{추가 메시지 - 추가 문의사항은 채널을 통해 접수 부탁드립니다.}\n\n※ 본 메시지는 정책에 따라 가격 변동 알림 요청 고객 한정으로 발송된 메시지입니다.",
+                "templateContent": "[가격 변경 안내]\n\n안녕하세요, #{수신자}님.\n요청하신 통신 가격에 변경 사항이 있어 다음과 같이 안내드립니다.\n\n▶ 변경 적용일: #{적용일}\n▶ 주요 변경 내용:\n#{주요 변경 내용}\n\n#{추가 메시지 - 추가 문의사항은 채널을 통해 접수 부탁드립니다.}\n\n 본 메시지는 정책에 따라 가격 변동 알림 요청 고객 한정으로 발송된 메시지입니다.",
                 "templateExtra": null,
                 "buttons": [
                     {
@@ -9278,7 +9278,7 @@
                 "templateCode": "academy_homework_non_01",
                 "templateName": "(공용) 과제 안내_기본형_01",
                 "templateEmphasizeType": "NONE",
-                "templateContent": "[과제 안내]\n안녕하세요, #{발신 스페이스}입니다.\n과제 관련 안내드립니다.\n\n✏️ 수업명 : #{수업명}\n✏️ 과제명 : #{과제명}\n\n#{추가 메시지}",
+                "templateContent": "[과제 안내]\n안녕하세요, #{발신 스페이스}입니다.\n과제 관련 안내드립니다.\n\n 수업명 : #{수업명}\n 과제명 : #{과제명}\n\n#{추가 메시지}",
                 "templateExtra": null,
                 "buttons": [
                     {
@@ -9571,7 +9571,7 @@
                 "templateCode": "msg_academy_schedule_img_01",
                 "templateName": "(공용) 수업 일정 공지_이미지형_메시지_01",
                 "templateEmphasizeType": "IMAGE",
-                "templateContent": "[수업 일정 안내]\n안녕하세요, #{발신 스페이스}입니다.\n수업 일정을 안내드립니다.\n\n✏️ 수업명 : #{수업명}\n✏️ 일정 : #{일정}\n\n#{추가 메시지 - 수업 시작 10분 전까지 강의실에 입장 부탁드립니다.}",
+                "templateContent": "[수업 일정 안내]\n안녕하세요, #{발신 스페이스}입니다.\n수업 일정을 안내드립니다.\n\n 수업명 : #{수업명}\n 일정 : #{일정}\n\n#{추가 메시지 - 수업 시작 10분 전까지 강의실에 입장 부탁드립니다.}",
                 "templateImageUrl": "https://mud-kage.kakao.com/dn/gEUbp/btsL1zXkAaa/v8hG6EGDNdyD9f3wrKS5Nk/img_l.jpg",
                 "templateExtra": null,
                 "buttons": [],
@@ -9633,7 +9633,7 @@
                 "templateCode": "academy_schedule_img_02",
                 "templateName": "(공용) 수업 일정 공지_이미지형_02",
                 "templateEmphasizeType": "IMAGE",
-                "templateContent": "[수업 일정 변경 공지]\n안녕하세요, #{발신 스페이스}입니다.\n부득이하게 수업 일정이 변경되어 공지드립니다.\n\n✏️ 수업명 : #{수업명}\n⚫️ 기존 일정 : #{기존일정}\n🟣 변경 일정 : #{변경일정}\n\n#{추가 메시지 - 변경된 일정에 참여가 어려우실 경우, 01000000000로 연락주세요.}",
+                "templateContent": "[수업 일정 변경 공지]\n안녕하세요, #{발신 스페이스}입니다.\n부득이하게 수업 일정이 변경되어 공지드립니다.\n\n 수업명 : #{수업명}\n⚫ 기존 일정 : #{기존일정}\n🟣 변경 일정 : #{변경일정}\n\n#{추가 메시지 - 변경된 일정에 참여가 어려우실 경우, 01000000000로 연락주세요.}",
                 "templateImageUrl": "https://mud-kage.kakao.com/dn/835pV/btsL1AV6wBD/b1wfF4fMKUljnDvu8MWCsk/img_l.jpg",
                 "templateExtra": null,
                 "buttons": [
@@ -9792,7 +9792,7 @@
                 "templateCode": "link_academy_materials_img_01",
                 "templateName": "(공용) 수업 자료 전달_이미지형_링크_01",
                 "templateEmphasizeType": "IMAGE",
-                "templateContent": "[수업 자료 전달]\n안녕하세요, #{발신 스페이스}입니다.\n참석하신 수업 관련 자료 전달드립니다.\n\n✏️ 수업명 : #{수업명}\n✏️ 자료명 : #{자료명}\n\n#{추가 메시지 - 자료 열람 기간은 24일까지이며 비밀번호는 0000입니다.}",
+                "templateContent": "[수업 자료 전달]\n안녕하세요, #{발신 스페이스}입니다.\n참석하신 수업 관련 자료 전달드립니다.\n\n 수업명 : #{수업명}\n 자료명 : #{자료명}\n\n#{추가 메시지 - 자료 열람 기간은 24일까지이며 비밀번호는 0000입니다.}",
                 "templateImageUrl": "https://mud-kage.kakao.com/dn/bwBlYi/btsL2y4oR80/OnKP8mvaOFyoyXmfcqfxDK/img_l.jpg",
                 "templateExtra": null,
                 "buttons": [
@@ -9950,7 +9950,7 @@
                 "templateCode": "vote_recieved_img_01",
                 "templateName": "(공용) 투표 안내_이미지형_01",
                 "templateEmphasizeType": "IMAGE",
-                "templateContent": "[투표 안내]\n안녕하세요, #{수신자}님!\n#{투표명} 투표 링크를 전달드립니다.\n\n👥 대상자 : #{대상자}\n📅 기간 : #{기간}\n\n#{추가 메시지 - 기간 내에 투표 부탁드립니다.}",
+                "templateContent": "[투표 안내]\n안녕하세요, #{수신자}님!\n#{투표명} 투표 링크를 전달드립니다.\n\n 대상자 : #{대상자}\n 기간 : #{기간}\n\n#{추가 메시지 - 기간 내에 투표 부탁드립니다.}",
                 "templateImageUrl": "https://mud-kage.kakao.com/dn/bSWdu3/btsMk1y7UhP/zLJnDv4wq9OIU1xFyTQy01/img_l.jpg",
                 "templateExtra": null,
                 "buttons": [
@@ -10109,7 +10109,7 @@
                 "templateCode": "address_info_img_01",
                 "templateName": "(공용) 주소 안내_이미지형_01",
                 "templateEmphasizeType": "IMAGE",
-                "templateContent": "안녕하세요, #{발신 스페이스}입니다.\n#{목적}을(를) 위한 #{장소명} 주소를 안내드립니다.\n\n📍 위치 : #{위치}\n\n#{추가 메시지 - 오시는 방법}",
+                "templateContent": "안녕하세요, #{발신 스페이스}입니다.\n#{목적}을(를) 위한 #{장소명} 주소를 안내드립니다.\n\n 위치 : #{위치}\n\n#{추가 메시지 - 오시는 방법}",
                 "templateImageUrl": "https://mud-kage.kakao.com/dn/3C0nz/btsMlGVymkI/PdL23p5oomIMHBBUAFlQV1/img_l.jpg",
                 "templateExtra": null,
                 "buttons": [
@@ -10192,7 +10192,7 @@
                 "templateCode": "msg_academy_schedule_img_02",
                 "templateName": "(공용) 수업 일정 공지_이미지형_메시지_02",
                 "templateEmphasizeType": "IMAGE",
-                "templateContent": "[수업 일정 변경 공지]\n안녕하세요, #{발신 스페이스}입니다.\n부득이하게 수업 일정이 변경되어 공지드립니다.\n\n✏️ 수업명 : #{수업명}\n⚫️ 기존 일정 : #{기존일정}\n🟣 변경 일정 : #{변경일정}\n\n#{추가 메시지 - 변경된 일정에 참여가 어려우실 경우, 01000000000로 연락주세요.}",
+                "templateContent": "[수업 일정 변경 공지]\n안녕하세요, #{발신 스페이스}입니다.\n부득이하게 수업 일정이 변경되어 공지드립니다.\n\n 수업명 : #{수업명}\n⚫ 기존 일정 : #{기존일정}\n🟣 변경 일정 : #{변경일정}\n\n#{추가 메시지 - 변경된 일정에 참여가 어려우실 경우, 01000000000로 연락주세요.}",
                 "templateImageUrl": "https://mud-kage.kakao.com/dn/uJ7h8/btsL25gHzaD/fPyxyReuWRzUaKod7ATpL1/img_l.jpg",
                 "templateExtra": null,
                 "buttons": [],
@@ -10261,7 +10261,7 @@
                 "templateCode": "msg_academy_schedule_img_01",
                 "templateName": "(공용) 수업 일정 공지_이미지형_메시지_01",
                 "templateEmphasizeType": "IMAGE",
-                "templateContent": "[수업 일정 안내]\n안녕하세요, #{발신 스페이스}입니다.\n수업 일정을 안내드립니다.\n\n✏️ 수업명 : #{수업명}\n✏️ 일정 : #{일정}\n\n#{추가 메시지 - 수업 시작 10분 전까지 강의실에 입장 부탁드립니다.}",
+                "templateContent": "[수업 일정 안내]\n안녕하세요, #{발신 스페이스}입니다.\n수업 일정을 안내드립니다.\n\n 수업명 : #{수업명}\n 일정 : #{일정}\n\n#{추가 메시지 - 수업 시작 10분 전까지 강의실에 입장 부탁드립니다.}",
                 "templateImageUrl": "https://mud-kage.kakao.com/dn/gEUbp/btsL1zXkAaa/v8hG6EGDNdyD9f3wrKS5Nk/img_l.jpg",
                 "templateExtra": null,
                 "buttons": [],
@@ -10323,7 +10323,7 @@
                 "templateCode": "ticket_expired_img_01",
                 "templateName": "(공용) 이용권 만료 알림_이미지형_01",
                 "templateEmphasizeType": "IMAGE",
-                "templateContent": "[이용권 만료 알림]\n안녕하세요, #{발신 스페이스}입니다.\n#{이용권명} 이용권이 만료되었습니다.\n\n📅 만료 일자 : #{만료일자}\n\n#{추가 메시지 - 추가 이용을 원하시면 센터 방문 후 재등록 해주시기 바랍니다.}",
+                "templateContent": "[이용권 만료 알림]\n안녕하세요, #{발신 스페이스}입니다.\n#{이용권명} 이용권이 만료되었습니다.\n\n 만료 일자 : #{만료일자}\n\n#{추가 메시지 - 추가 이용을 원하시면 센터 방문 후 재등록 해주시기 바랍니다.}",
                 "templateImageUrl": "https://mud-kage.kakao.com/dn/trZyy/btsMmbAPOgg/7jSkyPwz3CIAKSY9RNykZk/img_l.jpg",
                 "templateExtra": null,
                 "buttons": [],
@@ -11593,7 +11593,7 @@
                 "templateCode": "msg_participant_code_img_01",
                 "templateName": "(공용) 참가코드 안내_이미지형_01",
                 "templateEmphasizeType": "IMAGE",
-                "templateContent": "안녕하세요, #{발신 스페이스}입니다.\n예정된 온라인 교육의 참가코드가 아래와 같이 발송되었습니다.\n• 교육일자: #{교육일자}\n• 교육시간: #{교육시간}\n• 참가코드: #{참가코드}\n자세한 문의는 #{문의번호}로 연락해 주세요.\n감사합니다.",
+                "templateContent": "안녕하세요, #{발신 스페이스}입니다.\n예정된 온라인 교육의 참가코드가 아래와 같이 발송되었습니다.\n 교육일자: #{교육일자}\n 교육시간: #{교육시간}\n 참가코드: #{참가코드}\n자세한 문의는 #{문의번호}로 연락해 주세요.\n감사합니다.",
                 "templateImageUrl": "https://mud-kage.kakao.com/dn/7DEGZ/btsMx1LSx6i/IeMxFseYbSTrRjAHjiLSFk/img_l.jpg",
                 "templateExtra": null,
                 "buttons": [],
@@ -11655,7 +11655,7 @@
                 "templateCode": "ticket_expired_non_01",
                 "templateName": "(공용) 이용권 만료 알림_기본형_01",
                 "templateEmphasizeType": "NONE",
-                "templateContent": "[이용권 만료 알림]\n안녕하세요, #{발신 스페이스}입니다.\n#{이용권명} 이용권이 만료되었습니다.\n\n📅 만료 일자 : #{만료일자}\n\n#{추가 메시지 - 추가 이용을 원하시면 센터 방문 후 재등록 해주시기 바랍니다.}",
+                "templateContent": "[이용권 만료 알림]\n안녕하세요, #{발신 스페이스}입니다.\n#{이용권명} 이용권이 만료되었습니다.\n\n 만료 일자 : #{만료일자}\n\n#{추가 메시지 - 추가 이용을 원하시면 센터 방문 후 재등록 해주시기 바랍니다.}",
                 "templateExtra": null,
                 "buttons": [],
                 "variables": [
@@ -11716,7 +11716,7 @@
                 "templateCode": "vote_recieved_non_01",
                 "templateName": "(공용) 투표 안내_기본형_01",
                 "templateEmphasizeType": "NONE",
-                "templateContent": "[투표 안내]\n안녕하세요, #{수신자}님!\n#{투표명} 투표 링크를 전달드립니다.\n\n👥 대상자 : #{대상자}\n📅 기간 : #{기간}\n\n#{추가 메시지 - 기간 내에 투표 부탁드립니다.}",
+                "templateContent": "[투표 안내]\n안녕하세요, #{수신자}님!\n#{투표명} 투표 링크를 전달드립니다.\n\n 대상자 : #{대상자}\n 기간 : #{기간}\n\n#{추가 메시지 - 기간 내에 투표 부탁드립니다.}",
                 "templateExtra": null,
                 "buttons": [
                     {
@@ -11798,7 +11798,7 @@
                 "templateCode": "address_info_non_01",
                 "templateName": "(공용) 주소 안내_기본형_01",
                 "templateEmphasizeType": "NONE",
-                "templateContent": "안녕하세요, #{발신 스페이스}입니다.\n#{목적}을 위한 #{장소} 주소를 안내드립니다.\n\n[#{발신 스페이스}  #{장소}]\n📍 위치 : #{위치}\n\n#{추가 메시지 - 오시는 방법}",
+                "templateContent": "안녕하세요, #{발신 스페이스}입니다.\n#{목적}을 위한 #{장소} 주소를 안내드립니다.\n\n[#{발신 스페이스}  #{장소}]\n 위치 : #{위치}\n\n#{추가 메시지 - 오시는 방법}",
                 "templateExtra": null,
                 "buttons": [
                     {
@@ -12023,7 +12023,7 @@
                 "templateCode": "signup_done_non_02",
                 "templateName": "(공용) 회원 안내사항 전달_기본형_01",
                 "templateEmphasizeType": "NONE",
-                "templateContent": "안녕하세요, #{수신자}님!\n#{발신 스페이스}의 회원이 되신 것을 환영합니다.\n\n🔔 신규 회원 안내 사항 🔔\n#{안내사항}",
+                "templateContent": "안녕하세요, #{수신자}님!\n#{발신 스페이스}의 회원이 되신 것을 환영합니다.\n\n 신규 회원 안내 사항 \n#{안내사항}",
                 "templateExtra": null,
                 "buttons": [],
                 "variables": [

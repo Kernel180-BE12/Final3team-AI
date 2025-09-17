@@ -10,7 +10,9 @@ from dataclasses import dataclass
 
 from .index_manager import IndexManager
 from .public_template_manager import PublicTemplateManager, get_public_template_manager
-from .template_matcher import TemplateMatcher
+from .basic_template_matcher import BasicTemplateMatcher
+from .entity_extractor import EntityExtractor
+from .template_validator import get_template_validator
 from ..agents.agent2 import Agent2
 from ..utils.llm_provider_manager import get_llm_manager
 
@@ -38,26 +40,44 @@ class TemplateSelector:
         self.index_manager = IndexManager()
         self.public_template_manager = get_public_template_manager()
         self.llm_manager = get_llm_manager()
-        
-        # TemplateMatcher 초기화 (1단계용)
-        self._template_matcher = None
+
+        # EntityExtractor 초기화 (BasicTemplateMatcher용)
+        self._entity_extractor = None
+
+        # BasicTemplateMatcher 초기화 (1단계용)
+        self._basic_template_matcher = None
         
         # Agent2는 필요시에만 초기화 (무거운 객체)
         self._agent2 = None
-        
+
+        # 템플릿 검증 시스템
+        self.template_validator = get_template_validator()
+
         # 단계별 임계값 설정
-        self.existing_similarity_threshold = 0.7  # 기존 템플릿 유사도 임계값
+        self.existing_similarity_threshold = 0.8  # 기존 템플릿 유사도 임계값
         self.public_similarity_threshold = 0.6   # 공용 템플릿 유사도 임계값
-        
+
+        # 재생성 설정
+        self.max_regeneration_attempts = 3
+
     @property
-    def template_matcher(self) -> TemplateMatcher:
-        """지연 로딩으로 TemplateMatcher 초기화"""
-        if self._template_matcher is None:
-            self._template_matcher = TemplateMatcher(
-                api_key=self.llm_manager.get_current_api_key(),
-                index_manager=self.index_manager
+    def entity_extractor(self) -> EntityExtractor:
+        """지연 로딩으로 EntityExtractor 초기화"""
+        if self._entity_extractor is None:
+            self._entity_extractor = EntityExtractor(
+                api_key=self.llm_manager.gemini_api_key
             )
-        return self._template_matcher
+        return self._entity_extractor
+
+    @property
+    def basic_template_matcher(self) -> BasicTemplateMatcher:
+        """지연 로딩으로 BasicTemplateMatcher 초기화"""
+        if self._basic_template_matcher is None:
+            self._basic_template_matcher = BasicTemplateMatcher(
+                index_manager=self.index_manager,
+                entity_extractor=self.entity_extractor
+            )
+        return self._basic_template_matcher
     
     @property
     def agent2(self) -> Agent2:
@@ -119,55 +139,45 @@ class TemplateSelector:
             )
     
     def _search_existing_templates(self, user_input: str, options: Dict[str, Any]) -> TemplateSelectionResult:
-        """1단계: 기존 승인된 템플릿 검색 (TemplateMatcher 사용)"""
+        """1단계: 기존 승인된 템플릿 검색 (BasicTemplateMatcher 사용)"""
         try:
             threshold = options.get('existing_threshold', self.existing_similarity_threshold)
-            
-            self.logger.info(f"1단계: 임베딩 기반 기존 템플릿 검색 (임계값: {threshold})")
-            
-            # TemplateMatcher를 통한 유사 템플릿 검색
-            similar_templates = self.template_matcher.find_similar_templates(user_input, top_k=3)
-            
-            if not similar_templates:
+
+            self.logger.info(f"1단계: BasicTemplateMatcher 기반 기존 템플릿 검색 (임계값: {threshold})")
+
+            # BasicTemplateMatcher를 통한 유사 템플릿 검색
+            matched_template = self.basic_template_matcher.find_matching_template(user_input, threshold)
+
+            if not matched_template:
                 return TemplateSelectionResult(
                     success=False,
                     source="existing",
                     error="유사한 기존 템플릿을 찾을 수 없습니다"
                 )
-            
-            # 가장 유사도가 높은 템플릿 선택
-            best_template = similar_templates[0]
-            similarity_score = best_template['similarity_score']
-            
-            if similarity_score >= threshold:
-                # 기존 템플릿을 표준 형식으로 변환
-                template_content = best_template['content']
-                
-                # 표준 변수 형식으로 변환
-                standardized_template, variables = self._convert_to_standard_template(template_content)
-                
-                self.logger.info(f"기존 템플릿 발견: {best_template['category']} (유사도: {similarity_score:.3f})")
-                
-                return TemplateSelectionResult(
-                    success=True,
-                    template=standardized_template,
-                    variables=variables,
-                    source="existing",
-                    source_info={
-                        "template_id": best_template['id'],
-                        "category": best_template['category'],
-                        "similarity": similarity_score,
-                        "recommendation_type": best_template['recommendation_type'],
-                        "keywords": best_template['keywords']
-                    }
-                )
-            
+
+            similarity_score = matched_template['similarity']
+
+            # 기존 템플릿을 표준 형식으로 변환 (이미 ${변수} 형식)
+            template_content = matched_template['content']
+            variables = matched_template.get('variables', [])
+
+            self.logger.info(f"기존 템플릿 발견: {matched_template['name']} ({matched_template['category']}) (유사도: {similarity_score:.3f})")
+
             return TemplateSelectionResult(
-                success=False,
+                success=True,
+                template=template_content,
+                variables=variables,
                 source="existing",
-                error=f"기존 템플릿 유사도 부족 ({similarity_score:.3f} < {threshold})"
+                source_info={
+                    "template_id": matched_template['id'],
+                    "template_name": matched_template['name'],
+                    "category": matched_template['category'],
+                    "similarity": similarity_score,
+                    "match_type": matched_template['match_type'],
+                    "keywords": matched_template.get('keywords', [])
+                }
             )
-            
+
         except Exception as e:
             self.logger.warning(f"기존 템플릿 검색 실패: {e}")
             return TemplateSelectionResult(
@@ -261,39 +271,109 @@ class TemplateSelector:
             )
     
     def _generate_new_template(self, user_input: str, selection_path: List[str]) -> TemplateSelectionResult:
-        """3단계: 새 템플릿 생성"""
+        """3단계: 새 템플릿 생성 (검증 포함)"""
         try:
-            self.logger.info("3단계: 새 템플릿 생성")
-            
-            # Agent2를 통한 템플릿 생성
-            result, tools_data = self.agent2.generate_compliant_template(user_input)
-            
-            if not result.get("success", False):
-                return TemplateSelectionResult(
-                    success=False,
-                    source="generated",
-                    error=result.get("error", "템플릿 생성 실패"),
-                    selection_path=selection_path
+            self.logger.info("3단계: 새 템플릿 생성 (검증 시스템 적용)")
+
+            # 재생성 시도 횟수 제한
+            for attempt in range(self.max_regeneration_attempts):
+                if attempt > 0:
+                    self.logger.info(f"템플릿 재생성 시도 {attempt + 1}/{self.max_regeneration_attempts}")
+
+                # Agent2를 통한 템플릿 생성
+                result, tools_data = self.agent2.generate_compliant_template(user_input)
+
+                if not result.get("success", False):
+                    if attempt == self.max_regeneration_attempts - 1:  # 마지막 시도
+                        return TemplateSelectionResult(
+                            success=False,
+                            source="generated",
+                            error=result.get("error", "템플릿 생성 실패"),
+                            selection_path=selection_path
+                        )
+                    continue  # 다음 시도
+
+                # 변수 형식을 표준 형식으로 변환
+                template = result.get("template", "")
+                variables = result.get("variables", [])
+                standardized_template, standardized_variables = self._standardize_variables(template, variables)
+
+                # 🔍 템플릿 검증 실행
+                self.logger.info(f"생성된 템플릿 검증 중... (시도 {attempt + 1})")
+                validation_report = self.template_validator.validate_template(
+                    template=standardized_template,
+                    tools_results=tools_data,  # Agent2의 Tools 결과
+                    user_input=user_input
                 )
-            
-            # 변수 형식을 표준 형식으로 변환
-            template = result.get("template", "")
-            variables = result.get("variables", [])
-            
-            # 표준 변수 형식으로 변환 (#{변수명} -> ${변수명})
-            standardized_template, standardized_variables = self._standardize_variables(template, variables)
-            
-            return TemplateSelectionResult(
-                success=True,
-                template=standardized_template,
-                variables=standardized_variables,
-                source="generated",
-                source_info={
-                    "original_variables": len(variables),
-                    "generation_method": "agent1"
-                },
-                selection_path=selection_path
-            )
+
+                # 검증 결과 로깅
+                self.logger.info(f"검증 점수: {validation_report.overall_score:.2f}")
+                if validation_report.warnings:
+                    self.logger.warning(f"검증 경고: {', '.join(validation_report.warnings[:3])}")
+                if validation_report.failed_checks:
+                    self.logger.error(f"검증 실패: {', '.join(validation_report.failed_checks[:3])}")
+
+                # ✅ 검증 통과시 템플릿 반환
+                if validation_report.success:
+                    self.logger.info("✅ 템플릿 검증 통과 - 최종 템플릿 완성")
+                    return TemplateSelectionResult(
+                        success=True,
+                        template=standardized_template,
+                        variables=standardized_variables,
+                        source="generated",
+                        source_info={
+                            "original_variables": len(variables),
+                            "generation_method": "agent2_with_validation",
+                            "validation_score": validation_report.overall_score,
+                            "validation_attempts": attempt + 1,
+                            "tools_results": tools_data
+                        },
+                        selection_path=selection_path
+                    )
+
+                # ❌ 재생성이 필요한 경우
+                elif validation_report.should_regenerate:
+                    self.logger.warning(f"⚠️ 템플릿 검증 실패 (점수: {validation_report.overall_score:.2f}) - 재생성 필요")
+                    if attempt < self.max_regeneration_attempts - 1:
+                        continue  # 재생성 시도
+                    else:
+                        # 최대 시도 횟수 초과 - 최선의 결과라도 반환
+                        self.logger.error("❌ 최대 재생성 횟수 초과 - 최선의 템플릿 반환")
+                        return TemplateSelectionResult(
+                            success=False,
+                            template=standardized_template,
+                            variables=standardized_variables,
+                            source="generated",
+                            error=f"검증 미통과 (점수: {validation_report.overall_score:.2f})",
+                            source_info={
+                                "original_variables": len(variables),
+                                "generation_method": "agent2_validation_failed",
+                                "validation_score": validation_report.overall_score,
+                                "validation_attempts": attempt + 1,
+                                "validation_issues": validation_report.failed_checks + validation_report.warnings,
+                                "recommendation": validation_report.recommendation
+                            },
+                            selection_path=selection_path
+                        )
+
+                # ⚠️ 경고 수준이지만 사용 가능한 경우
+                else:
+                    self.logger.info(f"⚠️ 템플릿 검증 경고 수준 (점수: {validation_report.overall_score:.2f}) - 사용 가능")
+                    return TemplateSelectionResult(
+                        success=True,
+                        template=standardized_template,
+                        variables=standardized_variables,
+                        source="generated",
+                        source_info={
+                            "original_variables": len(variables),
+                            "generation_method": "agent2_with_warnings",
+                            "validation_score": validation_report.overall_score,
+                            "validation_attempts": attempt + 1,
+                            "validation_warnings": validation_report.warnings,
+                            "recommendation": validation_report.recommendation
+                        },
+                        selection_path=selection_path
+                    )
             
         except Exception as e:
             self.logger.error(f"새 템플릿 생성 실패: {e}")
@@ -380,9 +460,12 @@ class TemplateSelector:
     
     def get_selection_stats(self) -> Dict[str, Any]:
         """선택 시스템 통계 정보"""
+        basic_stats = self.basic_template_matcher.get_statistics()
         return {
             "existing_templates": {
-                "available": "predata 기반 검색",
+                "available": basic_stats["total_templates"],
+                "categories": basic_stats["categories"],
+                "has_embeddings": basic_stats["has_embeddings"],
                 "threshold": self.existing_similarity_threshold
             },
             "public_templates": {
