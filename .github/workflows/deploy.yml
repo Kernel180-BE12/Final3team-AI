@@ -65,13 +65,13 @@ jobs:
     - name: Setup SSH
       run: |
         mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/Ai-v2.pem
+        chmod 600 ~/.ssh/Ai-v2.pem
         chmod 700 ~/.ssh
         ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
         
         # SSH 키 유효성 검사
-        ssh-keygen -l -f ~/.ssh/id_rsa
+        ssh-keygen -l -f ~/.ssh/Ai-v2.pem
         
     - name: Deploy to EC2
       run: |
@@ -83,11 +83,11 @@ jobs:
           --exclude '.env' \
           --exclude '.venv' \
           --exclude 'node_modules' \
-          -e "ssh -i ~/.ssh/id_rsa" \
+          -e "ssh -i ~/.ssh/Ai-v2.pem" \
           ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/Jober_ai/
         
         # EC2에서 배포 스크립트 실행
-        ssh -i ~/.ssh/id_rsa ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+        ssh -i ~/.ssh/Ai-v2.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
           cd ~/Jober_ai
           
           # 기존 FastAPI 프로세스 종료
