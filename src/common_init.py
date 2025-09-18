@@ -4,10 +4,10 @@ main.py와 api.py의 중복된 초기화 패턴 통합
 """
 
 from config import GEMINI_API_KEY
-from ..core import EntityExtractor
-from ..core.index_manager import get_index_manager
-from ..utils import DataProcessor
-from ..agents.agent2 import Agent2
+from src.core.entity_extractor import EntityExtractor
+from src.core.index_manager import get_index_manager
+from src.utils.data_processor import DataProcessor
+from src.agents.agent2 import Agent2
 
 
 def initialize_core_components(api_key: str = None):
@@ -55,7 +55,7 @@ def setup_guidelines_and_indexes(index_manager, entity_extractor):
     print(f" 가이드라인 로드 완료: {len(guidelines)}개 청크")
     
     # 샘플 템플릿 로드
-    from .sample_templates import get_sample_templates
+    from src.utils.sample_templates import get_sample_templates
     templates = get_sample_templates()
     
     # 인덱스 구축

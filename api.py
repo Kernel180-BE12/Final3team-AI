@@ -15,7 +15,7 @@ from src.agents.agent1 import Agent1
 from src.agents.agent2 import Agent2
 from src.utils.llm_provider_manager import get_llm_manager, invoke_llm_with_fallback, ainvoke_llm_with_fallback
 from src.core.template_selector import get_template_selector
-from src.utils.common_init import initialize_core_components, setup_guidelines_and_indexes
+from src.common_init import initialize_core_components, setup_guidelines_and_indexes
 
 
 class TemplateAPI:
