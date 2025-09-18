@@ -500,9 +500,14 @@ def _get_metadata_buttons(generation_result: Dict, content: str) -> List[Dict]:
             "linkIos": btn.get("linkIos")
         } for i, btn in enumerate(buttons)]
     
-    # 2. 생성된 경우 버튼 필요성 추론
-    button_keywords = ["자세히", "확인", "신청", "예약", "문의"]
-    if any(keyword in content for keyword in button_keywords):
+    # 2. 생성된 경우 버튼 필요성 추론 (보수적 접근)
+    button_keywords = ["자세히", "확인", "신청", "예약", "문의", "링크", "URL", "클릭"]
+
+    # 더 명확한 버튼 필요성 판단 (2개 이상 키워드 또는 URL 포함 시에만)
+    keyword_count = sum(1 for keyword in button_keywords if keyword in content)
+    has_url = any(url_pattern in content for url_pattern in ["http://", "https://", "www.", ".com", ".co.kr"])
+
+    if keyword_count >= 2 or has_url:
         return [{
             "id": 1,
             "name": "자세히 보기",
@@ -511,7 +516,8 @@ def _get_metadata_buttons(generation_result: Dict, content: str) -> List[Dict]:
             "linkAnd": None,
             "linkIos": None
         }]
-    
+
+    # 기본값: 빈 리스트 (프론트에서 버튼 비활성화)
     return []
 
 def _get_metadata_industries(generation_result: Dict, content: str, category_id: str) -> List[Dict]:
