@@ -166,7 +166,7 @@ class TemplateSelector:
 
             similarity_score = matched_template['similarity']
 
-            # 기존 템플릿을 표준 형식으로 변환 (이미 ${변수} 형식)
+            # 기존 템플릿을 표준 형식으로 변환 (이미 #{변수} 형식)
             template_content = matched_template['content']
             variables = matched_template.get('variables', [])
 
@@ -412,17 +412,17 @@ class TemplateSelector:
     def _standardize_variables(self, template: str, variables: List[Dict[str, Any]]) -> Tuple[str, List[Dict[str, Any]]]:
         """
         변수 형식을 표준 형식으로 변환
-        #{변수명} -> ${변수명} 형식
+        ${변수명} -> #{변수명} 형식
         """
         standardized_template = template
         standardized_variables = []
         
         for var in variables:
-            old_format = var.get("name", f"#{{{var.get('description', '변수')}}}")
+            old_format = var.get("name", f"${{{var.get('description', '변수')}}}")
             # 의미있는 변수명 생성
             description = var.get("description", "변수")
             clean_name = description.replace(" ", "").replace("(", "").replace(")", "")
-            new_format = f"${{{clean_name}}}"
+            new_format = f"#{{{clean_name}}}"
             
             # 템플릿에서 변수 교체
             standardized_template = standardized_template.replace(old_format, new_format)
@@ -440,7 +440,7 @@ class TemplateSelector:
     def _convert_to_standard_template(self, template_content: str) -> Tuple[str, List[Dict[str, Any]]]:
         """
         기존 템플릿을 표준 변수 형식으로 변환
-        [제목] 형태나 특정 패턴을 ${변수명} 형식으로 변환
+        [제목] 형태나 특정 패턴을 #{변수명} 형식으로 변환
         """
         import re
         
@@ -454,7 +454,7 @@ class TemplateSelector:
         for title in titles:
             old_format = f"[{title}]"
             clean_name = title.replace(" ", "").replace("(", "").replace(")", "")
-            new_format = f"${{{clean_name}}}"
+            new_format = f"#{{{clean_name}}}"
             standardized_template = standardized_template.replace(old_format, new_format)
             
             variables.append({
@@ -466,16 +466,16 @@ class TemplateSelector:
         # 기본 변수가 없으면 기본 템플릿 구조 추가
         if not variables:
             # 간단한 템플릿 구조로 변환
-            standardized_template = f"안녕하세요, ${{고객명}}님!\n\n{template_content}\n\n자세한 내용은 ${{상세정보}}를 확인해주세요."
+            standardized_template = f"안녕하세요, #{{고객명}}님!\n\n{template_content}\n\n자세한 내용은 #{{상세정보}}를 확인해주세요."
             
             variables = [
                 {
-                    "name": "${고객명}",
+                    "name": "#{고객명}",
                     "description": "고객명",
                     "required": True
                 },
                 {
-                    "name": "${상세정보}",
+                    "name": "#{상세정보}",
                     "description": "상세정보",
                     "required": True
                 }

@@ -13,6 +13,11 @@ import threading
 # api.py에서 기존 로직을 가져옵니다.
 from api import get_template_api
 
+# 세션 관리 시스템 추가
+from src.core.session_manager import get_session_manager, create_session_for_user, get_user_session
+from src.core.template_preview import get_preview_generator
+from src.core.session_models import SessionStatus
+
 # --- Pydantic 모델 정의 ---
 # FastAPI가 JSON의 snake_case <-> camelCase 변환을 자동으로 처리해줍니다.
 
@@ -48,6 +53,42 @@ class Industry(BaseModel):
 class Purpose(BaseModel):
     id: int
     name: str
+
+# 세션 관련 새로운 모델들
+class VariableUpdateRequest(BaseModel):
+    """변수 업데이트 요청 모델"""
+    variables: Dict[str, str] = Field(..., description="업데이트할 변수들")
+    force_update: bool = Field(False, description="강제 업데이트 여부")
+
+class SessionVariableInfo(BaseModel):
+    """세션 변수 정보 모델"""
+    variable_key: str = Field(..., alias='variableKey')
+    placeholder: str
+    variable_type: str = Field(..., alias='variableType')
+    required: bool = True
+    description: Optional[str] = None
+    example: Optional[str] = None
+    input_hint: Optional[str] = Field(None, alias='inputHint')
+    priority: int = 0
+
+class SessionPreviewResponse(BaseModel):
+    """세션 미리보기 응답 모델"""
+    success: bool
+    session_id: str = Field(..., alias='sessionId')
+    preview_template: str = Field(..., alias='previewTemplate')
+    completion_percentage: float = Field(..., alias='completionPercentage')
+    total_variables: int = Field(..., alias='totalVariables')
+    completed_variables: int = Field(..., alias='completedVariables')
+    missing_variables: List[SessionVariableInfo] = Field(..., alias='missingVariables')
+    next_suggested_variables: List[SessionVariableInfo] = Field(..., alias='nextSuggestedVariables')
+    quality_score: float = Field(..., alias='qualityScore')
+    estimated_final_length: int = Field(..., alias='estimatedFinalLength')
+    readiness_for_completion: bool = Field(..., alias='readinessForCompletion')
+
+class CompleteTemplateRequest(BaseModel):
+    """템플릿 완료 요청 모델"""
+    force_complete: bool = Field(False, alias='forceComplete')
+    final_adjustments: Optional[Dict[str, str]] = Field(None, alias='finalAdjustments')
 
 class TemplateResponse(BaseModel):
     """FastAPI가 Spring Boot로 보낼 응답을 위한 모델"""
@@ -425,10 +466,30 @@ async def create_template(request: TemplateCreationRequest):
         template_data = exported_data["template"]
         variable_data = exported_data["variables"]
 
-        # 3. 최종 응답 모델(TemplateResponse)에 맞춰 데이터 매핑
-        # 참고: 현재 로직은 buttons, industry, purpose를 생성하지 않으므로, 빈 리스트로 반환합니다.
-        #      이 부분은 필요 시 추가 로직 구현이 필요합니다.
-        #      id는 DB 저장 후 실제 ID를 받아와야 하지만, 여기서는 예시로 1을 사용합니다.
+        # 3. 세션 생성 및 템플릿 데이터 설정
+        session_manager = get_session_manager()
+        session_id = session_manager.create_session(
+            user_id=request.user_id,
+            original_request=processed_content,
+            conversation_context=request.conversation_context
+        )
+
+        # 세션에 템플릿 데이터 설정
+        session_manager.set_template_data(
+            session_id=session_id,
+            template=generation_result["template"],
+            variables=generation_result.get("variables", []),
+            source=generation_result.get("metadata", {}).get("source", "generated")
+        )
+
+        # Agent 결과 저장 (있는 경우)
+        if generation_result.get("metadata"):
+            session_manager.update_session(session_id, {
+                "agent1_result": generation_result["metadata"].get("agent1_result"),
+                "agent2_result": generation_result["metadata"].get("agent2_result")
+            })
+
+        # 4. 최종 응답 모델(TemplateResponse)에 맞춰 데이터 매핑
         response_data = {
             "id": 1, # 임시 ID
             "userId": template_data["user_id"],
@@ -442,12 +503,28 @@ async def create_template(request: TemplateCreationRequest):
                 {
                     "id": i + 1, # 임시 ID
                     "variableKey": var.get("variable_key"),
-                    "placeholder": var.get("placeholder"), 
+                    "placeholder": var.get("placeholder"),
                     "inputType": var.get("input_type", "TEXT")  # 기본값 설정
                 } for i, var in enumerate(variable_data)
             ],
             "industry": _get_metadata_industries(generation_result, template_data["content"], template_data["category_id"]),
             "purpose": _get_metadata_purpose(generation_result, template_data["content"], processed_content)
+        }
+
+        # 5. 세션 정보 추가 - 챗봇 연동을 위한 핵심 데이터
+        session = session_manager.get_session(session_id)
+        response_data["session_data"] = {
+            "session_id": session_id,
+            "has_missing_variables": len(session.missing_variables) > 0,
+            "completion_percentage": round(session.completion_percentage, 1),
+            "missing_variables": session.missing_variables,
+            "total_variables": len(session.template_variables),
+            "session_endpoints": {
+                "update_variables": f"/ai/templates/{session_id}/variables",
+                "preview": f"/ai/templates/{session_id}/preview",
+                "complete": f"/ai/templates/{session_id}/complete"
+            },
+            "expires_in_minutes": max(0, int((session.expires_at - datetime.now()).total_seconds() / 60))
         }
 
         return response_data
@@ -634,6 +711,453 @@ async def debug_raw(request_data: dict):
         "raw_data": request_data,
         "keys": list(request_data.keys()),
         "status": "OK"
+    }
+
+
+# ===========================================
+# 새로운 세션 기반 챗봇 API 엔드포인트들
+# ===========================================
+
+@app.post("/ai/templates/{session_id}/variables")
+async def update_session_variables(session_id: str, request: VariableUpdateRequest):
+    """
+    세션의 변수를 개별 업데이트
+
+    Args:
+        session_id: 세션 ID
+        request: 변수 업데이트 요청
+
+    Returns:
+        업데이트 결과 및 현재 세션 상태
+    """
+    try:
+        session_manager = get_session_manager()
+
+        # 세션 유효성 검증
+        session = session_manager.get_session(session_id)
+        if not session:
+            raise HTTPException(
+                status_code=404,
+                detail=create_error_response(
+                    "SESSION_NOT_FOUND",
+                    "세션을 찾을 수 없거나 만료되었습니다.",
+                    f"세션 ID: {session_id}"
+                )
+            )
+
+        # 변수 유효성 검증
+        if not request.variables:
+            raise HTTPException(
+                status_code=400,
+                detail=create_error_response(
+                    "EMPTY_VARIABLES",
+                    "업데이트할 변수가 없습니다.",
+                    "최소 1개 이상의 변수를 제공해야 합니다."
+                )
+            )
+
+        # 변수 업데이트
+        success = session_manager.update_user_variables(session_id, request.variables)
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail=create_error_response(
+                    "UPDATE_FAILED",
+                    "변수 업데이트에 실패했습니다.",
+                    "세션 상태를 확인해주세요."
+                )
+            )
+
+        # 업데이트된 세션 정보 조회
+        updated_session = session_manager.get_session(session_id)
+
+        # 미리보기 생성
+        preview_generator = get_preview_generator()
+        preview_result = preview_generator.generate_preview(updated_session)
+
+        return {
+            "success": True,
+            "session_id": session_id,
+            "updated_variables": list(request.variables.keys()),
+            "completion_percentage": updated_session.completion_percentage,
+            "remaining_variables": updated_session.missing_variables,
+            "preview_snippet": preview_result.get("preview_template", "")[:100] + "..." if len(preview_result.get("preview_template", "")) > 100 else preview_result.get("preview_template", ""),
+            "quality_score": preview_result.get("quality_analysis", {}).get("quality_score", 0),
+            "next_suggested_variables": preview_result.get("next_suggested_variables", []),
+            "session_status": updated_session.status.value,
+            "update_count": updated_session.update_count,
+            "last_updated": updated_session.last_updated.isoformat()
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=create_error_response(
+                "INTERNAL_ERROR",
+                "변수 업데이트 중 오류가 발생했습니다.",
+                str(e)
+            )
+        )
+
+
+@app.get("/ai/templates/{session_id}/preview")
+async def get_template_preview(session_id: str, style: str = "missing"):
+    """
+    부분 완성 템플릿 미리보기 조회
+
+    Args:
+        session_id: 세션 ID
+        style: 미리보기 스타일 ("missing", "partial", "preview")
+
+    Returns:
+        미리보기 템플릿 및 완성도 정보
+    """
+    try:
+        session_manager = get_session_manager()
+
+        # 세션 조회
+        session = session_manager.get_session(session_id)
+        if not session:
+            raise HTTPException(
+                status_code=404,
+                detail=create_error_response(
+                    "SESSION_NOT_FOUND",
+                    "세션을 찾을 수 없거나 만료되었습니다.",
+                    f"세션 ID: {session_id}"
+                )
+            )
+
+        # 템플릿이 설정되어 있는지 확인
+        if not session.template_content:
+            raise HTTPException(
+                status_code=400,
+                detail=create_error_response(
+                    "NO_TEMPLATE",
+                    "세션에 템플릿이 설정되지 않았습니다.",
+                    "먼저 템플릿을 생성해주세요."
+                )
+            )
+
+        # 미리보기 생성
+        preview_generator = get_preview_generator()
+        preview_result = preview_generator.generate_preview(session, style)
+
+        if not preview_result.get("success", False):
+            raise HTTPException(
+                status_code=500,
+                detail=create_error_response(
+                    "PREVIEW_GENERATION_FAILED",
+                    "미리보기 생성에 실패했습니다.",
+                    preview_result.get("error", "알 수 없는 오류")
+                )
+            )
+
+        # 변수 정보 포맷팅
+        missing_variables = []
+        for var_info in preview_result.get("next_suggested_variables", []):
+            missing_variables.append(SessionVariableInfo(
+                variableKey=var_info["variable_key"],
+                placeholder=var_info["placeholder"],
+                variableType=var_info["variable_type"],
+                required=var_info["required"],
+                description=var_info.get("description"),
+                example=var_info.get("example"),
+                inputHint=var_info.get("input_hint"),
+                priority=var_info.get("priority", 0)
+            ))
+
+        next_suggested = []
+        for var_info in preview_result.get("next_suggested_variables", []):
+            next_suggested.append(SessionVariableInfo(
+                variableKey=var_info["variable_key"],
+                placeholder=var_info["placeholder"],
+                variableType=var_info["variable_type"],
+                required=var_info["required"],
+                description=var_info.get("description"),
+                example=var_info.get("example"),
+                inputHint=var_info.get("input_hint"),
+                priority=var_info.get("priority", 0)
+            ))
+
+        return SessionPreviewResponse(
+            success=True,
+            sessionId=session_id,
+            previewTemplate=preview_result["preview_template"],
+            completionPercentage=round(preview_result["completion_percentage"], 1),
+            totalVariables=preview_result["total_variables"],
+            completedVariables=preview_result["completed_variables"],
+            missingVariables=missing_variables,
+            nextSuggestedVariables=next_suggested,
+            qualityScore=round(preview_result.get("quality_analysis", {}).get("quality_score", 0), 1),
+            estimatedFinalLength=preview_result.get("preview_metadata", {}).get("estimated_final_length", 0),
+            readinessForCompletion=preview_result.get("quality_analysis", {}).get("readiness_for_completion", False)
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=create_error_response(
+                "INTERNAL_ERROR",
+                "미리보기 조회 중 오류가 발생했습니다.",
+                str(e)
+            )
+        )
+
+
+@app.post("/ai/templates/{session_id}/complete")
+async def complete_template_session(session_id: str, request: CompleteTemplateRequest):
+    """
+    세션 템플릿 최종 완성
+
+    Args:
+        session_id: 세션 ID
+        request: 완성 요청
+
+    Returns:
+        최종 완성된 템플릿 데이터
+    """
+    try:
+        session_manager = get_session_manager()
+
+        # 세션 조회
+        session = session_manager.get_session(session_id)
+        if not session:
+            raise HTTPException(
+                status_code=404,
+                detail=create_error_response(
+                    "SESSION_NOT_FOUND",
+                    "세션을 찾을 수 없거나 만료되었습니다.",
+                    f"세션 ID: {session_id}"
+                )
+            )
+
+        # 템플릿 존재 확인
+        if not session.template_content:
+            raise HTTPException(
+                status_code=400,
+                detail=create_error_response(
+                    "NO_TEMPLATE",
+                    "완성할 템플릿이 없습니다.",
+                    "먼저 템플릿을 생성해주세요."
+                )
+            )
+
+        # 최종 조정사항 적용 (있는 경우)
+        if request.final_adjustments:
+            session_manager.update_user_variables(session_id, request.final_adjustments)
+            session = session_manager.get_session(session_id)  # 업데이트된 세션 다시 조회
+
+        # 완성도 검증 (강제 완성이 아닌 경우)
+        if not request.force_complete and session.completion_percentage < 100.0:
+            raise HTTPException(
+                status_code=400,
+                detail=create_error_response(
+                    "INCOMPLETE_TEMPLATE",
+                    "템플릿이 아직 완성되지 않았습니다.",
+                    {
+                        "completion_percentage": session.completion_percentage,
+                        "missing_variables": session.missing_variables,
+                        "suggestion": "누락된 변수를 모두 입력하거나 force_complete=true로 강제 완성하세요."
+                    }
+                )
+            )
+
+        # 최종 템플릿 생성
+        preview_generator = get_preview_generator()
+        final_preview = preview_generator.generate_preview(session, "missing")
+        final_template = final_preview["preview_template"]
+
+        # 기존 TemplateAPI의 export_to_json 활용하여 DB 저장용 데이터 생성
+        template_api = get_template_api()
+
+        # 변수 목록을 올바른 형식으로 변환
+        variables_for_export = []
+        for var_key, var_info in session.template_variables.items():
+            variables_for_export.append({
+                "variable_key": var_key,
+                "placeholder": var_info.placeholder,
+                "input_type": var_info.variable_type
+            })
+
+        # 생성 결과 구성 (기존 API 형식에 맞춤)
+        generation_result = {
+            "success": True,
+            "template": final_template,
+            "variables": variables_for_export,
+            "metadata": {
+                "source": session.template_source or "generated",
+                "session_id": session_id,
+                "completion_percentage": session.completion_percentage,
+                "quality_score": final_preview.get("quality_analysis", {}).get("quality_score", 0),
+                "update_count": session.update_count,
+                "creation_time": (session.last_updated - session.created_at).total_seconds() / 60
+            }
+        }
+
+        # JSON 내보내기
+        export_result = template_api.export_to_json(
+            result=generation_result,
+            user_input=session.original_request,
+            user_id=session.user_id
+        )
+
+        if not export_result.get("success"):
+            raise HTTPException(
+                status_code=500,
+                detail=create_error_response(
+                    "EXPORT_FAILED",
+                    "템플릿 데이터 변환에 실패했습니다.",
+                    export_result.get("error", "Unknown error")
+                )
+            )
+
+        # 세션 완료 처리
+        session_manager.complete_session(session_id)
+
+        # 기존 TemplateResponse 형식으로 반환
+        exported_data = export_result["data"]
+        template_data = exported_data["template"]
+        variable_data = exported_data["variables"]
+
+        response_data = {
+            "id": 1,  # 임시 ID (실제로는 DB에서 생성)
+            "userId": template_data["user_id"],
+            "categoryId": template_data["category_id"],
+            "title": template_data["title"],
+            "content": template_data["content"],
+            "imageUrl": template_data["image_url"],
+            "type": "MESSAGE",
+            "buttons": _get_metadata_buttons(generation_result, template_data["content"]),
+            "variables": [
+                {
+                    "id": i + 1,
+                    "variableKey": var.get("variable_key"),
+                    "placeholder": var.get("placeholder"),
+                    "inputType": var.get("input_type", "TEXT")
+                } for i, var in enumerate(variable_data)
+            ],
+            "industry": _get_metadata_industries(generation_result, template_data["content"], template_data["category_id"]),
+            "purpose": _get_metadata_purpose(generation_result, template_data["content"], session.original_request)
+        }
+
+        # 세션 완료 요약 추가
+        response_data["session_summary"] = {
+            "session_id": session_id,
+            "total_updates": session.update_count,
+            "completion_time_minutes": round((session.last_updated - session.created_at).total_seconds() / 60, 1),
+            "final_completion_percentage": session.completion_percentage,
+            "template_source": session.template_source,
+            "quality_score": final_preview.get("quality_analysis", {}).get("quality_score", 0)
+        }
+
+        return response_data
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=create_error_response(
+                "INTERNAL_ERROR",
+                "템플릿 완성 중 오류가 발생했습니다.",
+                str(e)
+            )
+        )
+
+
+# ===========================================
+# 세션 관리 및 모니터링 API
+# ===========================================
+
+@app.get("/ai/sessions/stats")
+async def get_session_stats():
+    """세션 통계 조회 (관리용)"""
+    session_manager = get_session_manager()
+    stats = session_manager.get_stats()
+    return {
+        "success": True,
+        "stats": stats.to_dict(),
+        "timestamp": datetime.now().isoformat()
+    }
+
+@app.get("/ai/sessions")
+async def get_session_list(limit: int = 20, status: Optional[str] = None):
+    """세션 목록 조회 (관리/디버깅용)"""
+    session_manager = get_session_manager()
+
+    # 상태 필터 처리
+    status_filter = None
+    if status:
+        try:
+            status_filter = SessionStatus(status.lower())
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=create_error_response(
+                    "INVALID_STATUS",
+                    f"유효하지 않은 상태값입니다: {status}",
+                    "가능한 값: active, completed, expired, error"
+                )
+            )
+
+    sessions = session_manager.get_session_list(limit=limit, status_filter=status_filter)
+
+    return {
+        "success": True,
+        "sessions": sessions,
+        "total_count": len(sessions),
+        "limit": limit,
+        "status_filter": status,
+        "timestamp": datetime.now().isoformat()
+    }
+
+@app.get("/ai/sessions/{session_id}")
+async def get_session_info(session_id: str):
+    """개별 세션 정보 조회"""
+    session_manager = get_session_manager()
+    session = session_manager.get_session(session_id)
+
+    if not session:
+        raise HTTPException(
+            status_code=404,
+            detail=create_error_response(
+                "SESSION_NOT_FOUND",
+                "세션을 찾을 수 없거나 만료되었습니다.",
+                f"세션 ID: {session_id}"
+            )
+        )
+
+    return {
+        "success": True,
+        "session": session.to_dict(),
+        "progress_summary": session.get_progress_summary(),
+        "timestamp": datetime.now().isoformat()
+    }
+
+@app.delete("/ai/sessions/{session_id}")
+async def delete_session(session_id: str):
+    """세션 삭제 (관리용)"""
+    session_manager = get_session_manager()
+    success = session_manager.delete_session(session_id)
+
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail=create_error_response(
+                "SESSION_NOT_FOUND",
+                "삭제할 세션을 찾을 수 없습니다.",
+                f"세션 ID: {session_id}"
+            )
+        )
+
+    return {
+        "success": True,
+        "message": f"세션 {session_id}이 성공적으로 삭제되었습니다.",
+        "timestamp": datetime.now().isoformat()
     }
 
 
