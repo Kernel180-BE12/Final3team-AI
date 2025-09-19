@@ -220,6 +220,7 @@ class TemplateAPI:
                 "selection_path": selection_result.selection_path,
                 "source_info": selection_result.source_info,
                 "variables": variables,
+                "agent1_result": validation_result,  # Agent1 결과 추가
                 "created_at": datetime.now().isoformat()
             }
 
@@ -348,6 +349,7 @@ class TemplateAPI:
                 "selection_path": selection_result.selection_path,
                 "source_info": selection_result.source_info,
                 "variables": variables,
+                "agent1_result": validation_result,  # Agent1 결과 추가
                 "created_at": datetime.now().isoformat(),
                 "async_generated": True
             }
@@ -480,22 +482,39 @@ class TemplateAPI:
         }
     
     def _extract_variables_from_template(self, template: str) -> List[Dict]:
-        """템플릿에서 변수 추출 (기업 형식에 맞춤)"""
+        """템플릿에서 변수 추출 (두 가지 형식 지원: #{변수명}, ${변수명})"""
         variables = []
-        # 기업 베스트 템플릿은 #{변수명} 형식을 사용
-        variable_pattern = r'#\{([^}]+)\}'
-        matches = re.findall(variable_pattern, template)
-        
-        for var_name in set(matches):  # 중복 제거
+
+        # 두 가지 변수 형식 지원
+        # 1. #{변수명} 형식 (Agent2 생성 템플릿)
+        hash_pattern = r'#\{([^}]+)\}'
+        hash_matches = re.findall(hash_pattern, template)
+
+        # 2. ${변수명} 형식 (기존 템플릿)
+        dollar_pattern = r'\$\{([^}]+)\}'
+        dollar_matches = re.findall(dollar_pattern, template)
+
+        # 모든 변수명 수집 (중복 제거)
+        all_var_names = set(hash_matches + dollar_matches)
+
+        for var_name in all_var_names:
+            # 원본 템플릿에서 실제 사용된 형식 확인
+            if f"#{{{var_name}}}" in template:
+                placeholder = f"#{{{var_name}}}"
+            elif f"${{{var_name}}}" in template:
+                placeholder = f"#{{{var_name}}}"  # 응답에서는 항상 # 형식으로 통일
+            else:
+                placeholder = f"#{{{var_name}}}"  # 기본값
+
             variable_info = {
                 "template_id": None,  # 백엔드에서 생성된 template_id 사용
                 "variable_key": var_name,  # 기업 형식: variable_key
-                "placeholder": f"#{{{var_name}}}",  # 기업 형식: #{변수명}
+                "placeholder": placeholder,  # 기업 형식: #{변수명}
                 "input_type": "TEXT",  # 기업 형식: 모두 TEXT
                 "created_at": datetime.now().strftime("%Y-%m-%d")
             }
             variables.append(variable_info)
-        
+
         return variables
     
     def _infer_variable_type(self, var_name: str) -> str:

@@ -45,6 +45,7 @@ class Variable(BaseModel):
     variable_key: str = Field(..., alias='variableKey')
     placeholder: str
     input_type: str = Field(..., alias='inputType')
+    value: Optional[str] = Field("", description="실제 입력된 값")
 
 class Industry(BaseModel):
     id: int
@@ -141,9 +142,9 @@ def create_error_response(code: str, message: str, details: Optional[Any] = None
 try:
     from src.utils.comprehensive_validator import validate_input_quick, get_comprehensive_validator
     ADVANCED_VALIDATION_AVAILABLE = True
-    print("🛡️ 고급 3단계 입력 검증 시스템 로드 완료")
+    print("고급 3단계 입력 검증 시스템 로드 완료")
 except ImportError as e:
-    print(f"⚠️ 고급 검증 시스템 로드 실패: {e}")
+    print(f"고급 검증 시스템 로드 실패: {e}")
     ADVANCED_VALIDATION_AVAILABLE = False
 
 def is_meaningful_text(text: str) -> bool:
@@ -154,7 +155,7 @@ def is_meaningful_text(text: str) -> bool:
         # 3단계 고급 검증 시스템 사용
         is_valid, error_code, error_message = validate_input_quick(text)
         if not is_valid:
-            print(f"🚫 입력 차단 [{error_code}]: {error_message}")
+            print(f"입력 차단 [{error_code}]: {error_message}")
         return is_valid
     else:
         # 폴백: 기존 간단한 검증
@@ -230,7 +231,7 @@ def cleanup_old_requests():
                 del request_counts[user_id]
 
         last_cleanup_time = current_time
-        print(f"🧹 Rate limit 메모리 정리 완료: {len(request_counts)}명 활성 사용자")
+        print(f"Rate limit 메모리 정리 완료: {len(request_counts)}명 활성 사용자")
 
 def check_rate_limit(user_id: int) -> bool:
     """사용자별 요청 제한 확인 (동시성 보호 + 메모리 누수 방지)"""
@@ -252,12 +253,12 @@ def check_rate_limit(user_id: int) -> bool:
 
         # 현재 요청 수 확인
         if len(valid_requests) >= RATE_LIMIT_PER_MINUTE:
-            print(f"🚫 Rate limit 초과: user_id={user_id}, 요청수={len(valid_requests)}")
+            print(f"Rate limit 초과: user_id={user_id}, 요청수={len(valid_requests)}")
             return False
 
         # 현재 요청 추가
         request_counts[user_id].append(current_time)
-        print(f"✅ Rate limit 통과: user_id={user_id}, 요청수={len(valid_requests)+1}")
+        print(f"Rate limit 통과: user_id={user_id}, 요청수={len(valid_requests)+1}")
         return True
 
 # --- FastAPI 애플리케이션 설정 ---
@@ -274,7 +275,14 @@ async def log_requests(request: Request, call_next):
         print(f" Content-Type: {request.headers.get('content-type')}")
         print(f" Content-Length: {request.headers.get('content-length')}")
         print(f" Body Length: {len(body)} bytes")
-        print(f" 원시 요청 데이터: '{body.decode('utf-8')}'")
+        try:
+            decoded_body = body.decode('utf-8')
+        except UnicodeDecodeError:
+            try:
+                decoded_body = body.decode('cp949')
+            except UnicodeDecodeError:
+                decoded_body = body.decode('utf-8', errors='ignore')
+        print(f" 원시 요청 데이터: '{decoded_body}'")
         
         # body를 다시 사용할 수 있도록 설정
         async def receive():
@@ -542,7 +550,12 @@ async def create_template(request: TemplateCreationRequest):
                 "agent2_result": generation_result["metadata"].get("agent2_result")
             })
 
-        # 4. 최종 응답 모델(TemplateResponse)에 맞춰 데이터 매핑
+        # 4. Agent1 변수 매핑 처리
+        agent1_result = generation_result.get("metadata", {}).get("agent1_result", {})
+        agent1_variables = agent1_result.get("selected_variables", {})
+        variable_mapping = _map_agent1_to_template_variables(agent1_variables, variable_data)
+
+        # 5. 최종 응답 모델(TemplateResponse)에 맞춰 데이터 매핑
         response_data = {
             "id": 1, # 임시 ID
             "userId": template_data["user_id"],
@@ -557,14 +570,15 @@ async def create_template(request: TemplateCreationRequest):
                     "id": i + 1, # 임시 ID
                     "variableKey": var.get("variable_key"),
                     "placeholder": var.get("placeholder"),
-                    "inputType": var.get("input_type", "TEXT")  # 기본값 설정
+                    "inputType": var.get("input_type", "TEXT"),  # 기본값 설정
+                    "value": variable_mapping.get(var.get("variable_key", ""), "")  # Agent1 매핑된 값
                 } for i, var in enumerate(variable_data)
             ],
             "industry": _get_metadata_industries(generation_result, template_data["content"], template_data["category_id"]),
             "purpose": _get_metadata_purpose(generation_result, template_data["content"], processed_content)
         }
 
-        # 5. 세션 정보 추가 - 챗봇 연동을 위한 핵심 데이터
+        # 6. 세션 정보 추가 - 챗봇 연동을 위한 핵심 데이터
         session = session_manager.get_session(session_id)
         response_data["session_data"] = {
             "session_id": session_id,
@@ -734,6 +748,75 @@ def _get_metadata_industries(generation_result: Dict, content: str, category_id:
     
     # 4. 어떤 업종도 매칭되지 않으면 "기타"로 분류
     return [{"id": 9, "name": "기타"}]
+
+def _map_agent1_to_template_variables(agent1_variables: Dict[str, str], template_variables: List[Dict]) -> Dict[str, str]:
+    """Agent1 추출 변수와 템플릿 변수를 LLM으로 매핑"""
+    if not agent1_variables or not template_variables:
+        return {}
+
+    from src.utils.llm_provider_manager import invoke_llm_with_fallback
+
+    # 템플릿 변수 키 목록 추출
+    template_var_keys = []
+    for var in template_variables:
+        key = var.get("variable_key", "")
+        if key:
+            template_var_keys.append(key)
+
+    if not template_var_keys:
+        return {}
+
+    prompt = f"""다음 Agent1에서 추출한 변수들과 템플릿 변수들을 매핑해주세요.
+
+Agent1 추출 변수:
+{json.dumps(agent1_variables, ensure_ascii=False, indent=2)}
+
+템플릿 변수 목록:
+{template_var_keys}
+
+지시사항:
+1. Agent1 변수의 값을 템플릿 변수에 적절히 매핑해주세요
+2. 의미적으로 일치하는 것들을 연결해주세요 (예: "누가" → "수신자명", "무엇을" → "상품명" 등)
+3. 매핑되지 않는 템플릿 변수는 빈 문자열("")로 설정하세요
+4. JSON 형식으로만 응답해주세요
+
+예시:
+{{
+  "수신자명": "김영수 고객님",
+  "상품명": "아이폰 15",
+  "픽업시간": "내일 오후 3시",
+  "장소": "강남점"
+}}
+
+응답 (JSON만):"""
+
+    try:
+        response, _, _ = invoke_llm_with_fallback(prompt=prompt)
+
+        # JSON 응답 파싱
+        json_start = response.find('{')
+        json_end = response.rfind('}') + 1
+        if json_start >= 0 and json_end > json_start:
+            json_str = response[json_start:json_end]
+            mapped_values = json.loads(json_str)
+
+            # 템플릿 변수에 있는 키만 필터링하고 문자열로 변환
+            filtered_mapping = {}
+            for var_key in template_var_keys:
+                if var_key in mapped_values:
+                    value = str(mapped_values[var_key]).strip()
+                    filtered_mapping[var_key] = value if value else ""
+                else:
+                    filtered_mapping[var_key] = ""
+
+            return filtered_mapping
+        else:
+            print(f"매핑 JSON 파싱 실패: {response}")
+            return {var_key: "" for var_key in template_var_keys}
+
+    except Exception as e:
+        print(f"변수 매핑 실패: {e}")
+        return {var_key: "" for var_key in template_var_keys}
 
 def _get_metadata_purpose(generation_result: Dict, content: str, original_input: str) -> List[Dict]:
     """메타데이터에서 목적 정보 추출 또는 추론"""
