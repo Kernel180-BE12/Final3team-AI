@@ -137,21 +137,77 @@ def create_error_response(code: str, message: str, details: Optional[Any] = None
         error_response["retryAfter"] = retry_after
     return error_response
 
+# Issue 5 해결: 3단계 입력 검증 시스템 import
+try:
+    from src.utils.comprehensive_validator import validate_input_quick, get_comprehensive_validator
+    ADVANCED_VALIDATION_AVAILABLE = True
+    print("🛡️ 고급 3단계 입력 검증 시스템 로드 완료")
+except ImportError as e:
+    print(f"⚠️ 고급 검증 시스템 로드 실패: {e}")
+    ADVANCED_VALIDATION_AVAILABLE = False
+
 def is_meaningful_text(text: str) -> bool:
-    """의미있는 텍스트인지 판별"""
-    if not text or not text.strip():
-        return False
-    
-    # 특수문자와 공백만 있는지 체크
-    cleaned = re.sub(r'[^\w\s가-힣]', '', text.strip())
-    if not cleaned:
-        return False
-    
-    # 너무 짧은 텍스트
-    if len(cleaned) < 2:
-        return False
-        
-    return True
+    """
+    의미있는 텍스트인지 판별 (Issue 5 해결: 고급 검증 시스템 적용)
+    """
+    if ADVANCED_VALIDATION_AVAILABLE:
+        # 3단계 고급 검증 시스템 사용
+        is_valid, error_code, error_message = validate_input_quick(text)
+        if not is_valid:
+            print(f"🚫 입력 차단 [{error_code}]: {error_message}")
+        return is_valid
+    else:
+        # 폴백: 기존 간단한 검증
+        if not text or not text.strip():
+            return False
+
+        # 특수문자와 공백만 있는지 체크
+        cleaned = re.sub(r'[^\w\s가-힣]', '', text.strip())
+        if not cleaned:
+            return False
+
+        # 너무 짧은 텍스트
+        if len(cleaned) < 2:
+            return False
+
+        return True
+
+def validate_input_comprehensive_api(text: str) -> tuple[bool, dict]:
+    """
+    API용 종합 입력 검증 (Issue 5 해결)
+
+    Returns:
+        tuple[bool, dict]: (유효여부, 에러응답객체)
+    """
+    if not ADVANCED_VALIDATION_AVAILABLE:
+        # 폴백: 기존 검증만 사용
+        is_valid = is_meaningful_text(text)
+        if not is_valid:
+            return False, create_error_response(
+                "INVALID_INPUT",
+                "입력 내용이 올바르지 않습니다. 의미있는 텍스트를 입력해주세요.",
+                "특수문자만 입력되었거나 공백만 포함된 요청입니다."
+            )
+        return True, {}
+
+    # 고급 검증 시스템 사용
+    validator = get_comprehensive_validator()
+    result = validator.validate_input_comprehensive(text)
+
+    if result.is_valid:
+        return True, {}
+    else:
+        # 검증 단계별 상세 에러 응답 생성
+        error_response = create_error_response(
+            result.error_code,
+            result.error_message,
+            {
+                "failed_stage": result.failed_stage.value if result.failed_stage else None,
+                "suggestion": result.suggestion,
+                "validation_details": result.stage_results
+            }
+        )
+        return False, error_response
 
 def cleanup_old_requests():
     """오래된 요청 기록 정리하여 메모리 누수 방지"""
@@ -279,15 +335,12 @@ async def create_template(request: TemplateCreationRequest):
                 )
             )
             
-        # 의미있는 텍스트인지 검증
-        if not is_meaningful_text(request.request_content):
+        # Issue 5 해결: 3단계 종합 입력 검증
+        validation_passed, validation_error = validate_input_comprehensive_api(request.request_content)
+        if not validation_passed:
             raise HTTPException(
-                status_code=400, 
-                detail=create_error_response(
-                    "INVALID_INPUT",
-                    "입력 내용이 올바르지 않습니다. 의미있는 텍스트를 입력해주세요.",
-                    "특수문자만 입력되었거나 공백만 포함된 요청입니다."
-                )
+                status_code=400,
+                detail=validation_error
             )
         
         # 텍스트 전처리 (긴 텍스트에 적절한 공백 추가)
@@ -497,7 +550,7 @@ async def create_template(request: TemplateCreationRequest):
             "title": template_data["title"],
             "content": template_data["content"],
             "imageUrl": template_data["image_url"],
-            "type": "MESSAGE", # api.py에서 "MESSAGE"로 고정되어 있음
+            "type": detect_content_type(template_data["content"]),
             "buttons": _get_metadata_buttons(generation_result, template_data["content"]),
             "variables": [
                 {
@@ -562,6 +615,30 @@ async def create_template(request: TemplateCreationRequest):
                 str(e)
             )
         )
+
+def detect_content_type(content: str) -> str:
+    """템플릿 내용을 분석하여 적절한 타입 결정"""
+    content_lower = content.lower()
+
+    # 1. 문서 키워드 확장 (우선순위 높음)
+    doc_keywords = ['pdf', 'hwp', 'docx', 'xlsx', 'pptx', '문서', '파일', '첨부', '다운로드', '업로드']
+    doc_extensions = ['.pdf', '.hwp', '.doc', '.xls', '.ppt']
+
+    if (any(keyword in content_lower for keyword in doc_keywords) or
+        any(ext in content_lower for ext in doc_extensions)):
+        return 'DOCS'
+
+    # 2. URL 패턴 확장 (중간 우선순위)
+    url_patterns = ['http://', 'https://', 'www.', '.com', '.co.kr', '.net', '.org']
+    link_keywords = ['링크', '바로가기', '홈페이지', '사이트', '클릭']
+
+    if (any(pattern in content_lower for pattern in url_patterns) or
+        any(keyword in content_lower for keyword in link_keywords)):
+        return 'LINK'
+
+    # 3. 기본값
+    return 'MESSAGE'
+
 
 def _get_metadata_buttons(generation_result: Dict, content: str) -> List[Dict]:
     """메타데이터에서 버튼 정보 추출 또는 추론"""
@@ -1030,7 +1107,7 @@ async def complete_template_session(session_id: str, request: CompleteTemplateRe
             "title": template_data["title"],
             "content": template_data["content"],
             "imageUrl": template_data["image_url"],
-            "type": "MESSAGE",
+            "type": detect_content_type(template_data["content"]),
             "buttons": _get_metadata_buttons(generation_result, template_data["content"]),
             "variables": [
                 {
@@ -1244,7 +1321,7 @@ async def stream_template_generation(request: TemplateCreationRequest):
                 "title": template_data["title"],
                 "content": template_data["content"],
                 "imageUrl": template_data["image_url"],
-                "type": "MESSAGE",
+                "type": detect_content_type(template_data["content"]),
                 "buttons": _get_metadata_buttons(generation_result, template_data["content"]),
                 "variables": [
                     {

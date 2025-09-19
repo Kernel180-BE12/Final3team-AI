@@ -23,11 +23,11 @@ chmod 755 /home/ec2-user/app_cache
 chmod 755 /home/ec2-user/chroma_data
 chmod 755 /home/ec2-user/logs
 
-# 4. 애플리케이션 코드 업로드 (Git 사용 권장)
+# 4. Git으로 코드 다운로드
 cd /home/ec2-user
 echo " 코드 다운로드..."
-# git clone [your-repo-url] Jober_ai
-# cd Jober_ai
+git clone https://github.com/david1-p/Jober_ai.git Jober_ai
+cd Jober_ai
 
 # 5. Poetry 설치 및 의존성 설치
 echo " Poetry 설치..."
