@@ -2,7 +2,7 @@
 """
 변수 매핑 도구 (Variable Mapper)
 
-Agent1의 6W 변수를 Agent2의 템플릿 변수에 매핑하고,
+Agent1의 5W1H 변수를 Agent2의 템플릿 변수에 매핑하고,
 부족한 변수는 사용자에게 질문하여 수집하는 도구
 """
 
@@ -83,20 +83,91 @@ class VariableMapper:
             "사유": ["왜 (Why/Reason)"]
         }
 
-    def map_variables(self, agent1_variables: Dict[str, str], template_variables: List[TemplateVariable]) -> MappingResult:
+    def map_variables(self, agent1_variables: Dict[str, str], template_variables: List[TemplateVariable], method: str = "hybrid") -> MappingResult:
         """
-        Agent1 변수를 템플릿 변수에 매핑
+        Agent1 변수를 템플릿 변수에 매핑 (키워드 기반 + LLM 기반 하이브리드)
 
         Args:
-            agent1_variables: Agent1에서 추출된 6W 변수
+            agent1_variables: Agent1에서 추출된 5W1H 변수
             template_variables: 템플릿에서 추출된 변수 리스트
+            method: 매핑 방법 ("keyword", "llm", "hybrid")
 
         Returns:
             매핑 결과 딕셔너리
         """
-        print(f"변수 매핑 시작: Agent1={len(agent1_variables)}개, Template={len(template_variables)}개")
+        print(f"변수 매핑 시작: Agent1={len(agent1_variables)}개, Template={len(template_variables)}개, Method={method}")
 
-        # 1단계: 직접 매핑
+        mapped_variables = {}
+        unmapped_template_vars = []
+        mapping_details = []
+
+        if method == "llm":
+            # LLM만 사용
+            mapped_variables = self.llm_map_variables(agent1_variables, template_variables)
+
+            # 매핑되지 않은 변수들 찾기 (빈 문자열이 아닌 것만 성공으로 판단)
+            for template_var in template_variables:
+                var_key = template_var["variable_key"]
+                mapped_value = mapped_variables.get(var_key, "")
+
+                if mapped_value and mapped_value.strip():
+                    mapping_details.append({
+                        "template_var": var_key,
+                        "agent1_source": "LLM 매핑",
+                        "value": mapped_value,
+                        "mapping_type": "llm"
+                    })
+                    print(f"  LLM 매핑: {var_key} <- {mapped_value}")
+                else:
+                    unmapped_template_vars.append(template_var)
+                    print(f"  LLM 매핑 실패: {var_key}")
+
+        elif method == "keyword":
+            # 기존 키워드 매핑만 사용
+            mapped_variables, unmapped_template_vars, mapping_details = self._keyword_mapping_only(agent1_variables, template_variables)
+
+        else:  # hybrid (기본값)
+            # 1단계: 키워드 기반 매핑 먼저 시도
+            mapped_variables, unmapped_template_vars, mapping_details = self._keyword_mapping_only(agent1_variables, template_variables)
+
+            # 2단계: 매핑되지 않은 변수들 LLM으로 재시도
+            if unmapped_template_vars:
+                print(f"  키워드 매핑 실패 {len(unmapped_template_vars)}개 변수 -> LLM 재시도")
+                llm_result = self.llm_map_variables(agent1_variables, unmapped_template_vars)
+
+                # LLM 결과 통합
+                still_unmapped = []
+                for template_var in unmapped_template_vars:
+                    var_key = template_var["variable_key"]
+                    llm_value = llm_result.get(var_key, "")
+
+                    if llm_value and llm_value.strip():
+                        mapped_variables[var_key] = llm_value
+                        mapping_details.append({
+                            "template_var": var_key,
+                            "agent1_source": "LLM 매핑 (fallback)",
+                            "value": llm_value,
+                            "mapping_type": "llm_fallback"
+                        })
+                        print(f"  LLM fallback 성공: {var_key} <- {llm_value}")
+                    else:
+                        still_unmapped.append(template_var)
+                        print(f"  최종 매핑 실패: {var_key}")
+
+                unmapped_template_vars = still_unmapped
+
+        mapping_coverage = len(mapped_variables) / len(template_variables) if template_variables else 0
+        print(f"매핑 완료: {len(mapped_variables)}/{len(template_variables)} ({mapping_coverage:.1%})")
+
+        return {
+            "mapped_variables": mapped_variables,
+            "unmapped_variables": unmapped_template_vars,
+            "mapping_details": mapping_details,
+            "mapping_coverage": mapping_coverage
+        }
+
+    def _keyword_mapping_only(self, agent1_variables: Dict[str, str], template_variables: List[TemplateVariable]) -> Tuple[Dict[str, str], List[TemplateVariable], List[Dict[str, str]]]:
+        """키워드 기반 매핑만 수행 (기존 로직)"""
         mapped_variables = {}
         unmapped_template_vars = []
         mapping_details = []
@@ -115,7 +186,7 @@ class VariableMapper:
                 })
                 print(f"  직접 매핑: {var_key} <- {self._get_mapping_source(var_key, agent1_variables)}")
             else:
-                # 2단계: 유사성 기반 매핑 시도
+                # 유사성 기반 매핑 시도
                 similar_value = self._find_similarity_mapping(var_key, agent1_variables)
                 if similar_value:
                     mapped_variables[var_key] = similar_value
@@ -128,17 +199,9 @@ class VariableMapper:
                     print(f"  유사성 매핑: {var_key} <- {self._get_similarity_source(var_key, agent1_variables)}")
                 else:
                     unmapped_template_vars.append(template_var)
-                    print(f"  매핑 실패: {var_key}")
+                    print(f"  키워드 매핑 실패: {var_key}")
 
-        mapping_coverage = len(mapped_variables) / len(template_variables) if template_variables else 0
-        print(f"매핑 완료: {len(mapped_variables)}/{len(template_variables)} ({mapping_coverage:.1%})")
-
-        return {
-            "mapped_variables": mapped_variables,
-            "unmapped_variables": unmapped_template_vars,
-            "mapping_details": mapping_details,
-            "mapping_coverage": mapping_coverage
-        }
+        return mapped_variables, unmapped_template_vars, mapping_details
 
     def _find_direct_mapping(self, template_var_key: str, agent1_variables: Dict[str, str]) -> Optional[str]:
         """직접 매핑 시도"""
@@ -199,6 +262,79 @@ class VariableMapper:
                 return agent1_key
 
         return None
+
+    def llm_map_variables(self, agent1_variables: Dict[str, str], template_variables: List[TemplateVariable]) -> Dict[str, str]:
+        """LLM 기반 변수 매핑 (API/Server에서 가져온 로직)"""
+        import json
+
+        if not agent1_variables or not template_variables:
+            return {}
+
+        # LLM 호출을 위한 동적 import (순환 import 방지)
+        try:
+            from src.utils.llm_provider_manager import invoke_llm_with_fallback
+        except ImportError:
+            print("LLM 매핑을 위한 llm_provider_manager를 찾을 수 없습니다.")
+            return {}
+
+        template_var_keys = [var["variable_key"] for var in template_variables if var.get("variable_key")]
+
+        if not template_var_keys:
+            return {}
+
+        prompt = f"""다음 Agent1에서 추출한 변수들과 템플릿 변수들을 매핑해주세요.
+
+Agent1 추출 변수:
+{json.dumps(agent1_variables, ensure_ascii=False, indent=2)}
+
+템플릿 변수 목록:
+{template_var_keys}
+
+지시사항:
+1. Agent1 변수의 값을 템플릿 변수에 적절히 매핑해주세요
+2. 의미적으로 일치하는 것들을 연결해주세요 (예: "누가" → "수신자명", "무엇을" → "상품명" 등)
+3. 매핑되지 않는 템플릿 변수는 빈 문자열("")로 설정하세요
+4. JSON 형식으로만 응답해주세요
+
+예시:
+{{
+  "수신자명": "김영수 고객님",
+  "상품명": "아이폰 15",
+  "픽업시간": "내일 오후 3시",
+  "장소": "강남점"
+}}
+
+응답 (JSON만):"""
+
+        try:
+            response, _, _ = invoke_llm_with_fallback(prompt=prompt)
+
+            # JSON 응답 파싱
+            json_start = response.find('{')
+            json_end = response.rfind('}') + 1
+
+            if json_start >= 0 and json_end > json_start:
+                json_str = response[json_start:json_end]
+                mapped_values = json.loads(json_str)
+
+                # 템플릿 변수에 있는 키만 필터링하고 문자열로 변환
+                filtered_mapping = {}
+                for var_key in template_var_keys:
+                    if var_key in mapped_values:
+                        value = str(mapped_values[var_key]).strip()
+                        filtered_mapping[var_key] = value if value else ""
+                    else:
+                        filtered_mapping[var_key] = ""
+
+                print(f"LLM 매핑 완료: {len(filtered_mapping)}개 변수")
+                return filtered_mapping
+            else:
+                print(f"LLM 매핑 JSON 파싱 실패: {response}")
+                return {var_key: "" for var_key in template_var_keys}
+
+        except Exception as e:
+            print(f"LLM 변수 매핑 실패: {e}")
+            return {var_key: "" for var_key in template_var_keys}
 
     def create_collection_request(self, unmapped_variables: List[TemplateVariable]) -> Dict[str, Any]:
         """

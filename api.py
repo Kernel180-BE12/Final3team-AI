@@ -272,14 +272,13 @@ class TemplateAPI:
             # Agent1을 통한 변수 검증 (컨텍스트 조합 처리)
             agent1 = Agent1()
 
-            # 컨텍스트가 있으면 조합해서 처리
+            # 컨텍스트가 있으면 조합해서 처리 (비동기)
             if conversation_context:
                 combined_input = f"{conversation_context} {user_input}"
-                print(f" 컨텍스트 조합: '{conversation_context}' + '{user_input}' = '{combined_input}'")
-                # TODO: Agent1에 async 메서드 추가 필요 (현재는 동기 호출 유지)
-                validation_result = agent1.process_query(combined_input, is_follow_up=True)
+                print(f" 컨텍스트 조합 (비동기): '{conversation_context}' + '{user_input}' = '{combined_input}'")
+                validation_result = await agent1.process_query_async(combined_input, is_follow_up=True)
             else:
-                validation_result = agent1.process_query(user_input, is_follow_up=False)
+                validation_result = await agent1.process_query_async(user_input, is_follow_up=False)
 
             # 필요한 변수가 부족한 경우 재질문 데이터 반환
             if validation_result.get('status') == 'reask_required':
@@ -320,9 +319,8 @@ class TemplateAPI:
                     "metadata": validation_result
                 }
 
-            # 3단계 템플릿 선택 실행
-            # TODO: template_selector에 async 메서드 추가 필요 (현재는 동기 호출 유지)
-            selection_result = self.template_selector.select_template(user_input, options)
+            # 3단계 템플릿 선택 실행 (비동기)
+            selection_result = await self.template_selector.select_template_async(user_input, options)
 
             if not selection_result.success:
                 return {
@@ -421,8 +419,12 @@ class TemplateAPI:
         # 사용자 입력 우선순위: 파라미터 > result > metadata
         final_user_input = user_input or result.get("user_input", "") or result.get("metadata", {}).get("user_input", "")
         
-        # 변수 추출
-        variables = self._extract_variables_from_template(template)
+        # Agent1 변수 추출 (metadata에서)
+        agent1_result = metadata.get("agent1_result", {})
+        agent1_variables = agent1_result.get("selected_variables", {})
+
+        # 변수 추출 (Agent1 변수 매핑 포함)
+        variables = self._extract_variables_from_template(template, agent1_variables)
         
         # 엔티티 데이터 정규화
         entities = self._normalize_entities(entities_data)
@@ -481,8 +483,8 @@ class TemplateAPI:
             "data": json_data
         }
     
-    def _extract_variables_from_template(self, template: str) -> List[Dict]:
-        """템플릿에서 변수 추출 (두 가지 형식 지원: #{변수명}, ${변수명})"""
+    def _extract_variables_from_template(self, template: str, agent1_variables: Optional[Dict[str, str]] = None) -> List[Dict]:
+        """템플릿에서 변수 추출 (두 가지 형식 지원: #{변수명}, ${변수명}) + Agent1 변수 매핑"""
         variables = []
 
         # 두 가지 변수 형식 지원
@@ -497,6 +499,7 @@ class TemplateAPI:
         # 모든 변수명 수집 (중복 제거)
         all_var_names = set(hash_matches + dollar_matches)
 
+        # 초기 변수 정보 생성
         for var_name in all_var_names:
             # 원본 템플릿에서 실제 사용된 형식 확인
             if f"#{{{var_name}}}" in template:
@@ -515,8 +518,46 @@ class TemplateAPI:
             }
             variables.append(variable_info)
 
+        # Agent1 변수 매핑 처리
+        if agent1_variables and variables:
+            variable_mapping = self._map_agent1_to_template_variables(agent1_variables, variables)
+
+            # 각 변수에 매핑된 값 추가
+            for variable_info in variables:
+                var_key = variable_info.get("variable_key", "")
+                mapped_value = variable_mapping.get(var_key, "")
+                variable_info["value"] = mapped_value  # Agent1 매핑된 값
+        else:
+            # Agent1 변수가 없는 경우 빈 값으로 설정
+            for variable_info in variables:
+                variable_info["value"] = ""
+
         return variables
-    
+
+    def _map_agent1_to_template_variables(self, agent1_variables: Dict[str, str], template_variables: List[Dict]) -> Dict[str, str]:
+        """Agent1 추출 변수와 템플릿 변수를 매핑 (VariableMapper 사용)"""
+        from src.tools.variable_mapper import get_variable_mapper
+
+        if not agent1_variables or not template_variables:
+            return {}
+
+        # Dict를 TemplateVariable 형식으로 변환
+        template_vars = [
+            {
+                "variable_key": var.get("variable_key", ""),
+                "placeholder": var.get("placeholder", ""),
+                "input_type": var.get("input_type", "TEXT"),
+                "required": True
+            }
+            for var in template_variables
+        ]
+
+        # VariableMapper 사용 (LLM 방식으로 매핑)
+        mapper = get_variable_mapper()
+        result = mapper.map_variables(agent1_variables, template_vars, method="llm")
+
+        return result["mapped_variables"]
+
     def _infer_variable_type(self, var_name: str) -> str:
         """변수명으로 타입 추론"""
         var_name_lower = var_name.lower()

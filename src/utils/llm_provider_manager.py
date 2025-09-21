@@ -64,12 +64,10 @@ class LLMProviderManager:
         # OpenAI 공급자 (우선순위 2)
         if self.openai_api_key:
             self.providers.append({
-                "name": "openai", 
+                "name": "openai",
                 "priority": 2,
                 "models": [
-                    "gpt-4o",
-                    "gpt-4o-mini",
-                    "gpt-3.5-turbo"
+                    "gpt-4o"
                 ],
                 "api_key": self.openai_api_key,
                 "available": True

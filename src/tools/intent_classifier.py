@@ -90,24 +90,52 @@ class IntentClassifier:
     
     def classify_intent(self, query: str, variables: Dict[str, str] = None) -> Dict[str, any]:
         """
-        사용자 입력에서 의도를 분류
-        
+        사용자 입력에서 의도를 분류 (동기 버전 - 하위 호환성)
+
         Args:
             query: 사용자 입력 텍스트
             variables: 추출된 변수 (선택사항)
-            
+
         Returns:
             분류 결과 딕셔너리
         """
         # 1차: 키워드 기반 분류
         keyword_intent = self._classify_by_keywords(query)
-        
+
         # 2차: LLM 기반 분류
         llm_intent = self._classify_by_llm(query, variables)
-        
+
         # 3차: 신뢰도 계산 및 최종 결정
         final_intent = self._determine_final_intent(keyword_intent, llm_intent, query)
-        
+
+        return {
+            'intent': final_intent['category'],
+            'confidence': final_intent['confidence'],
+            'keyword_result': keyword_intent,
+            'llm_result': llm_intent,
+            'reasoning': final_intent['reasoning']
+        }
+
+    async def classify_intent_async(self, query: str, variables: Dict[str, str] = None) -> Dict[str, any]:
+        """
+        사용자 입력에서 의도를 분류 (비동기 버전)
+
+        Args:
+            query: 사용자 입력 텍스트
+            variables: 추출된 변수 (선택사항)
+
+        Returns:
+            분류 결과 딕셔너리
+        """
+        # 1차: 키워드 기반 분류 (동기)
+        keyword_intent = self._classify_by_keywords(query)
+
+        # 2차: LLM 기반 분류 (비동기)
+        llm_intent = await self._classify_by_llm_async(query, variables)
+
+        # 3차: 신뢰도 계산 및 최종 결정
+        final_intent = self._determine_final_intent(keyword_intent, llm_intent, query)
+
         return {
             'intent': final_intent['category'],
             'confidence': final_intent['confidence'],
@@ -153,15 +181,30 @@ class IntentClassifier:
         }
     
     def _classify_by_llm(self, query: str, variables: Dict[str, str] = None) -> Dict[str, any]:
-        """LLM 기반 의도 분류"""
+        """LLM 기반 의도 분류 (동기 버전 - 하위 호환성)"""
         prompt = self._create_classification_prompt(query, variables)
-        
+
         try:
             response = self.model.generate_content(prompt)
             result = self._parse_llm_response(response.text)
             return result
         except Exception as e:
             print(f"LLM 의도 분류 중 오류 발생: {e}")
+            return {'category': '기타', 'confidence': 0.3, 'reasoning': 'LLM 오류로 인한 기본값'}
+
+    async def _classify_by_llm_async(self, query: str, variables: Dict[str, str] = None) -> Dict[str, any]:
+        """LLM 기반 의도 분류 (비동기 버전)"""
+        from ..utils.llm_provider_manager import ainvoke_llm_with_fallback
+
+        prompt = self._create_classification_prompt(query, variables)
+
+        try:
+            response_text, provider, model = await ainvoke_llm_with_fallback(prompt)
+            result = self._parse_llm_response(response_text)
+            print(f"의도 분류 완료 (비동기) - Provider: {provider}, Model: {model}")
+            return result
+        except Exception as e:
+            print(f"LLM 의도 분류 중 오류 발생 (비동기): {e}")
             return {'category': '기타', 'confidence': 0.3, 'reasoning': 'LLM 오류로 인한 기본값'}
     
     def _create_classification_prompt(self, query: str, variables: Dict[str, str] = None) -> str:

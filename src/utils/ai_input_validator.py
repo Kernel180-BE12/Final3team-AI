@@ -27,7 +27,7 @@ class AIInputValidator:
         self.min_meaningful_variables = 1  # 최소 의미있는 변수 개수
         self.min_template_quality = 0.3  # 최소 템플릿 품질 점수
 
-        # 6W 필수 변수 목록
+        # 5W1H 필수 변수 목록
         self.essential_variables = [
             '무엇을', '누구에게', '언제', '어디서', '왜', '어떻게'
         ]
@@ -213,7 +213,7 @@ class AIInputValidator:
         completeness_score = completeness_info.get('completeness_score', 0.0)
 
         if completeness_score < self.min_completeness_score:
-            return False, AIValidationError.INSUFFICIENT_INFORMATION, f"정보가 부족합니다 (완성도: {completeness_score:.1%}). 6W 정보를 더 포함해주세요."
+            return False, AIValidationError.INSUFFICIENT_INFORMATION, f"정보가 부족합니다 (완성도: {completeness_score:.1%}). 5W1H 정보를 더 포함해주세요."
 
         # 4. 검증 상태 확인
         validation_info = agent1_result.get('validation', {})
@@ -280,7 +280,7 @@ class AIInputValidator:
         suggestions = {
             AIValidationError.MEANINGLESS_INPUT: "알림톡 목적을 명확히 해주세요. 예: '예약 확인', '할인 안내', '배송 알림' 등",
             AIValidationError.LOW_INTENT_CONFIDENCE: "더 구체적으로 입력해주세요. 예: '카페 예약 확인 메시지를 만들어주세요'",
-            AIValidationError.NO_EXTRACTABLE_VARIABLES: "6W 정보를 포함해주세요: 무엇을, 누구에게, 언제, 어디서, 왜, 어떻게",
+            AIValidationError.NO_EXTRACTABLE_VARIABLES: "5W1H 정보를 포함해주세요: 무엇을, 누구에게, 언제, 어디서, 왜, 어떻게",
             AIValidationError.INSUFFICIENT_INFORMATION: "더 자세한 정보를 포함해주세요. 예: '내일 오후 2시 카페 예약 확인'",
             AIValidationError.TEMPLATE_GENERATION_IMPOSSIBLE: "알림톡의 목적과 대상을 명확히 해주세요."
         }

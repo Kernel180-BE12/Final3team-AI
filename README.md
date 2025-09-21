@@ -81,8 +81,8 @@ cd Jober_ai
 pyenv install 3.11.13
 pyenv local 3.11.13
 
-# 의존성 설치
-pip install -r requirements.txt
+# Poetry로 의존성 설치
+poetry install
 ```
 
 ### 2. 환경변수 설정
@@ -96,11 +96,11 @@ EOF
 
 ### 3. 서버 실행
 ```bash
-# FastAPI 서버 실행
-python server.py
+# Poetry로 FastAPI 서버 실행
+poetry run python server.py
 
-# 또는 uvicorn 직접 실행
-uvicorn server:app --host 0.0.0.0 --port 8000
+# 또는 Poetry로 uvicorn 직접 실행
+poetry run uvicorn server:app --host 0.0.0.0 --port 8000
 ```
 
 ### 4. API 테스트
@@ -218,7 +218,8 @@ curl -X POST http://localhost:8000/ai/templates \
 ```
 Jober_ai/
 ├── README.md                           # 프로젝트 설명서
-├── requirements.txt                    # Python 의존성
+├── pyproject.toml                      # Poetry 의존성 설정
+├── poetry.lock                         # Poetry 락 파일
 ├── config.py                          # 환경변수 설정
 ├── server.py                          # FastAPI 서버
 ├── api.py                             # 메인 API 로직
@@ -262,6 +263,7 @@ Jober_ai/
 
 ### 백엔드
 - **Python 3.11.13**: 안정적인 파이썬 버전
+- **Poetry**: 모던 Python 의존성 관리
 - **FastAPI**: 고성능 웹 프레임워크
 - **Chroma DB**: 벡터 데이터베이스 (로컬)
 - **Pydantic**: 데이터 검증 및 시리얼라이제이션

@@ -256,26 +256,26 @@ class Agent1:
     
     def analyze_query(self, user_input: str) -> Dict[str, Any]:
         """
-        질의 분석 (변수 추출 + 의도 분류)
-        
+        질의 분석 (변수 추출 + 의도 분류) - 동기 버전 (하위 호환성)
+
         Args:
             user_input: 사용자 입력
-            
+
         Returns:
             분석 결과 딕셔너리
         """
         print("질의 분석 시작...")
-        
+
         # 1. 변수 추출
         variables = self.variable_extractor.extract_variables(user_input)
-        
+
         # 2. 의도 분류
         intent_result = self.intent_classifier.classify_intent(user_input, variables)
-        
+
         # 3. 변수 유효성 검증
         validation = self.variable_extractor.validate_variables(variables)
         mandatory_check = self.variable_extractor.check_mandatory_variables(variables, user_input)
-        
+
         analysis_result = {
             'user_input': user_input,
             'variables': variables,
@@ -284,8 +284,42 @@ class Agent1:
             'mandatory_check': mandatory_check,
             'missing_variables': self.variable_extractor.get_missing_variables(variables)
         }
-        
+
         print(f"분석 완료 - 의도: {intent_result['intent']}, 완성도: {mandatory_check['completeness_score']:.1%}")
+        return analysis_result
+
+    async def analyze_query_async(self, user_input: str) -> Dict[str, Any]:
+        """
+        질의 분석 (변수 추출 + 의도 분류) - 비동기 버전
+
+        Args:
+            user_input: 사용자 입력
+
+        Returns:
+            분석 결과 딕셔너리
+        """
+        print("질의 분석 시작 (비동기)...")
+
+        # 1. 변수 추출 (비동기)
+        variables = await self.variable_extractor.extract_variables_async(user_input)
+
+        # 2. 의도 분류 (비동기)
+        intent_result = await self.intent_classifier.classify_intent_async(user_input, variables)
+
+        # 3. 변수 유효성 검증 (동기 - 빠른 처리)
+        validation = self.variable_extractor.validate_variables(variables)
+        mandatory_check = self.variable_extractor.check_mandatory_variables(variables, user_input)
+
+        analysis_result = {
+            'user_input': user_input,
+            'variables': variables,
+            'intent': intent_result,
+            'validation': validation,
+            'mandatory_check': mandatory_check,
+            'missing_variables': self.variable_extractor.get_missing_variables(variables)
+        }
+
+        print(f"분석 완료 (비동기) - 의도: {intent_result['intent']}, 완성도: {mandatory_check['completeness_score']:.1%}")
         return analysis_result
     
     
@@ -494,21 +528,21 @@ class Agent1:
     
     def process_query(self, user_input: str, is_follow_up: bool = False) -> Dict[str, Any]:
         """
-        메인 처리 로직 (개선된 컨텍스트 관리)
-        
+        메인 처리 로직 (개선된 컨텍스트 관리) - 동기 버전 (하위 호환성)
+
         Args:
             user_input: 사용자 입력
             is_follow_up: 재질문 후 추가 입력인지 여부
-            
+
         Returns:
             처리 결과
         """
         print(f"\nAgent1 처리 시작: '{user_input[:50]}...'")
-        
+
         # 대화 상태 초기화 (첫 입력인 경우)
         if not is_follow_up or self.conversation_state is None:
             self.conversation_state = ConversationState()
-        
+
         # 1. 초기 비속어 검출 - 재시도 요청으로 변경
         if self.check_initial_profanity(user_input):
             return {
@@ -517,11 +551,11 @@ class Agent1:
                 'retry_type': 'profanity',
                 'original_input': user_input
             }
-        
+
         # 2. 질의 분석 (새로운 입력만)
         analysis_result = self.analyze_query(user_input)
         new_variables = analysis_result['variables']
-        
+
         # 3. 변수 업데이트 (점진적)
         if is_follow_up:
             # 추가 입력에 대한 더 스마트한 변수 매핑
@@ -529,15 +563,15 @@ class Agent1:
         else:
             # 첫 입력인 경우 기본 업데이트
             self.conversation_state.update_variables(new_variables)
-        
+
         # 4. 기본 필수 변수 체크 (우선 순위)
         mandatory_check = self.conversation_state.check_mandatory_variables()
-        
+
         # 필수 변수가 부족하면 재질문
         if not mandatory_check['is_complete']:
             missing_vars = mandatory_check['missing_mandatory']
             reask_question = self.generate_contextual_reask(self.conversation_state, missing_vars)
-            
+
             return {
                 'status': 'reask_required',
                 'message': reask_question,
@@ -545,18 +579,18 @@ class Agent1:
                 'missing_variables': missing_vars,
                 'reasoning': f'{mandatory_check["completed_mandatory"]}/{mandatory_check["total_mandatory"]} 필수 변수 완료'
             }
-        
+
         # 7. AI도 완성이라고 판단하면 정책 및 비속어 검사
         confirmed_vars = self.conversation_state.get_confirmed_variables()
         current_variables = self.conversation_state.variables
         combined_text = " ".join([v for v in confirmed_vars.values()])
-        
+
         # 정책 준수 확인
         policy_result = self.check_policy_compliance(combined_text, current_variables)
-        
+
         # 최종 비속어 검사
         has_profanity = self.check_initial_profanity(combined_text)
-        
+
         # 8. 위반사항이 있으면 안내 후 재시작
         if not policy_result['is_compliant']:
             violation_msg = "\n".join([f"• {v}" for v in policy_result['violations']])
@@ -567,7 +601,7 @@ class Agent1:
                 'violations': policy_result['violations'],
                 'restart_required': True
             }
-        
+
         if has_profanity:
             return {
                 'status': 'profanity_retry',
@@ -575,8 +609,104 @@ class Agent1:
                 'retry_type': 'final_profanity',
                 'original_input': user_input
             }
-        
+
         # 9. 모든 검사 통과 - 성공 결과 반환
+        return {
+            'status': 'success',
+            'message': "모든 검사를 통과했습니다. 템플릿 생성이 가능합니다.",
+            'analysis': analysis_result,
+            'variables': current_variables,
+            'intent': analysis_result['intent'],
+            'policy_result': policy_result,
+            'selected_variables': confirmed_vars
+        }
+
+    async def process_query_async(self, user_input: str, is_follow_up: bool = False) -> Dict[str, Any]:
+        """
+        메인 처리 로직 (개선된 컨텍스트 관리) - 비동기 버전
+
+        Args:
+            user_input: 사용자 입력
+            is_follow_up: 재질문 후 추가 입력인지 여부
+
+        Returns:
+            처리 결과
+        """
+        print(f"\nAgent1 처리 시작 (비동기): '{user_input[:50]}...'")
+
+        # 대화 상태 초기화 (첫 입력인 경우)
+        if not is_follow_up or self.conversation_state is None:
+            self.conversation_state = ConversationState()
+
+        # 1. 초기 비속어 검출 - 재시도 요청으로 변경 (동기 - 빠른 처리)
+        if self.check_initial_profanity(user_input):
+            return {
+                'status': 'profanity_retry',
+                'message': "비속어가 검출되었습니다. 다시 입력해주세요.",
+                'retry_type': 'profanity',
+                'original_input': user_input
+            }
+
+        # 2. 질의 분석 (비동기)
+        analysis_result = await self.analyze_query_async(user_input)
+        new_variables = analysis_result['variables']
+
+        # 3. 변수 업데이트 (점진적)
+        if is_follow_up:
+            # 추가 입력에 대한 더 스마트한 변수 매핑
+            await self.smart_variable_update_async(user_input, new_variables)
+        else:
+            # 첫 입력인 경우 기본 업데이트
+            self.conversation_state.update_variables(new_variables)
+
+        # 4. 기본 필수 변수 체크 (동기 - 빠른 처리)
+        mandatory_check = self.conversation_state.check_mandatory_variables()
+
+        # 필수 변수가 부족하면 재질문
+        if not mandatory_check['is_complete']:
+            missing_vars = mandatory_check['missing_mandatory']
+            reask_question = self.generate_contextual_reask(self.conversation_state, missing_vars)
+
+            return {
+                'status': 'reask_required',
+                'message': reask_question,
+                'analysis': analysis_result,
+                'missing_variables': missing_vars,
+                'reasoning': f'{mandatory_check["completed_mandatory"]}/{mandatory_check["total_mandatory"]} 필수 변수 완료'
+            }
+
+        # 7. AI도 완성이라고 판단하면 정책 및 비속어 검사
+        confirmed_vars = self.conversation_state.get_confirmed_variables()
+        current_variables = self.conversation_state.variables
+        combined_text = " ".join([v for v in confirmed_vars.values()])
+
+        # 정책 준수 확인 (동기 - 규칙 기반)
+        policy_result = self.check_policy_compliance(combined_text, current_variables)
+
+        # 최종 비속어 검사 (동기 - 빠른 처리)
+        has_profanity = self.check_initial_profanity(combined_text)
+
+        # 8. 위반사항이 있으면 안내 후 재시작
+        if not policy_result['is_compliant']:
+            violation_msg = "\n".join([f"• {v}" for v in policy_result['violations']])
+            self.conversation_state = None  # 상태 초기화
+            return {
+                'status': 'policy_violation',
+                'message': f"정책 위반이 감지되었습니다:\n\n{violation_msg}\n\n프롬프트를 다시 작성해주세요.",
+                'violations': policy_result['violations'],
+                'restart_required': True
+            }
+
+        if has_profanity:
+            return {
+                'status': 'profanity_retry',
+                'message': "비속어가 감지되었습니다. 다시 입력해주세요.",
+                'retry_type': 'final_profanity',
+                'original_input': user_input
+            }
+
+        # 9. 모든 검사 통과 - 성공 결과 반환
+        print("모든 검사 통과 (비동기) - 템플릿 생성 가능")
         return {
             'status': 'success',
             'message': "모든 검사를 통과했습니다. 템플릿 생성이 가능합니다.",
@@ -589,23 +719,23 @@ class Agent1:
         
     def smart_variable_update(self, user_input: str, new_variables: Dict[str, str]):
         """
-        하이브리드 변수 매핑: 규칙 기반 + AI 보조
-        
+        하이브리드 변수 매핑: 규칙 기반 + AI 보조 - 동기 버전 (하위 호환성)
+
         Args:
             user_input: 사용자 입력
             new_variables: 새로 추출된 변수들
         """
         print(f"하이브리드 매핑 시작: '{user_input}'")
-        
+
         missing_vars = self.conversation_state.get_missing_variables()
         if not missing_vars:
             self.conversation_state.update_variables(new_variables)
             return
-        
+
         # 1단계: 규칙 기반 매핑
         rule_mapping = self._rule_based_mapping(user_input, missing_vars)
         print(f"규칙 매핑 결과: {rule_mapping}")
-        
+
         # 2단계: 규칙으로 해결 안 된 것만 AI 처리
         remaining_vars = []
         for var in missing_vars:
@@ -614,20 +744,62 @@ class Agent1:
                 print(f"규칙 적용: {var} = {rule_mapping[var]}")
             else:
                 remaining_vars.append(var)
-        
+
         # 3단계: AI 보조 (남은 변수만)
         if remaining_vars:
             print(f"AI 보조 처리 대상: {remaining_vars}")
             ai_mapping = self._ai_assisted_mapping(user_input, remaining_vars)
-            
+
             for var in remaining_vars:
                 if var in ai_mapping:
                     self.conversation_state.variables[var] = ai_mapping[var]
                     print(f"AI 적용: {var} = {ai_mapping[var]}")
-        
+
         # 4단계: LLM 추출 결과도 반영 (빈 값만)
         self.conversation_state.update_variables(new_variables)
         print(f"최종 상태: {self.conversation_state.get_confirmed_variables()}")
+
+    async def smart_variable_update_async(self, user_input: str, new_variables: Dict[str, str]):
+        """
+        하이브리드 변수 매핑: 규칙 기반 + AI 보조 - 비동기 버전
+
+        Args:
+            user_input: 사용자 입력
+            new_variables: 새로 추출된 변수들
+        """
+        print(f"하이브리드 매핑 시작 (비동기): '{user_input}'")
+
+        missing_vars = self.conversation_state.get_missing_variables()
+        if not missing_vars:
+            self.conversation_state.update_variables(new_variables)
+            return
+
+        # 1단계: 규칙 기반 매핑 (동기 - 빠른 처리)
+        rule_mapping = self._rule_based_mapping(user_input, missing_vars)
+        print(f"규칙 매핑 결과: {rule_mapping}")
+
+        # 2단계: 규칙으로 해결 안 된 것만 AI 처리
+        remaining_vars = []
+        for var in missing_vars:
+            if var in rule_mapping:
+                self.conversation_state.variables[var] = rule_mapping[var]
+                print(f"규칙 적용: {var} = {rule_mapping[var]}")
+            else:
+                remaining_vars.append(var)
+
+        # 3단계: AI 보조 (남은 변수만, 비동기)
+        if remaining_vars:
+            print(f"AI 보조 처리 대상 (비동기): {remaining_vars}")
+            ai_mapping = await self._ai_assisted_mapping_async(user_input, remaining_vars)
+
+            for var in remaining_vars:
+                if var in ai_mapping:
+                    self.conversation_state.variables[var] = ai_mapping[var]
+                    print(f"AI 적용 (비동기): {var} = {ai_mapping[var]}")
+
+        # 4단계: LLM 추출 결과도 반영 (빈 값만)
+        self.conversation_state.update_variables(new_variables)
+        print(f"최종 상태 (비동기): {self.conversation_state.get_confirmed_variables()}")
     
     def _rule_based_mapping(self, user_input: str, missing_vars: List[str]) -> Dict[str, str]:
         """규칙 기반 변수 매핑"""
@@ -683,27 +855,54 @@ class Agent1:
         return result
     
     def _ai_assisted_mapping(self, user_input: str, remaining_vars: List[str]) -> Dict[str, str]:
-        """AI 보조 매핑 (규칙 실패 시만)"""
+        """AI 보조 매핑 (규칙 실패 시만) - 동기 버전 (하위 호환성)"""
         if not remaining_vars:
             return {}
-        
+
         prompt = f"""
         규칙 매핑이 실패한 변수들을 AI로 처리합니다.
-        
+
         입력: "{user_input}"
         남은 변수: {remaining_vars}
-        
+
         각 변수에 대해 가장 적절한 값을 매핑하세요.
-        
+
         응답 형식:
         {chr(10).join([f'{var}: [값 또는 "없음"]' for var in remaining_vars])}
         """
-        
+
         try:
             response = self.variable_extractor.model.generate_content(prompt)
             return self._parse_ai_mapping(response.text)
         except Exception as e:
             print(f"AI 보조 매핑 오류: {e}")
+            return {}
+
+    async def _ai_assisted_mapping_async(self, user_input: str, remaining_vars: List[str]) -> Dict[str, str]:
+        """AI 보조 매핑 (규칙 실패 시만) - 비동기 버전"""
+        if not remaining_vars:
+            return {}
+
+        prompt = f"""
+        규칙 매핑이 실패한 변수들을 AI로 처리합니다.
+
+        입력: "{user_input}"
+        남은 변수: {remaining_vars}
+
+        각 변수에 대해 가장 적절한 값을 매핑하세요.
+
+        응답 형식:
+        {chr(10).join([f'{var}: [값 또는 "없음"]' for var in remaining_vars])}
+        """
+
+        try:
+            from ..utils.llm_provider_manager import ainvoke_llm_with_fallback
+            response_text, provider, model = await ainvoke_llm_with_fallback(prompt)
+            result = self._parse_ai_mapping(response_text)
+            print(f"AI 보조 매핑 완료 (비동기) - Provider: {provider}, Model: {model}")
+            return result
+        except Exception as e:
+            print(f"AI 보조 매핑 오류 (비동기): {e}")
             return {}
     
     def _parse_ai_mapping(self, response: str) -> Dict[str, str]:

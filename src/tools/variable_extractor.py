@@ -1,6 +1,6 @@
 """
 Agent1용 변수 추출기
-사용자 입력에서 6W (Who, What, How, When, Where, Why) 변수를 추출
+사용자 입력에서 5W1H (Who, What, When, Where, Why, How) 변수를 추출
 """
 
 from typing import Dict, Optional, List
@@ -25,16 +25,16 @@ class VariableExtractor:
     
     def extract_variables(self, query: str) -> Dict[str, str]:
         """
-        사용자 입력에서 6W 변수를 추출
-        
+        사용자 입력에서 5W1H 변수를 추출 (동기 버전 - 하위 호환성)
+
         Args:
             query: 사용자 입력 텍스트
-            
+
         Returns:
             추출된 변수들의 딕셔너리
         """
         prompt = self._create_extraction_prompt(query)
-        
+
         try:
             response = self.model.generate_content(prompt)
             variables = self._parse_variables(response.text)
@@ -42,11 +42,34 @@ class VariableExtractor:
         except Exception as e:
             print(f"변수 추출 중 오류 발생: {e}")
             return self._get_empty_variables()
+
+    async def extract_variables_async(self, query: str) -> Dict[str, str]:
+        """
+        사용자 입력에서 5W1H 변수를 추출 (비동기 버전)
+
+        Args:
+            query: 사용자 입력 텍스트
+
+        Returns:
+            추출된 변수들의 딕셔너리
+        """
+        from ..utils.llm_provider_manager import ainvoke_llm_with_fallback
+
+        prompt = self._create_extraction_prompt(query)
+
+        try:
+            response_text, provider, model = await ainvoke_llm_with_fallback(prompt)
+            variables = self._parse_variables(response_text)
+            print(f"변수 추출 완료 (비동기) - Provider: {provider}, Model: {model}")
+            return variables
+        except Exception as e:
+            print(f"변수 추출 중 오류 발생 (비동기): {e}")
+            return self._get_empty_variables()
     
     def _create_extraction_prompt(self, query: str) -> str:
         """변수 추출용 프롬프트 생성"""
         return f"""
-사용자의 알림톡 요청을 분석하여 다음 6W 변수들을 추출해주세요.
+사용자의 알림톡 요청을 분석하여 다음 5W1H 변수들을 추출해주세요.
 명시되지 않은 정보는 문맥을 통해 합리적으로 추론하거나, 정말 알 수 없는 경우만 "없음"으로 답변하세요.
 
 변수 정의 및 추론 가이드:

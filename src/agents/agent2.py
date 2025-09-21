@@ -338,7 +338,7 @@ class Agent2:
 
     def generate_compliant_template(self, user_input: str, agent1_variables: Dict[str, str] = None) -> Tuple[str, Dict]:
         """
-        AI.png 구조에 따른 완벽 준수 템플릿 생성
+        AI.png 구조에 따른 완벽 준수 템플릿 생성 - 동기 버전 (하위 호환성)
         4개 Tools 병렬 실행 -> Agent(템플릿생성자) -> 최종 템플릿
         """
         print(f" Agent2: 4개 Tools 병렬 분석 시작")
@@ -422,8 +422,94 @@ class Agent2:
         }
         return result, metadata
 
+    async def generate_compliant_template_async(self, user_input: str, agent1_variables: Dict[str, str] = None) -> Tuple[str, Dict]:
+        """
+        AI.png 구조에 따른 완벽 준수 템플릿 생성 - 비동기 버전
+        4개 Tools 병렬 실행 -> Agent(템플릿생성자) -> 최종 템플릿
+        """
+        print(f" Agent2: 4개 Tools 병렬 분석 시작 (비동기)")
+
+        # 0단계: 날짜 전처리 (내일, 모레 등을 구체적 날짜로 변환)
+        preprocessed_input = self._preprocess_dates(user_input)
+        if preprocessed_input != user_input:
+            print(f" 날짜 전처리 (비동기): '{user_input}' → '{preprocessed_input}'")
+
+        # 1단계: 4개 Tools 병렬 실행 (동기 - 빠른 처리)
+        input_data = {"user_input": preprocessed_input}
+
+        try:
+            tools_results = {}
+            for tool_name, tool in self.tools.items():
+                tools_results[tool_name] = tool.invoke(input_data)
+            print(f" 4개 Tools 분석 완료 (비동기)")
+
+        except Exception as e:
+            print(f" Tools 실행 오류 (비동기): {e}")
+            return {"success": False, "error": f"Tools 실행 오류: {str(e)}"}, {}
+
+        # 2단계: Agent(템플릿생성자)가 Tools 결과를 종합하여 템플릿 생성 (비동기)
+        template = await self._create_template_from_tools_async(preprocessed_input, tools_results)
+
+        # 3단계: Industry/Purpose 자동 분류 (Agent1 변수 활용) (동기 - 빠른 처리)
+        classification_result = self._classify_industry_purpose(preprocessed_input, agent1_variables)
+
+        # 메타데이터 준비
+        metadata = {
+            "original_input": user_input,
+            "preprocessed_input": preprocessed_input,
+            "date_preprocessing_applied": preprocessed_input != user_input,
+            "tools_results": tools_results,
+            "classification_result": classification_result,
+            "generation_method": "Agent2_4Tools_Parallel_AutoClassify_Async",
+            "compliance_status": {
+                "blacklist_passed": tools_results["blacklist"]["compliance_check"] == "PASSED",
+                "whitelist_approved": tools_results["whitelist"]["approval_status"] == "APPROVED",
+                "guideline_compliant": tools_results["guideline"]["compliance_level"] == "HIGH",
+                "law_compliant": tools_results["law"]["compliance_status"] == "COMPLIANT"
+            },
+            "all_data_loaded": all(
+                result.get("data_loaded", False) for result in tools_results.values()
+            )
+        }
+
+        print(f" Agent2 템플릿 생성 완료 (비동기)")
+
+        # 변수 추출
+        variables = self._extract_variables_from_template(template)
+
+        # 4단계: Agent1 변수와 템플릿 변수 매핑 (새로 추가)
+        if agent1_variables:
+            mapping_result = self._map_agent1_to_template_variables(agent1_variables, variables)
+
+            if mapping_result["unmapped_variables"]:
+                # 누락된 변수가 있으면 재질문 응답 반환
+                print(f"변수 매핑 불완전 (비동기): {len(mapping_result['unmapped_variables'])}개 변수 누락")
+                return {
+                    "success": False,
+                    "status": "need_more_variables",
+                    "mapped_variables": mapping_result["mapped_variables"],
+                    "missing_variables": mapping_result["unmapped_variables"],
+                    "template": template,  # 부분 완성된 템플릿
+                    "mapping_coverage": mapping_result["mapping_coverage"],
+                    "industry": [{"id": classification_result["industry"]["id"], "name": classification_result["industry"]["name"]}],
+                    "purpose": [{"id": classification_result["purpose"]["id"], "name": classification_result["purpose"]["name"]}]
+                }, metadata
+            else:
+                # 모든 변수 매핑 완료
+                print(f"변수 매핑 완료 (비동기): {mapping_result['mapping_coverage']:.1%}")
+
+        # 성공적인 결과를 딕셔너리 형태로 반환
+        result = {
+            "success": True,
+            "template": template,
+            "variables": variables,
+            "industry": [{"id": classification_result["industry"]["id"], "name": classification_result["industry"]["name"]}],
+            "purpose": [{"id": classification_result["purpose"]["id"], "name": classification_result["purpose"]["name"]}]
+        }
+        return result, metadata
+
     def _create_template_from_tools(self, user_input: str, tools_results: Dict) -> str:
-        """4개 Tools 결과를 종합하여 최종 템플릿 생성"""
+        """4개 Tools 결과를 종합하여 최종 템플릿 생성 - 동기 버전 (하위 호환성)"""
 
         # Tools 결과 요약
         blacklist = tools_results["blacklist"]
@@ -433,7 +519,7 @@ class Agent2:
 
         # LLM에 전달할 프롬프트 구성
         system_prompt = """당신은 Agent2의 템플릿생성자입니다.
-4개 Tools(BlackList, WhiteList, 가이드라인, 정보통신법)의 분석 결과를 바탕으로 
+4개 Tools(BlackList, WhiteList, 가이드라인, 정보통신법)의 분석 결과를 바탕으로
 완벽하게 준수하는 알림톡 템플릿을 생성해야 합니다.
 
 중요한 원칙:
@@ -452,7 +538,7 @@ class Agent2:
 
  중요: 템플릿 메타 정보는 제외하고 실제 메시지 내용만 생성하세요.
 - "## 알림톡 템플릿", "**[템플릿 제목]**", "**[템플릿 내용]**" 같은 구조 텍스트 절대 금지
-- "참고사항", "본 템플릿은..." 같은 부가 설명 제외  
+- "참고사항", "본 템플릿은..." 같은 부가 설명 제외
 - 순수한 알림톡 메시지 내용만 출력
 - 모든 변수는 #{변수명} 형식으로 작성 ({변수명} 또는 [변수명] 형식 절대 금지)"""
 
@@ -466,7 +552,7 @@ class Agent2:
 - 제한사항: {blacklist['restrictions']}
 - 준수상태: {blacklist['compliance_check']}
 
- WhiteList 분석:  
+ WhiteList 분석:
 - 카테고리: {whitelist['category']}
 - 승인 패턴: {whitelist['approved_patterns']}
 - 권장사항: {whitelist['recommendation']}
@@ -494,6 +580,84 @@ class Agent2:
 
         except Exception as e:
             print(f" 템플릿 생성 LLM 오류: {e}")
+
+            # 폴백 템플릿 생성
+            fallback_template = self._create_fallback_template(user_input, tools_results)
+            return fallback_template
+
+    async def _create_template_from_tools_async(self, user_input: str, tools_results: Dict) -> str:
+        """4개 Tools 결과를 종합하여 최종 템플릿 생성 - 비동기 버전"""
+
+        # Tools 결과 요약
+        blacklist = tools_results["blacklist"]
+        whitelist = tools_results["whitelist"]
+        guideline = tools_results["guideline"]
+        law = tools_results["law"]
+
+        # LLM에 전달할 프롬프트 구성
+        system_prompt = """당신은 Agent2의 템플릿생성자입니다.
+4개 Tools(BlackList, WhiteList, 가이드라인, 정보통신법)의 분석 결과를 바탕으로
+완벽하게 준수하는 알림톡 템플릿을 생성해야 합니다.
+
+중요한 원칙:
+1. BlackList 위반 사항은 절대 포함하지 않음
+2. WhiteList 승인 패턴을 적극 활용
+3. 가이드라인 구조와 요구사항을 모두 적용
+4. 정보통신망법을 완벽 준수
+5. 변수는 반드시 #{변수명} 형식으로 작성 (예: #{카페이름}, #{고객명}, #{주문내용})
+
+템플릿 생성 규칙:
+- 적절한 인사말
+- 핵심 내용 (사용자가 제공한 구체적인 정보를 그대로 사용)
+- 연락처 정보
+- 법적 고지사항 (필요시)
+- 정중한 마무리
+
+ 중요: 템플릿 메타 정보는 제외하고 실제 메시지 내용만 생성하세요.
+- "## 알림톡 템플릿", "**[템플릿 제목]**", "**[템플릿 내용]**" 같은 구조 텍스트 절대 금지
+- "참고사항", "본 템플릿은..." 같은 부가 설명 제외
+- 순수한 알림톡 메시지 내용만 출력
+- 모든 변수는 #{변수명} 형식으로 작성 ({변수명} 또는 [변수명] 형식 절대 금지)"""
+
+        human_prompt = f"""사용자 요청: {user_input}
+
+ 4개 Tools 분석 결과:
+
+ BlackList 분석:
+- 위험도: {blacklist['risk_level']}
+- 위험 키워드: {blacklist['risk_keywords']}
+- 제한사항: {blacklist['restrictions']}
+- 준수상태: {blacklist['compliance_check']}
+
+ WhiteList 분석:
+- 카테고리: {whitelist['category']}
+- 승인 패턴: {whitelist['approved_patterns']}
+- 권장사항: {whitelist['recommendation']}
+
+ 가이드라인 분석:
+- 요구사항: {guideline['requirements']}
+- 템플릿 구조: {guideline['template_structure']}
+- 준수 수준: {guideline['compliance_level']}
+
+ 정보통신법 분석:
+- 메시지 유형: {law['message_type']}
+- 법적 요구사항: {law['legal_requirements']}
+- 준수 상태: {law['compliance_status']}
+
+위 4개 Tools의 분석을 완벽히 반영하여 안전하고 효과적인 알림톡 템플릿을 생성해주세요."""
+
+        try:
+            from ..utils.llm_provider_manager import ainvoke_llm_with_fallback
+
+            # 시스템 프롬프트와 사용자 프롬프트를 결합
+            combined_prompt = f"[SYSTEM PROMPT]\n{system_prompt}\n\n[USER PROMPT]\n{human_prompt}"
+
+            response_text, provider, model = await ainvoke_llm_with_fallback(combined_prompt)
+            print(f" 템플릿 생성 완료 (비동기) - Provider: {provider}, Model: {model}")
+            return response_text
+
+        except Exception as e:
+            print(f" 템플릿 생성 LLM 오류 (비동기): {e}")
 
             # 폴백 템플릿 생성
             fallback_template = self._create_fallback_template(user_input, tools_results)
@@ -585,7 +749,7 @@ class Agent2:
         Agent1 변수를 템플릿 변수에 매핑
 
         Args:
-            agent1_variables: Agent1에서 추출된 6W 변수
+            agent1_variables: Agent1에서 추출된 5W1H 변수
             template_variables: 템플릿에서 추출된 변수 리스트
 
         Returns:

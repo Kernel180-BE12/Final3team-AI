@@ -63,7 +63,7 @@ class TemplateSelector:
         self.template_validator = get_template_validator()
 
         # 단계별 임계값 설정
-        self.existing_similarity_threshold = 0.8  # 기존 템플릿 유사도 임계값
+        self.existing_similarity_threshold = 0.85  # 기존 템플릿 유사도 임계값 (0.8→0.85 상향)
         self.public_similarity_threshold = 0.85  # 공용 템플릿 유사도 임계값 (0.75→0.85로 상향)
 
         # 재생성 설정
@@ -97,50 +97,102 @@ class TemplateSelector:
     
     def select_template(self, user_input: str, options: Dict[str, Any] = None) -> TemplateSelectionResult:
         """
-        3단계 템플릿 선택 프로세스 실행
-        
+        3단계 템플릿 선택 프로세스 실행 - 동기 버전 (하위 호환성)
+
         Args:
             user_input: 사용자 입력
             options: 선택 옵션
                 - force_generation: True시 생성 단계로 바로 이동
                 - existing_threshold: 기존 템플릿 임계값 오버라이드
                 - public_threshold: 공용 템플릿 임계값 오버라이드
-                
+
         Returns:
             TemplateSelectionResult
         """
         if options is None:
             options = {}
-        
+
         selection_path = []
-        
+
         try:
             # 강제 생성 모드인 경우 3단계로 바로 이동
             if options.get('force_generation', False):
                 selection_path.append("forced_generation")
                 return self._generate_new_template(user_input, selection_path)
-            
+
             # 1단계: 기존 템플릿 검색
             selection_path.append("stage1_existing")
             existing_result = self._search_existing_templates(user_input, options)
             if existing_result.success:
                 existing_result.selection_path = selection_path
                 return existing_result
-            
+
             # 2단계: 공용 템플릿 검색
             selection_path.append("stage2_public")
             public_result = self._search_public_templates(user_input, options)
             if public_result.success:
                 public_result.selection_path = selection_path
                 return public_result
-            
+
             # 3단계: 새 템플릿 생성
             selection_path.append("stage3_generation")
             generation_result = self._generate_new_template(user_input, selection_path)
             return generation_result
-            
+
         except Exception as e:
             self.logger.error(f"템플릿 선택 중 오류: {e}")
+            return TemplateSelectionResult(
+                success=False,
+                error=f"템플릿 선택 실패: {str(e)}",
+                selection_path=selection_path
+            )
+
+    async def select_template_async(self, user_input: str, options: Dict[str, Any] = None) -> TemplateSelectionResult:
+        """
+        3단계 템플릿 선택 프로세스 실행 - 비동기 버전
+
+        Args:
+            user_input: 사용자 입력
+            options: 선택 옵션
+                - force_generation: True시 생성 단계로 바로 이동
+                - existing_threshold: 기존 템플릿 임계값 오버라이드
+                - public_threshold: 공용 템플릿 임계값 오버라이드
+
+        Returns:
+            TemplateSelectionResult
+        """
+        if options is None:
+            options = {}
+
+        selection_path = []
+
+        try:
+            # 강제 생성 모드인 경우 3단계로 바로 이동
+            if options.get('force_generation', False):
+                selection_path.append("forced_generation")
+                return await self._generate_new_template_async(user_input, selection_path)
+
+            # 1단계: 기존 템플릿 검색 (동기 - 빠른 처리)
+            selection_path.append("stage1_existing")
+            existing_result = self._search_existing_templates(user_input, options)
+            if existing_result.success:
+                existing_result.selection_path = selection_path
+                return existing_result
+
+            # 2단계: 공용 템플릿 검색 (동기 - 빠른 처리)
+            selection_path.append("stage2_public")
+            public_result = self._search_public_templates(user_input, options)
+            if public_result.success:
+                public_result.selection_path = selection_path
+                return public_result
+
+            # 3단계: 새 템플릿 생성 (비동기)
+            selection_path.append("stage3_generation")
+            generation_result = await self._generate_new_template_async(user_input, selection_path)
+            return generation_result
+
+        except Exception as e:
+            self.logger.error(f"템플릿 선택 중 오류 (비동기): {e}")
             return TemplateSelectionResult(
                 success=False,
                 error=f"템플릿 선택 실패: {str(e)}",
@@ -280,7 +332,7 @@ class TemplateSelector:
             )
     
     def _generate_new_template(self, user_input: str, selection_path: List[str]) -> TemplateSelectionResult:
-        """3단계: 새 템플릿 생성 (검증 포함)"""
+        """3단계: 새 템플릿 생성 (검증 포함) - 동기 버전 (하위 호환성)"""
         try:
             self.logger.info("3단계: 새 템플릿 생성 (검증 시스템 적용)")
 
@@ -402,6 +454,136 @@ class TemplateSelector:
             
         except Exception as e:
             self.logger.error(f"새 템플릿 생성 실패: {e}")
+            return TemplateSelectionResult(
+                success=False,
+                source="generated",
+                error=f"템플릿 생성 오류: {str(e)}",
+                selection_path=selection_path
+            )
+
+    async def _generate_new_template_async(self, user_input: str, selection_path: List[str]) -> TemplateSelectionResult:
+        """3단계: 새 템플릿 생성 (검증 포함) - 비동기 버전"""
+        try:
+            self.logger.info("3단계: 새 템플릿 생성 (검증 시스템 적용) - 비동기")
+
+            # 재생성 시도 횟수 제한
+            for attempt in range(self.max_regeneration_attempts):
+                if attempt > 0:
+                    self.logger.info(f"템플릿 재생성 시도 {attempt + 1}/{self.max_regeneration_attempts} (비동기)")
+
+                # Agent2를 통한 템플릿 생성 (비동기)
+                result, tools_data = await self.agent2.generate_compliant_template_async(user_input)
+
+                if not result.get("success", False):
+                    # 새로운 응답: 변수 수집 필요
+                    if result.get("status") == "need_more_variables":
+                        return TemplateSelectionResult(
+                            success=False,
+                            source="generated",
+                            status="need_more_variables",
+                            mapped_variables=result.get("mapped_variables", {}),
+                            missing_variables=result.get("missing_variables", []),
+                            partial_template=result.get("template", ""),
+                            mapping_coverage=result.get("mapping_coverage", 0),
+                            industry=result.get("industry", []),
+                            purpose=result.get("purpose", []),
+                            selection_path=selection_path
+                        )
+
+                    # 기존 실패 처리
+                    if attempt == self.max_regeneration_attempts - 1:  # 마지막 시도
+                        return TemplateSelectionResult(
+                            success=False,
+                            source="generated",
+                            error=result.get("error", "템플릿 생성 실패"),
+                            selection_path=selection_path
+                        )
+                    continue  # 다음 시도
+
+                # 변수 형식을 표준 형식으로 변환
+                template = result.get("template", "")
+                variables = result.get("variables", [])
+                standardized_template, standardized_variables = self._standardize_variables(template, variables)
+
+                # 🔍 템플릿 검증 실행 (동기 - 빠른 처리)
+                self.logger.info(f"생성된 템플릿 검증 중... (시도 {attempt + 1}, 비동기)")
+                validation_report = self.template_validator.validate_template(
+                    template=standardized_template,
+                    tools_results=tools_data,  # Agent2의 Tools 결과
+                    user_input=user_input
+                )
+
+                # 검증 결과 로깅
+                self.logger.info(f"검증 점수 (비동기): {validation_report.overall_score:.2f}")
+                if validation_report.warnings:
+                    self.logger.warning(f"검증 경고 (비동기): {', '.join(validation_report.warnings[:3])}")
+                if validation_report.failed_checks:
+                    self.logger.error(f"검증 실패 (비동기): {', '.join(validation_report.failed_checks[:3])}")
+
+                # ✅ 검증 통과시 템플릿 반환
+                if validation_report.success:
+                    self.logger.info("✅ 템플릿 검증 통과 - 최종 템플릿 완성 (비동기)")
+                    return TemplateSelectionResult(
+                        success=True,
+                        template=standardized_template,
+                        variables=standardized_variables,
+                        source="generated",
+                        source_info={
+                            "original_variables": len(variables),
+                            "generation_method": "agent2_with_validation_async",
+                            "validation_score": validation_report.overall_score,
+                            "validation_attempts": attempt + 1,
+                            "tools_results": tools_data
+                        },
+                        selection_path=selection_path
+                    )
+
+                # ❌ 재생성이 필요한 경우
+                elif validation_report.should_regenerate:
+                    self.logger.warning(f"⚠️ 템플릿 검증 실패 (점수: {validation_report.overall_score:.2f}) - 재생성 필요 (비동기)")
+                    if attempt < self.max_regeneration_attempts - 1:
+                        continue  # 재생성 시도
+                    else:
+                        # 최대 시도 횟수 초과 - 최선의 결과라도 반환
+                        self.logger.error("❌ 최대 재생성 횟수 초과 - 최선의 템플릿 반환 (비동기)")
+                        return TemplateSelectionResult(
+                            success=False,
+                            template=standardized_template,
+                            variables=standardized_variables,
+                            source="generated",
+                            error=f"검증 미통과 (점수: {validation_report.overall_score:.2f})",
+                            source_info={
+                                "original_variables": len(variables),
+                                "generation_method": "agent2_validation_failed_async",
+                                "validation_score": validation_report.overall_score,
+                                "validation_attempts": attempt + 1,
+                                "validation_issues": validation_report.failed_checks + validation_report.warnings,
+                                "recommendation": validation_report.recommendation
+                            },
+                            selection_path=selection_path
+                        )
+
+                # ⚠️ 경고 수준이지만 사용 가능한 경우
+                else:
+                    self.logger.info(f"⚠️ 템플릿 검증 경고 수준 (점수: {validation_report.overall_score:.2f}) - 사용 가능 (비동기)")
+                    return TemplateSelectionResult(
+                        success=True,
+                        template=standardized_template,
+                        variables=standardized_variables,
+                        source="generated",
+                        source_info={
+                            "original_variables": len(variables),
+                            "generation_method": "agent2_with_warnings_async",
+                            "validation_score": validation_report.overall_score,
+                            "validation_attempts": attempt + 1,
+                            "validation_warnings": validation_report.warnings,
+                            "recommendation": validation_report.recommendation
+                        },
+                        selection_path=selection_path
+                    )
+
+        except Exception as e:
+            self.logger.error(f"새 템플릿 생성 실패 (비동기): {e}")
             return TemplateSelectionResult(
                 success=False,
                 source="generated",

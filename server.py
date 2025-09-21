@@ -261,9 +261,42 @@ def check_rate_limit(user_id: int) -> bool:
         print(f"Rate limit 통과: user_id={user_id}, 요청수={len(valid_requests)+1}")
         return True
 
+
 # --- FastAPI 애플리케이션 설정 ---
 
-app = FastAPI()
+tags_metadata = [
+    {
+        "name": "Template Generation",
+        "description": "AI 템플릿 생성 관련 API"
+    },
+    {
+        "name": "Real-time Chat",
+        "description": "실시간 채팅 및 변수 업데이트 API"
+    },
+    {
+        "name": "Session Management",
+        "description": "세션 관리 및 모니터링 API"
+    },
+    {
+        "name": "Backend Integration",
+        "description": "백엔드 연동을 위한 API"
+    },
+    {
+        "name": "System",
+        "description": "시스템 상태 확인 API"
+    },
+    {
+        "name": "Debug",
+        "description": "디버깅 및 개발 지원 API"
+    }
+]
+
+app = FastAPI(
+    title="JOBER AI Template API",
+    description="AI 기반 템플릿 생성 및 실시간 채팅 API",
+    version="1.0.0",
+    openapi_tags=tags_metadata
+)
 # api.py에 정의된 싱글톤 인스턴스를 가져옵니다.
 template_api = get_template_api()
 
@@ -292,7 +325,7 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
     return response
 
-@app.post("/ai/templates", response_model=TemplateResponse, status_code=200)
+@app.post("/ai/templates", response_model=TemplateResponse, status_code=200, tags=["Template Generation"])
 async def create_template(request: TemplateCreationRequest):
     """
     AI를 사용하여 템플릿을 생성하고 Spring Boot가 요구하는 형식으로 반환합니다.
@@ -750,73 +783,28 @@ def _get_metadata_industries(generation_result: Dict, content: str, category_id:
     return [{"id": 9, "name": "기타"}]
 
 def _map_agent1_to_template_variables(agent1_variables: Dict[str, str], template_variables: List[Dict]) -> Dict[str, str]:
-    """Agent1 추출 변수와 템플릿 변수를 LLM으로 매핑"""
+    """Agent1 추출 변수와 템플릿 변수를 매핑 (VariableMapper 사용)"""
+    from src.tools.variable_mapper import get_variable_mapper
+
     if not agent1_variables or not template_variables:
         return {}
 
-    from src.utils.llm_provider_manager import invoke_llm_with_fallback
+    # Dict를 TemplateVariable 형식으로 변환
+    template_vars = [
+        {
+            "variable_key": var.get("variable_key", ""),
+            "placeholder": var.get("placeholder", ""),
+            "input_type": var.get("input_type", "TEXT"),
+            "required": True
+        }
+        for var in template_variables
+    ]
 
-    # 템플릿 변수 키 목록 추출
-    template_var_keys = []
-    for var in template_variables:
-        key = var.get("variable_key", "")
-        if key:
-            template_var_keys.append(key)
+    # VariableMapper 사용 (LLM 방식으로 매핑)
+    mapper = get_variable_mapper()
+    result = mapper.map_variables(agent1_variables, template_vars, method="llm")
 
-    if not template_var_keys:
-        return {}
-
-    prompt = f"""다음 Agent1에서 추출한 변수들과 템플릿 변수들을 매핑해주세요.
-
-Agent1 추출 변수:
-{json.dumps(agent1_variables, ensure_ascii=False, indent=2)}
-
-템플릿 변수 목록:
-{template_var_keys}
-
-지시사항:
-1. Agent1 변수의 값을 템플릿 변수에 적절히 매핑해주세요
-2. 의미적으로 일치하는 것들을 연결해주세요 (예: "누가" → "수신자명", "무엇을" → "상품명" 등)
-3. 매핑되지 않는 템플릿 변수는 빈 문자열("")로 설정하세요
-4. JSON 형식으로만 응답해주세요
-
-예시:
-{{
-  "수신자명": "김영수 고객님",
-  "상품명": "아이폰 15",
-  "픽업시간": "내일 오후 3시",
-  "장소": "강남점"
-}}
-
-응답 (JSON만):"""
-
-    try:
-        response, _, _ = invoke_llm_with_fallback(prompt=prompt)
-
-        # JSON 응답 파싱
-        json_start = response.find('{')
-        json_end = response.rfind('}') + 1
-        if json_start >= 0 and json_end > json_start:
-            json_str = response[json_start:json_end]
-            mapped_values = json.loads(json_str)
-
-            # 템플릿 변수에 있는 키만 필터링하고 문자열로 변환
-            filtered_mapping = {}
-            for var_key in template_var_keys:
-                if var_key in mapped_values:
-                    value = str(mapped_values[var_key]).strip()
-                    filtered_mapping[var_key] = value if value else ""
-                else:
-                    filtered_mapping[var_key] = ""
-
-            return filtered_mapping
-        else:
-            print(f"매핑 JSON 파싱 실패: {response}")
-            return {var_key: "" for var_key in template_var_keys}
-
-    except Exception as e:
-        print(f"변수 매핑 실패: {e}")
-        return {var_key: "" for var_key in template_var_keys}
+    return result["mapped_variables"]
 
 def _get_metadata_purpose(generation_result: Dict, content: str, original_input: str) -> List[Dict]:
     """메타데이터에서 목적 정보 추출 또는 추론"""
@@ -847,12 +835,12 @@ def _get_metadata_purpose(generation_result: Dict, content: str, original_input:
     return [{"id": i + 1, "name": purpose} for i, purpose in enumerate(detected_purpose)]
 
 
-@app.get("/health")
+@app.get("/health", tags=["System"])
 async def health_check():
     """API 상태를 확인합니다."""
     return template_api.health_check()
 
-@app.post("/debug/request")
+@app.post("/debug/request", tags=["Debug"])
 async def debug_request(request: TemplateCreationRequest):
     """요청 데이터 디버깅용"""
     return {
@@ -864,7 +852,7 @@ async def debug_request(request: TemplateCreationRequest):
         "status": "OK"
     }
 
-@app.post("/debug/raw")
+@app.post("/debug/raw", tags=["Debug"])
 async def debug_raw(request_data: dict):
     """원시 요청 데이터 디버깅용"""
     return {
@@ -878,7 +866,7 @@ async def debug_raw(request_data: dict):
 # 새로운 세션 기반 챗봇 API 엔드포인트들
 # ===========================================
 
-@app.post("/ai/templates/{session_id}/variables")
+@app.post("/ai/templates/{session_id}/variables", tags=["Real-time Chat"])
 async def update_session_variables(session_id: str, request: VariableUpdateRequest):
     """
     세션의 변수를 개별 업데이트
@@ -962,7 +950,7 @@ async def update_session_variables(session_id: str, request: VariableUpdateReque
         )
 
 
-@app.get("/ai/templates/{session_id}/preview")
+@app.get("/ai/templates/{session_id}/preview", tags=["Real-time Chat"])
 async def get_template_preview(session_id: str, style: str = "missing"):
     """
     부분 완성 템플릿 미리보기 조회
@@ -1068,7 +1056,7 @@ async def get_template_preview(session_id: str, style: str = "missing"):
         )
 
 
-@app.post("/ai/templates/{session_id}/complete")
+@app.post("/ai/templates/{session_id}/complete", tags=["Real-time Chat"])
 async def complete_template_session(session_id: str, request: CompleteTemplateRequest):
     """
     세션 템플릿 최종 완성
@@ -1233,7 +1221,7 @@ async def complete_template_session(session_id: str, request: CompleteTemplateRe
 # 세션 관리 및 모니터링 API
 # ===========================================
 
-@app.get("/ai/sessions/stats")
+@app.get("/ai/sessions/stats", tags=["Session Management"])
 async def get_session_stats():
     """세션 통계 조회 (관리용)"""
     session_manager = get_session_manager()
@@ -1244,7 +1232,7 @@ async def get_session_stats():
         "timestamp": datetime.now().isoformat()
     }
 
-@app.get("/ai/sessions")
+@app.get("/ai/sessions", tags=["Session Management"])
 async def get_session_list(limit: int = 20, status: Optional[str] = None):
     """세션 목록 조회 (관리/디버깅용)"""
     session_manager = get_session_manager()
@@ -1275,7 +1263,7 @@ async def get_session_list(limit: int = 20, status: Optional[str] = None):
         "timestamp": datetime.now().isoformat()
     }
 
-@app.get("/ai/sessions/{session_id}")
+@app.get("/ai/sessions/{session_id}", tags=["Session Management"])
 async def get_session_info(session_id: str):
     """개별 세션 정보 조회"""
     session_manager = get_session_manager()
@@ -1298,7 +1286,7 @@ async def get_session_info(session_id: str):
         "timestamp": datetime.now().isoformat()
     }
 
-@app.delete("/ai/sessions/{session_id}")
+@app.delete("/ai/sessions/{session_id}", tags=["Session Management"])
 async def delete_session(session_id: str):
     """세션 삭제 (관리용)"""
     session_manager = get_session_manager()
@@ -1321,7 +1309,7 @@ async def delete_session(session_id: str):
     }
 
 
-@app.post("/ai/templates/stream")
+@app.post("/ai/templates/stream", tags=["Template Generation"])
 async def stream_template_generation(request: TemplateCreationRequest):
     """
     AI를 사용하여 템플릿을 실시간 스트리밍으로 생성
@@ -1434,6 +1422,80 @@ async def stream_template_generation(request: TemplateCreationRequest):
             "Access-Control-Allow-Headers": "*"
         }
     )
+
+
+# ===========================================
+# 백엔드 호환 엔드포인트
+# ===========================================
+
+# 백엔드 호환 모델
+class BackendAiTemplateRequest(BaseModel):
+    """백엔드에서 오는 요청 모델 (userId, requestContent)"""
+    userId: int
+    requestContent: str
+
+class BackendAiTemplateResponse(BaseModel):
+    """백엔드로 보낼 응답 모델"""
+    id: int
+    userId: int
+    categoryId: str
+    title: str
+    content: str
+    imageUrl: Optional[str] = None
+    type: str
+    isPublic: bool
+    status: str
+    createdAt: str
+    updatedAt: str
+    buttons: List[Dict] = []
+    variables: List[Dict] = []
+    industries: List[Dict] = []
+    purposes: List[Dict] = []
+
+@app.post("/ai/sessions/start", tags=["Backend Integration"])
+async def start_ai_session(request: BackendAiTemplateRequest):
+    """백엔드에서 호출하는 AI 세션 시작 엔드포인트"""
+    try:
+        # 기존 템플릿 생성 로직 사용
+        processed_content = request.requestContent.replace(".", ". ").replace("  ", " ").strip()
+
+        # 1. 템플릿 생성
+        generation_result = await template_api.generate_template_async(
+            user_input=processed_content,
+            conversation_context=None
+        )
+
+        if not generation_result.get("success"):
+            raise HTTPException(
+                status_code=400,
+                detail={"error": generation_result.get("error", "Template generation failed")}
+            )
+
+        # 2. 세션 생성
+        session_manager = get_session_manager()
+        session_id = session_manager.create_session(
+            user_id=request.userId,
+            original_request=processed_content,
+            conversation_context=None
+        )
+
+        # 3. 세션에 템플릿 데이터 설정
+        session_manager.set_template_data(
+            session_id=session_id,
+            template=generation_result["template"],
+            variables=generation_result.get("variables", []),
+            source=generation_result.get("metadata", {}).get("source", "generated")
+        )
+
+        return {"sessionId": session_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": f"세션 시작 중 오류: {str(e)}"}
+        )
 
 
 if __name__ == "__main__":
