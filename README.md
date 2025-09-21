@@ -1,75 +1,82 @@
-# JOBER AI - 알림톡 템플릿 생성기
+# JOBER AI - 알림톡 템플릿 생성기 🚀
 
 **AI 기반 카카오 알림톡 템플릿 자동 생성 시스템**
 
 [![Python](https://img.shields.io/badge/Python-3.11.13-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115.0-green.svg)](https://fastapi.tiangolo.com/)
 [![Chroma DB](https://img.shields.io/badge/ChromaDB-0.4.24-orange.svg)](https://www.trychroma.com/)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-3.0-brightgreen.svg)](http://localhost:8000/docs)
 
-## 핵심 기능 
+## 🌟 핵심 기능
 
-###  3단계 템플릿 선택 시스템
-1. **기존 승인 템플릿**: predata 패턴 기반 검색 (임계값 0.7)
-2. **공용 템플릿**: 105개 공용 템플릿 검색 (임계값 0.6)
-3. **새 템플릿 생성**: AI 기반 신규 생성 + 자체 품질 검증
+### 🎯 3단계 템플릿 선택 시스템
+1. **기존 승인 템플릿**: predata 패턴 기반 검색 (임계값 0.85)
+2. **공용 템플릿**: 168개 공용 템플릿 검색 (임계값 0.8)
+3. **새 템플릿 생성**: AI 기반 신규 생성 + 4-Tool 병렬 검증
 
-###  AI 기반 지능형 생성
+### 🤖 AI 기반 지능형 생성
 - **Google Gemini 2.0 Flash + OpenAI GPT-4**: LLM Fallback 시스템
 - **Agent1 & Agent2**: 2단계 AI 검증 시스템
-- **자체 품질 검증**: 생성된 템플릿 자동 품질 검증 시스템
+- **conversationContext**: 재질문 기능 지원
+- **4개 Tool 병렬 검증**: BlackList, WhiteList, 가이드라인, 정보통신망법
 
-###  벡터 검색 엔진
-- **Chroma DB**: 로컬 벡터 데이터베이스
-- **공용 템플릿 매칭**: 키워드 기반 유사도 검색
-- **실시간 캐싱**: 성능 최적화 캐시 시스템
+### 💬 실시간 채팅 지원
+- **세션 기반 변수 업데이트**: 실시간 템플릿 수정
+- **템플릿 미리보기**: 단계별 완성도 확인
+- **WebSocket 준비**: 백엔드 연동 지원
 
-###  완벽한 컴플라이언스
-- **4개 Tool 병렬 검증**: BlackList, WhiteList, 가이드라인, 정보통신법
-- **정보통신망법 준수**: PDF 추출 기반 법령 자동 검증
-- **카카오 정책 준수**: 실시간 가이드라인 매칭
+### 📚 완벽한 API 문서화
+- **28개 응답 스키마**: 완전한 타입 안정성
+- **태그별 분류**: Template Generation, Real-time Chat, Session Management, System
+- **Swagger UI**: 자동 생성된 API 문서
 
 ---
 
-## 시스템 아키텍처 
+## 🏗️ 시스템 아키텍처
 
-### 3단계 템플릿 선택 워크플로우
+### 템플릿 생성 워크플로우
 ```
-사용자 입력
+사용자 입력 (conversationContext 지원)
     ↓
-1️⃣ 기존 승인 템플릿 검색 (predata 기반)
-    ↓ (실패시)
-2️⃣ 공용 템플릿 검색 (105개 템플릿)
-    ↓ (실패시)  
-3️⃣ AI 새 템플릿 생성 + 자체 검증
+🔍 Agent1: 변수 추출 + 의도 분석 + 비속어 검증
     ↓
- 표준 형식 변환 + 결과 반환
+📋 3단계 템플릿 선택:
+   1️⃣ BasicTemplateMatcher (기존 승인 템플릿)
+   2️⃣ PublicTemplateManager (168개 공용 템플릿)
+   3️⃣ Agent2 (새 템플릿 생성 + 4-Tool 검증)
+    ↓
+🔧 VariableMapper: Agent1 변수 → 템플릿 변수 매핑
+    ↓
+✅ TemplateValidator: 품질 검증 + 재생성 로직
+    ↓
+📤 최종 템플릿 + 세션 정보 반환
 ```
 
 ### 주요 컴포넌트
 
-** Template Selector**
+**🔧 Template Selector**
 - 3단계 선택 로직 관리
-- 유사도 임계값 설정 (기존: 0.7, 공용: 0.6)
+- 유사도 임계값 설정 및 최적화
 - 선택 경로 추적 및 메타데이터 제공
 
-** Public Template Manager**
-- 105개 공용 템플릿 관리
-- 키워드 기반 유사도 검색
-- `#{변수명}` → `${변수명}` 자동 변환
+**📦 Public Template Manager**
+- 168개 공용 템플릿 관리 (Chroma DB)
+- 키워드 + 벡터 하이브리드 검색
+- 자동 변수 매핑 시스템
 
-** LLM Provider Manager**
+**🤖 LLM Provider Manager**
 - Gemini → OpenAI 자동 Fallback
 - 실패 횟수 추적 및 우선순위 관리
 - 모델별 retry 로직
 
-** Template Validator**
-- 자체 품질 검증 시스템
-- 다중 메트릭 종합 평가
-- 자동 재생성 로직
+**✅ Session Manager**
+- Thread-safe 세션 관리
+- 실시간 변수 업데이트
+- 자동 만료 및 정리
 
 ---
 
-## 빠른 시작 
+## 🚀 빠른 시작
 
 ### 1. 설치 및 환경 설정
 ```bash
@@ -87,20 +94,36 @@ poetry install
 
 ### 2. 환경변수 설정
 ```bash
-# .env 파일 생성
+# .env 파일 생성 (필수)
+cp .env.example .env
+
+# .env 파일 편집
 cat > .env << EOF
+# LLM API 키 (둘 중 하나는 필수)
 GEMINI_API_KEY=your_gemini_api_key_here
 OPENAI_API_KEY=your_openai_api_key_here
+
+# 보안 설정 (필수)
+SECRET_KEY=your-super-secret-key-32-characters-long
+
+# 선택적 설정
+DEBUG=false
+HOST=0.0.0.0
+PORT=8000
+LOG_LEVEL=INFO
 EOF
 ```
 
 ### 3. 서버 실행
 ```bash
-# Poetry로 FastAPI 서버 실행
-poetry run python server.py
+# FastAPI 서버 실행
+python app/main.py
 
-# 또는 Poetry로 uvicorn 직접 실행
-poetry run uvicorn server:app --host 0.0.0.0 --port 8000
+# 또는 Poetry로 실행
+poetry run python app/main.py
+
+# 또는 uvicorn 직접 실행
+poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### 4. API 테스트
@@ -108,191 +131,293 @@ poetry run uvicorn server:app --host 0.0.0.0 --port 8000
 # 템플릿 생성 요청
 curl -X POST http://localhost:8000/ai/templates \
   -H "Content-Type: application/json" \
-  -d '{"userId": 123, "requestContent": "예약이 완료되었습니다. 고객에게 알려주세요"}'
+  -d '{
+    "userId": 123,
+    "requestContent": "독서모임 안내 메시지를 만들어주세요",
+    "conversationContext": null
+  }'
 
 # 서버 상태 확인
-curl http://localhost:8000/health
+curl http://localhost:8000/ai/health
+
+# Swagger UI 접속
+open http://localhost:8000/docs
 ```
 
 ---
 
-## API 엔드포인트 📡
+## 📡 API 엔드포인트
 
-### POST /ai/templates
-템플릿 생성 요청
+### 🎯 Template Generation
 
-**요청 형식:**
+#### `POST /ai/templates`
+AI 기반 템플릿 생성 (재질문 지원)
+
+**요청:**
 ```json
 {
-  "userId": 101,
-  "requestContent": "국가 건강검진 안내"
+  "userId": 12345,
+  "requestContent": "독서모임 안내 메시지 만들어주세요",
+  "conversationContext": null
 }
 ```
 
-**응답 형식:**
+**성공 응답 (200):**
 ```json
 {
-  "success": true,
-  "template": "안녕하세요, ${고객명}님!\n\n${검진내용} 국가건강검진 안내입니다...",
+  "id": 1,
+  "userId": 12345,
+  "categoryId": "004001",
+  "title": "알림톡",
+  "content": "안녕하세요 #{고객명}님!\n\n#{업체명}에서 #{서비스명} 관련하여 안내드립니다...",
+  "imageUrl": null,
+  "type": "MESSAGE",
+  "buttons": [],
   "variables": [
     {
-      "name": "${고객명}",
-      "description": "고객명",
-      "required": true
+      "id": 1,
+      "variableKey": "고객명",
+      "placeholder": "#{고객명}",
+      "inputType": "text",
+      "value": "홍길동"
     }
   ],
-  "metadata": {
-    "source": "public",
-    "selection_path": ["stage1_existing", "stage2_public"],
-    "source_info": {
-      "template_code": "guide_img_02",
-      "similarity": 0.85
-    },
-    "quality_verified": false
-  }
+  "industry": ["교육", "문화"],
+  "purpose": ["안내", "예약확인"]
 }
 ```
 
-### GET /health
-시스템 상태 확인
-
-**응답 예시:**
+**정보 부족 응답 (400):**
 ```json
 {
-  "status": "healthy",
-  "components": {
-    "template_selector": "ready",
-    "llm_manager": "ready",
-    "template_validator": "ready"
-  },
-  "template_selection": {
-    "existing_templates": {
-      "available": "predata 기반 검색",
-      "threshold": 0.7
+  "detail": {
+    "error": {
+      "code": "INCOMPLETE_INFORMATION",
+      "message": "추가 정보가 필요합니다",
+      "details": {
+        "confirmed_variables": {"업체명": "ABC서점"},
+        "missing_variables": ["일시", "장소", "연락처"],
+        "contextual_question": "독서모임 일시와 장소, 문의 연락처를 알려주세요.",
+        "original_input": "독서모임 안내 메시지 만들어줘"
+      }
     },
-    "public_templates": {
-      "available": 105,
-      "threshold": 0.6
-    }
-  },
-  "llm_providers": {
-    "available_providers": ["gemini", "openai"]
+    "timestamp": "2024-09-22T10:30:00Z"
   }
 }
 ```
+
+### 💬 Real-time Chat
+
+#### `POST /ai/templates/{session_id}/variables`
+세션 변수 업데이트
+
+#### `GET /ai/templates/{session_id}/preview`
+템플릿 미리보기 조회
+
+#### `POST /ai/templates/{session_id}/complete`
+템플릿 최종 완성
+
+### 🔧 Session Management
+
+#### `GET /ai/sessions/stats`
+세션 통계 조회
+
+#### `GET /ai/sessions`
+세션 목록 조회
+
+### 🛠️ System
+
+#### `GET /ai/health`
+기본 헬스체크
+
+#### `GET /ai/health/detailed`
+상세 헬스체크
+
+#### `GET /ai/health/llm`
+LLM 제공자 테스트
 
 ---
 
-## 테스트 🧪
-
-### 3단계 선택 시스템 테스트
-```bash
-# 공용 템플릿 매칭 테스트
-python -c "
-from src.core.template_selector import get_template_selector
-selector = get_template_selector()
-result = selector.select_template('국가 건강검진 안내 메시지 만들어줘')
-print(f'선택 경로: {\" -> \".join(result.selection_path)}')
-print(f'소스: {result.source}')
-"
-
-# LLM Fallback 테스트
-python test_llm_fallback.py
-
-# 자체 품질 검증 테스트
-python test_template_validator.py
-```
+## 🧪 테스트
 
 ### API 통합 테스트
 ```bash
-# API 테스트
+# 기본 템플릿 생성
 curl -X POST http://localhost:8000/ai/templates \
   -H "Content-Type: application/json" \
-  -d '{"userId": 123, "requestContent": "신년 할인 쿠폰 발급 알림톡 만들어줘"}'
+  -d '{"userId": 123, "requestContent": "카페 이벤트 안내 메시지 만들어주세요"}'
+
+# 재질문 테스트
+curl -X POST http://localhost:8000/ai/templates \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": 123,
+    "requestContent": "일시는 3월 15일, 장소는 강남구입니다",
+    "conversationContext": "카페 이벤트 안내 메시지 만들어주세요"
+  }'
+
+# 비속어 검출 테스트
+curl -X POST http://localhost:8000/ai/templates \
+  -H "Content-Type: application/json" \
+  -d '{"userId": 123, "requestContent": "바보야"}'
+```
+
+### 개발 도구
+```bash
+# 코드 테스트 실행
+poetry run pytest tests/
+
+# 코드 품질 검사
+poetry run ruff check app/
+poetry run black app/
+
+# 타입 검사
+poetry run mypy app/
 ```
 
 ---
 
-## 프로젝트 구조 
+## 📁 프로젝트 구조
 
 ```
 Jober_ai/
-├── README.md                           # 프로젝트 설명서
+├── README.md                           # 프로젝트 설명서 ⭐
 ├── pyproject.toml                      # Poetry 의존성 설정
 ├── poetry.lock                         # Poetry 락 파일
-├── config.py                          # 환경변수 설정
-├── server.py                          # FastAPI 서버
-├── api.py                             # 메인 API 로직
-├── src/                               # 소스코드
+├── .env.example                        # 환경변수 예시 ⭐
+├── 백엔드.txt                          # 백엔드 연동 가이드 ⭐
+├── app/                               # 메인 애플리케이션 ⭐
+│   ├── main.py                        # FastAPI 진입점
+│   ├── api/                           # API 엔드포인트
+│   │   ├── templates.py               # 템플릿 생성 API ⭐
+│   │   ├── sessions.py                # 세션 관리 API ⭐
+│   │   └── health.py                  # 헬스체크 API
+│   ├── agents/                        # AI 에이전트
+│   │   ├── agent1.py                  # 변수 추출 + 의도 분석
+│   │   └── agent2.py                  # 4-Tool 병렬 검증
 │   ├── core/                          # 핵심 엔진
 │   │   ├── template_selector.py       # 3단계 선택 시스템 ⭐
-│   │   ├── public_template_manager.py # 공용 템플릿 관리 ⭐
-│   │   ├── index_manager.py           # Chroma DB 관리
-│   │   ├── entity_extractor.py        # 엔티티 추출
-│   │   └── template_generator.py      # 템플릿 생성
-│   ├── agents/                        # AI 에이전트
-│   │   ├── agent1.py                  # 입력 검증 에이전트
-│   │   └── agent2.py                  # 4개 Tool 병렬 검증
-│   ├── evaluation/                    # 품질 검증 ⭐
-│   │   └── template_validator.py      # 자체 품질 검증기
-│   ├── utils/                         # 유틸리티
-│   │   ├── llm_provider_manager.py    # LLM Fallback 시스템 ⭐
-│   │   ├── common_init.py             # 공통 초기화
-│   │   └── sample_templates.py        # 샘플 템플릿
-│   └── tools/                         # 검증 도구
-│       ├── blacklist_tool.py          # 금지어 검사
-│       ├── whitelist_tool.py          # 허용 패턴 검사
-│       └── info_comm_law_tool.py      # 법령 검사
-├── predata/                           # 전처리된 가이드라인 (9개 파일)
+│   │   ├── public_template_manager.py # 168개 공용 템플릿 관리
+│   │   ├── session_manager.py         # 세션 관리 ⭐
+│   │   ├── template_preview.py        # 미리보기 생성 ⭐
+│   │   └── session_models.py          # 세션 모델 ⭐
+│   ├── tools/                         # 검증 도구
+│   │   ├── blacklist_tool.py          # 금지어 검사
+│   │   ├── whitelist_tool.py          # 허용 패턴 검사
+│   │   ├── info_comm_law_tool.py      # 정보통신망법 검사
+│   │   └── variable_mapper.py         # 변수 매핑 ⭐
+│   └── utils/                         # 유틸리티
+│       └── llm_provider_manager.py    # LLM Fallback 시스템
+├── config/                            # 설정 파일
+│   ├── settings.py                    # 애플리케이션 설정 ⭐
+│   └── llm_providers.py               # LLM 제공자 설정
 ├── data/                              # 데이터
-│   └── temp_fix.json                  # 105개 공용 템플릿
-└── docs/                              # 문서
+│   ├── templates/                     # 168개 공용 템플릿
+│   ├── presets/                       # 전처리된 데이터
+│   └── docs/                          # 정책 문서
+├── tests/                             # 테스트
+│   ├── test_template_selector.py      # 템플릿 선택 테스트
+│   ├── test_template_validator.py     # 검증 시스템 테스트
+│   └── test_integration.py            # 통합 테스트
+└── scripts/                           # 유틸리티 스크립트
+    └── debug_agent1_variables.py      # Agent1 디버깅
 ```
 
-⭐ = 새로 구현된 핵심 기능
+⭐ = 2024-09-22 업데이트
 
 ---
 
-## 주요 기술 스택 
+## 🛠️ 주요 기술 스택
 
 ### AI & ML
-- **Google Gemini 2.0 Flash**: 최신 AI 모델 (주 LLM)
+- **Google Gemini 2.0 Flash**: 최신 생성형 AI (주 LLM)
 - **OpenAI GPT-4**: Fallback LLM
-- **자체 검증 시스템**: 생성 품질 평가
-- **LangChain**: AI 에이전트 프레임워크
+- **KoNLPy**: 한국어 자연어 처리
+- **Chroma DB**: 벡터 데이터베이스 (임베딩 캐시)
 
 ### 백엔드
 - **Python 3.11.13**: 안정적인 파이썬 버전
-- **Poetry**: 모던 Python 의존성 관리
-- **FastAPI**: 고성능 웹 프레임워크
-- **Chroma DB**: 벡터 데이터베이스 (로컬)
-- **Pydantic**: 데이터 검증 및 시리얼라이제이션
+- **FastAPI**: 고성능 비동기 웹 프레임워크
+- **Pydantic**: 데이터 검증 (28개 응답 스키마)
+- **Poetry**: 모던 의존성 관리
+- **uvicorn**: ASGI 서버
 
-### 데이터 처리
-- **9개 가이드라인 파일**: 전처리된 정책 데이터
+### 데이터 & 캐싱
+- **168개 공용 템플릿**: 전처리된 템플릿 DB
+- **Chroma DB**: 벡터 검색 및 캐싱
 - **768차원 임베딩**: Gemini 임베딩 모델
-- **벡터 검색**: 유사도 기반 컨텍스트 매칭
-- **로컬 캐싱**: 성능 최적화 캐시 시스템
+- **Thread-safe 세션**: 메모리 기반 세션 관리
 
 ---
 
-## 품질 보증 
+## 🔒 보안 & 품질
 
-### 자체 품질 검증 메트릭
-1. **템플릿 구조**: 기본 구조 및 필수 요소 검증
-2. **변수 유효성**: 변수 형식 및 일관성 확인
-3. **정책 준수**: 가이드라인 및 법령 준수 여부
-4. **내용 품질**: 의미론적 일관성 및 완성도
-5. **사용성**: 실제 사용 가능성 평가
+### 보안 강화
+- **SECRET_KEY 필수**: 환경변수 필수 설정
+- **API 키 검증**: LLM 제공자 키 유효성 검사
+- **CORS 정책**: 프로덕션 환경 도메인 제한 권장
+- **에러 정보 제한**: DEBUG=false 시 상세 정보 숨김
 
-### 품질 게이트
-- **종합 점수 기반**: 자동 승인/재생성 결정
-- **다단계 검증**: 여러 관점에서 품질 평가
-- **재생성 로직**: 품질 미달 시 자동 재생성 (최대 3회)
+### 품질 보증
+- **4-Tool 병렬 검증**: BlackList, WhiteList, 가이드라인, 정보통신망법
+- **자체 품질 검증**: TemplateValidator 시스템
+- **재생성 로직**: 품질 미달 시 자동 재시도
+- **완성도 추적**: 세션별 진행률 관리
 
 ### Fallback 시스템
-- **Gemini API 장애**: OpenAI로 자동 전환
-- **실패 카운트 추적**: 연속 실패시 우선순위 조정
-- **복구 감지**: 정상 작동시 원래 우선순위 복원
+- **LLM Fallback**: Gemini → OpenAI 자동 전환
+- **실패 카운트**: 연속 실패 시 우선순위 조정
+- **자동 복구**: 정상 작동 시 원래 설정 복원
 
-------
+---
+
+## 🚀 배포 가이드
+
+### 환경변수 필수 설정
+```bash
+# 필수 환경변수
+GEMINI_API_KEY=your_actual_gemini_key
+OPENAI_API_KEY=your_actual_openai_key
+SECRET_KEY=your_super_secret_32_char_key
+
+# 프로덕션 설정
+DEBUG=false
+CORS_ORIGINS=["https://yourdomain.com"]
+LOG_LEVEL=WARNING
+```
+
+### Docker 배포 (권장)
+```bash
+# Dockerfile 생성 후
+docker build -t jober-ai .
+docker run -d -p 8000:8000 --env-file .env jober-ai
+```
+
+### 성능 최적화
+- **메모리**: 최소 2GB RAM 권장
+- **동시 연결**: MAX_CONCURRENT_REQUESTS=10 (기본)
+- **세션 타임아웃**: 30분 (설정 가능)
+- **캐시**: Chroma DB 자동 캐싱
+
+---
+
+## 📞 지원 & 기여
+
+### 문제 해결
+- **로그 확인**: `tail -f logs/app.log`
+- **헬스체크**: `curl http://localhost:8000/ai/health/detailed`
+- **API 문서**: http://localhost:8000/docs
+
+### 기여하기
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open Pull Request
+
+### 라이선스
+MIT License - 자세한 내용은 [LICENSE](LICENSE) 파일 참조
+
+---
+
+**🎯 JOBER AI - AI로 완성하는 완벽한 알림톡 템플릿!**

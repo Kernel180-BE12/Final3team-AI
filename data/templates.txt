@@ -1,0 +1,761 @@
+# 챗봇 세션 기반 템플릿 API 명세서
+
+## 기존 API 확장
+
+### POST /ai/templates
+**기본 템플릿 생성 (세션 자동 생성)**
+
+#### Request
+```json
+{
+  "userId": 123,
+  "requestContent": "쿠폰 발급 안내 템플릿을 만들어줘",
+  "conversationContext": null  // 재질문 후 추가 입력시만 사용
+}
+```
+
+#### Response - 성공 (200 OK)
+```json
+{
+  "id": -1,
+  "userId": 123,
+  "categoryId": "009001",
+  "title": "쿠폰 발급 안내",
+  "content": "안녕하세요 #{고객명}님!\n\n#{쿠폰명} 쿠폰이 발급되었습니다.\n\n발급일시: #{발급일시}\n유효기간: #{유효기간}\n\n자세한 내용은 #{연락처}로 문의주세요.",
+  "imageUrl": null,
+  "type": "MESSAGE", // 자동 감지: MESSAGE/LINK/DOCS
+  "buttons": [],
+  "variables": [
+    {
+      "variableKey": "고객명",
+      "placeholder": "#{고객명}",
+      "inputType": "TEXT"
+    },
+    {
+      "variableKey": "쿠폰명",
+      "placeholder": "#{쿠폰명}",
+      "inputType": "TEXT"
+    },
+    {
+      "variableKey": "발급일시",
+      "placeholder": "#{발급일시}",
+      "inputType": "DATE"
+    },
+    {
+      "variableKey": "유효기간",
+      "placeholder": "#{유효기간}",
+      "inputType": "DATE"
+    },
+    {
+      "variableKey": "연락처",
+      "placeholder": "#{연락처}",
+      "inputType": "PHONE"
+    }
+  ],
+  "industry": [
+    {
+      "id": 1,
+      "name": "소매업"
+    }
+  ],
+  "purpose": [
+    {
+      "id": 1,
+      "name": "쿠폰/포인트안내"
+    }
+  ],
+
+  // 새로 추가된 세션 정보
+  "session_data": {
+    "session_id": "A7K9M2X5",
+    "has_missing_variables": true,
+    "completion_percentage": 0.0,
+    "missing_variables": ["고객명", "쿠폰명", "발급일시", "유효기간", "연락처"],
+    "total_variables": 5,
+    "session_endpoints": {
+      "update_variables": "/ai/templates/A7K9M2X5/variables",
+      "preview": "/ai/templates/A7K9M2X5/preview",
+      "complete": "/ai/templates/A7K9M2X5/complete"
+    },
+    "expires_in_minutes": 30
+  }
+}
+```
+
+#### Response - 추가 정보 필요 (400 Bad Request)
+```json
+{
+  "error": {
+    "code": "INCOMPLETE_INFORMATION",
+    "message": "추가 정보가 필요합니다"
+  },
+  "reask_data": {
+    "confirmed_variables": {
+      "무엇을": "쿠폰 발급 안내"
+    },
+    "missing_variables": ["누구에게", "언제", "어떤방식으로"],
+    "contextual_question": "누구에게 보낼 쿠폰 발급 안내인가요? (예: 신규회원, 기존고객, VIP고객)",
+    "original_input": "쿠폰 발급 안내 템플릿을 만들어줘",
+    "validation_status": "incomplete"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+---
+
+## 새로운 챗봇 API 엔드포인트
+
+### 1. POST /ai/templates/{session_id}/variables
+**세션의 변수를 개별 업데이트**
+
+#### Request
+```json
+{
+  "variables": {
+    "고객명": "홍길동",
+    "쿠폰명": "신년 특가 20% 할인쿠폰"
+  },
+  "force_update": false
+}
+```
+
+#### Response - 성공 (200 OK)
+```json
+{
+  "success": true,
+  "session_id": "A7K9M2X5",
+  "updated_variables": ["고객명", "쿠폰명"],
+  "completion_percentage": 40.0,
+  "remaining_variables": ["발급일시", "유효기간", "연락처"],
+  "preview_snippet": "안녕하세요 홍길동님!\n\n신년 특가 20% 할인쿠폰 쿠폰이 발급되었습니다.\n\n발급일시: #{발급일시}\n유효기간: #{유효기간}...",
+  "quality_score": 72.5,
+  "next_suggested_variables": [
+    {
+      "variable_key": "발급일시",
+      "placeholder": "#{발급일시}",
+      "variable_type": "DATE",
+      "required": true,
+      "example": "2024년 1월 15일",
+      "input_hint": "발급 날짜를 입력해주세요 (예: 오늘, 2024-01-15)",
+      "priority": 9
+    }
+  ],
+  "session_status": "active",
+  "update_count": 1,
+  "last_updated": "2024-01-15T10:31:00Z"
+}
+```
+
+#### Response - 세션 없음 (404 Not Found)
+```json
+{
+  "error": {
+    "code": "SESSION_NOT_FOUND",
+    "message": "세션을 찾을 수 없거나 만료되었습니다.",
+    "details": "세션 ID: A7K9M2X5"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+#### Response - 빈 변수 (400 Bad Request)
+```json
+{
+  "error": {
+    "code": "EMPTY_VARIABLES",
+    "message": "업데이트할 변수가 없습니다.",
+    "details": "최소 1개 이상의 변수를 제공해야 합니다."
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+---
+
+### 2. GET /ai/templates/{session_id}/preview
+**부분 완성 템플릿 미리보기 조회**
+
+#### Request Parameters
+- `style` (optional): 미리보기 스타일 ("missing", "partial", "preview") - 기본값: "missing"
+
+#### Response - 성공 (200 OK)
+```json
+{
+  "success": true,
+  "session_id": "A7K9M2X5",
+  "preview_template": "안녕하세요 홍길동님!\n\n신년 특가 20% 할인쿠폰 쿠폰이 발급되었습니다.\n\n발급일시: #{발급일시}\n유효기간: #{유효기간}\n\n자세한 내용은 #{연락처}로 문의주세요.",
+  "completion_percentage": 40.0,
+  "total_variables": 5,
+  "completed_variables": 2,
+  "missing_variables": [
+    {
+      "variable_key": "발급일시",
+      "placeholder": "#{발급일시}",
+      "variable_type": "DATE",
+      "required": true,
+      "example": "2024년 1월 15일",
+      "input_hint": "발급 날짜를 입력해주세요 (예: 오늘, 2024-01-15)",
+      "priority": 9
+    },
+    {
+      "variable_key": "유효기간",
+      "placeholder": "#{유효기간}",
+      "variable_type": "DATE",
+      "required": true,
+      "example": "2024년 2월 15일까지",
+      "input_hint": "유효 기간을 입력해주세요 (예: 1개월, 2024-02-15까지)",
+      "priority": 8
+    },
+    {
+      "variable_key": "연락처",
+      "placeholder": "#{연락처}",
+      "variable_type": "PHONE",
+      "required": true,
+      "example": "010-1234-5678",
+      "input_hint": "연락처를 입력해주세요 (예: 010-1234-5678)",
+      "priority": 7
+    }
+  ],
+  "next_suggested_variables": [
+    {
+      "variable_key": "발급일시",
+      "placeholder": "#{발급일시}",
+      "variable_type": "DATE",
+      "required": true,
+      "example": "2024년 1월 15일",
+      "input_hint": "발급 날짜를 입력해주세요 (예: 오늘, 2024-01-15)",
+      "priority": 9
+    }
+  ],
+  "quality_score": 72.5,
+  "estimated_final_length": 95,
+  "readiness_for_completion": false
+}
+```
+
+#### Response - 템플릿 없음 (400 Bad Request)
+```json
+{
+  "error": {
+    "code": "NO_TEMPLATE",
+    "message": "세션에 템플릿이 설정되지 않았습니다.",
+    "details": "먼저 템플릿을 생성해주세요."
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+---
+
+### 3. POST /ai/templates/{session_id}/complete
+**세션 템플릿 최종 완성**
+
+#### Request
+```json
+{
+  "forceComplete": false,
+  "finalAdjustments": {
+    "발급일시": "오늘",
+    "유효기간": "30일간",
+    "연락처": "1588-0000"
+  }
+}
+```
+
+#### Response - 성공 (200 OK)
+```json
+{
+  "id": 1,
+  "userId": 123,
+  "categoryId": "009001",
+  "title": "쿠폰 발급 안내",
+  "content": "안녕하세요 홍길동님!\n\n신년 특가 20% 할인쿠폰 쿠폰이 발급되었습니다.\n\n발급일시: 오늘\n유효기간: 30일간\n\n자세한 내용은 1588-0000로 문의주세요.",
+  "imageUrl": null,
+  "type": "MESSAGE", // 자동 감지: MESSAGE/LINK/DOCS
+  "buttons": [],
+  "variables": [
+    {
+      "id": 1,
+      "variableKey": "고객명",
+      "placeholder": "#{고객명}",
+      "inputType": "TEXT"
+    },
+    {
+      "id": 2,
+      "variableKey": "쿠폰명",
+      "placeholder": "#{쿠폰명}",
+      "inputType": "TEXT"
+    },
+    {
+      "id": 3,
+      "variableKey": "발급일시",
+      "placeholder": "#{발급일시}",
+      "inputType": "DATE"
+    },
+    {
+      "id": 4,
+      "variableKey": "유효기간",
+      "placeholder": "#{유효기간}",
+      "inputType": "DATE"
+    },
+    {
+      "id": 5,
+      "variableKey": "연락처",
+      "placeholder": "#{연락처}",
+      "inputType": "PHONE"
+    }
+  ],
+  "industry": [
+    {
+      "id": 1,
+      "name": "소매업"
+    }
+  ],
+  "purpose": [
+    {
+      "id": 1,
+      "name": "쿠폰/포인트안내"
+    }
+  ],
+
+  // 세션 완료 요약
+  "session_summary": {
+    "session_id": "A7K9M2X5",
+    "total_updates": 3,
+    "completion_time_minutes": 2.5,
+    "final_completion_percentage": 100.0,
+    "template_source": "generated",
+    "quality_score": 85.2
+  }
+}
+```
+
+#### Response - 미완성 템플릿 (400 Bad Request)
+```json
+{
+  "error": {
+    "code": "INCOMPLETE_TEMPLATE",
+    "message": "템플릿이 아직 완성되지 않았습니다.",
+    "details": {
+      "completion_percentage": 60.0,
+      "missing_variables": ["유효기간", "연락처"],
+      "suggestion": "누락된 변수를 모두 입력하거나 force_complete=true로 강제 완성하세요."
+    }
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+---
+
+## 세션 관리 API (관리용)
+
+### 4. GET /ai/sessions/stats
+**세션 통계 조회**
+
+#### Response (200 OK)
+```json
+{
+  "success": true,
+  "stats": {
+    "total_sessions": 1250,
+    "active_sessions": 45,
+    "completed_sessions": 1180,
+    "expired_sessions": 25,
+    "total_variables_updated": 8960,
+    "average_completion_time_minutes": 3.2
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### 5. GET /ai/sessions
+**세션 목록 조회**
+
+#### Request Parameters
+- `limit` (optional): 최대 반환 개수 (기본값: 20)
+- `status` (optional): 상태 필터 ("active", "completed", "expired", "error")
+
+#### Response (200 OK)
+```json
+{
+  "success": true,
+  "sessions": [
+    {
+      "session_id": "A7K9M2X5",
+      "status": "active",
+      "completion_percentage": 60.0,
+      "total_variables": 5,
+      "completed_variables": 3,
+      "missing_variables": ["유효기간", "연락처"],
+      "update_count": 2,
+      "expires_in_minutes": 25,
+      "has_template": true,
+      "template_source": "generated",
+      "last_updated": "2024-01-15T10:25:00Z"
+    }
+  ],
+  "total_count": 1,
+  "limit": 20,
+  "status_filter": "active",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### 6. GET /ai/sessions/{session_id}
+**개별 세션 정보 조회**
+
+#### Response (200 OK)
+```json
+{
+  "success": true,
+  "session": {
+    "session_id": "A7K9M2X5",
+    "user_id": 123,
+    "created_at": "2024-01-15T10:15:00Z",
+    "last_updated": "2024-01-15T10:25:00Z",
+    "expires_at": "2024-01-15T10:45:00Z",
+    "status": "active",
+    "original_request": "쿠폰 발급 안내 템플릿을 만들어줘",
+    "conversation_context": null,
+    "template_content": "안녕하세요 #{고객명}님!\n\n#{쿠폰명} 쿠폰이 발급되었습니다...",
+    "template_source": "generated",
+    "user_variables": {
+      "고객명": "홍길동",
+      "쿠폰명": "신년 특가 20% 할인쿠폰",
+      "발급일시": "오늘"
+    },
+    "missing_variables": ["유효기간", "연락처"],
+    "completion_percentage": 60.0,
+    "update_count": 2
+  },
+  "progress_summary": {
+    "session_id": "A7K9M2X5",
+    "status": "active",
+    "completion_percentage": 60.0,
+    "total_variables": 5,
+    "completed_variables": 3,
+    "missing_variables": ["유효기간", "연락처"],
+    "update_count": 2,
+    "expires_in_minutes": 20,
+    "has_template": true,
+    "template_source": "generated",
+    "last_updated": "2024-01-15T10:25:00Z"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### 7. DELETE /ai/sessions/{session_id}
+**세션 삭제**
+
+#### Response (200 OK)
+```json
+{
+  "success": true,
+  "message": "세션 A7K9M2X5이 성공적으로 삭제되었습니다.",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+---
+
+## 공통 에러 응답
+
+### 400 Bad Request - 잘못된 요청
+```json
+{
+  "error": {
+    "code": "INVALID_INPUT",
+    "message": "입력 내용이 올바르지 않습니다. 의미있는 텍스트를 입력해주세요.",
+    "details": "특수문자만 입력되었거나 공백만 포함된 요청입니다."
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### 404 Not Found - 세션 없음
+```json
+{
+  "error": {
+    "code": "SESSION_NOT_FOUND",
+    "message": "세션을 찾을 수 없거나 만료되었습니다.",
+    "details": "세션 ID: A7K9M2X5"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### 413 Payload Too Large - 입력 크기 초과
+```json
+{
+  "error": {
+    "code": "CONTENT_TOO_LARGE",
+    "message": "입력 텍스트가 너무 깁니다. 500자 이하로 입력해주세요.",
+    "details": "현재 입력: 523자, 최대 허용: 500자"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### 422 Unprocessable Entity - 정책 위반
+```json
+{
+  "error": {
+    "code": "POLICY_VIOLATION",
+    "message": "정책 위반 내용이 감지되었습니다.",
+    "details": [
+      "[광고] 표기 누락 - 쿠폰/할인 관련 광고성 내용",
+      "수신거부 방법 미표시"
+    ]
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### 422 Unprocessable Entity - 부적절한 내용
+```json
+{
+  "error": {
+    "code": "INAPPROPRIATE_CONTENT",
+    "message": "부적절한 내용이 감지되었습니다.",
+    "details": "욕설, 비속어, 차별적 표현이 포함되어 있습니다."
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### 422 Unprocessable Entity - 욕설 재시도 요청
+```json
+{
+  "error": {
+    "code": "PROFANITY_RETRY",
+    "message": "욕설이 감지되었습니다. 적절한 표현으로 다시 입력해주세요.",
+    "details": "감지된 욕설: [필터링됨]"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### 429 Too Many Requests - 요청 한도 초과
+```json
+{
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "너무 많은 요청을 보내셨습니다. 잠시 후 다시 시도해주세요.",
+    "details": "1분당 최대 10회 요청 가능합니다.",
+    "retryAfter": 30
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### 500 Internal Server Error - AI API 오류
+```json
+{
+  "error": {
+    "code": "AI_SERVICE_ERROR",
+    "message": "AI 서비스에 문제가 발생했습니다. 잠시 후 다시 시도해주세요.",
+    "details": "Gemini API 한도 초과 또는 OpenAPI 연결 오류"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### 502 Bad Gateway - 내부 로직 오류
+```json
+{
+  "error": {
+    "code": "BACKEND_HTTP_ERROR",
+    "message": "백엔드 서버 오류가 발생했습니다.",
+    "details": "Agent1과 Agent2 간 데이터 전달 오류"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### 503 Service Unavailable - 서비스 점검
+```json
+{
+  "error": {
+    "code": "SERVICE_UNAVAILABLE",
+    "message": "현재 서비스 점검 중입니다. 잠시 후 이용해주세요.",
+    "details": "예상 점검 완료 시간: 2024-01-15 12:00"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### 504 Gateway Timeout - 처리 시간 초과
+```json
+{
+  "error": {
+    "code": "PROCESSING_TIMEOUT",
+    "message": "템플릿 생성 시간이 초과되었습니다. 다시 시도해주세요.",
+    "details": "AI 처리 시간 초과 (30초 제한)"
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+---
+
+## 추가 유틸리티 API
+
+### 8. GET /health
+**서비스 상태 확인**
+
+#### Response (200 OK)
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "service": "Template API",
+  "version": "1.0.0"
+}
+```
+
+### 9. POST /debug/request
+**요청 데이터 디버깅 (개발용)**
+
+#### Request
+```json
+{
+  "userId": 123,
+  "requestContent": "테스트 요청",
+  "conversationContext": null
+}
+```
+
+#### Response (200 OK)
+```json
+{
+  "received": {
+    "user_id": 123,
+    "request_content": "테스트 요청",
+    "content_length": 7
+  },
+  "status": "OK"
+}
+```
+
+### 10. POST /debug/raw
+**원시 요청 데이터 디버깅 (개발용)**
+
+#### Request
+```json
+{
+  "any_field": "any_value",
+  "test_data": 123
+}
+```
+
+#### Response (200 OK)
+```json
+{
+  "raw_data": {
+    "any_field": "any_value",
+    "test_data": 123
+  },
+  "keys": ["any_field", "test_data"],
+  "status": "OK"
+}
+```
+
+### 11. POST /ai/templates/stream
+**실시간 스트리밍 템플릿 생성**
+
+#### Request
+```json
+{
+  "userId": 123,
+  "requestContent": "쿠폰 발급 안내 템플릿을 만들어줘",
+  "conversationContext": null
+}
+```
+
+#### Response - Server-Sent Events (text/plain)
+```
+data: {"status": "processing", "message": "요청을 처리하고 있습니다...", "progress": 10}
+
+data: {"status": "processing", "message": "AI 템플릿 생성 중...", "progress": 30}
+
+data: {"status": "processing", "message": "템플릿 변환 중...", "progress": 70}
+
+data: {"status": "processing", "message": "최종 결과 준비 중...", "progress": 90}
+
+data: {"status": "completed", "message": "완료되었습니다!", "progress": 100, "result": {...}}
+```
+
+#### Response Headers
+```
+Content-Type: text/plain
+Cache-Control: no-cache
+Connection: keep-alive
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Headers: *
+```
+
+#### Response - 에러 스트림
+```
+data: {"error": {"code": "RATE_LIMIT_EXCEEDED", "message": "너무 많은 요청을 보내셨습니다."}, "timestamp": "2024-01-15T10:30:00Z"}
+```
+
+---
+
+## 챗봇 사용 플로우 예시
+
+### 1단계: 초기 템플릿 생성
+```
+POST /ai/templates
+→ session_id 받음 + 누락 변수 확인
+```
+
+### 2단계: 변수 개별 업데이트
+```
+POST /ai/templates/{session_id}/variables
+→ 실시간 완성도 확인
+```
+
+### 3단계: 미리보기 확인
+```
+GET /ai/templates/{session_id}/preview
+→ 부분 완성 템플릿 확인
+```
+
+### 4단계: 최종 완성
+```
+POST /ai/templates/{session_id}/complete
+→ 완성된 템플릿 반환
+```
+
+---
+
+## 세션 특징
+
+- **자동 만료**: 30분 후 자동 삭제
+- **Thread-Safe**: 동시 접근 안전
+- **메모리 기반**: 빠른 응답 속도
+- **자동 정리**: 5분마다 만료된 세션 정리
+- **실시간 완성도**: 변수 입력 시마다 퍼센트 계산
+- **자동 타입 감지**: URL/문서 감지 시 MESSAGE→LINK→DOCS 자동 변경
+
+## 타입별 예시
+
+### MESSAGE 타입
+일반적인 메시지 (기본값)
+
+### LINK 타입
+```
+자세한 내용은 아래 링크를 클릭해주세요.
+https://example.com/event
+```
+감지 키워드: `http://`, `https://`, `www.`, `.com`, `링크`, `바로가기`, `홈페이지`
+
+### DOCS 타입
+```
+청약서 PDF 파일을 첨부하였습니다.
+문서를 다운로드해주세요.
+```
+감지 키워드: `pdf`, `hwp`, `docx`, `문서`, `파일`, `첨부`, `다운로드`
