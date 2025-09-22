@@ -1,0 +1,27 @@
+metadata:
+  file_type: blacklist
+  severity: critical
+  compliance_level: mandatory
+  content_type: warning
+  keywords:
+  - 알림톡
+  - 친구톡
+  - 정보성
+  - 광고성
+  - 템플릿
+  main_topic: 알림톡 가이드
+  purpose: guide
+  business_impact: medium
+  tags:
+  - 알림톡
+  - 가이드
+  source_file: cleaned_black_list.md
+  chunk_id: 1
+  header: ''
+  content_length: 7755
+  converted_at: '2025-09-22T12:34:15.575425'
+  original_format: markdown
+  conversion_version: '1.0'
+type: blacklist_rules
+categories: []
+total_rules: 0

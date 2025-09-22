@@ -58,11 +58,11 @@ class IndexManager:
         return hashlib.md5(hash_input.encode()).hexdigest()
     
     def _load_predata_files(self) -> Dict[str, str]:
-        """predata 폴더의 모든 파일 로드"""
-        predata_dir = Path("predata")
-        
+        """data/presets 폴더의 모든 파일 로드"""
+        predata_dir = Path("data/presets")
+
         if not predata_dir.exists():
-            print(" predata 폴더가 존재하지 않습니다.")
+            print(" data/presets 폴더가 존재하지 않습니다.")
             return {}
         
         predata_files = [
@@ -94,7 +94,7 @@ class IndexManager:
     
     def get_predata_cache(self) -> Dict[str, str]:
         """predata 캐시 가져오기 (필요시 새로 로드)"""
-        predata_dir = Path("predata")
+        predata_dir = Path("data/presets")
         
         # predata 파일들의 경로 목록
         predata_files = list(predata_dir.glob("*.md")) + list(predata_dir.glob("*.txt"))

@@ -42,6 +42,7 @@ pydantic = "^2.9.0,<3.0.0"
 
 # 데이터 처리 & 파일 처리
 pymupdf = "^1.24.0"
+pymupdf4llm = "^0.0.16"
 python-dotenv = "^1.0.0"
 requests = "^2.32.0,<3.0.0"
 httpx = "^0.28.0"

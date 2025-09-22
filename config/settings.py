@@ -67,6 +67,11 @@ class Settings:
     MAX_TEMPLATE_LENGTH: int = int(os.getenv("MAX_TEMPLATE_LENGTH", "1000"))
     MAX_VARIABLES_COUNT: int = int(os.getenv("MAX_VARIABLES_COUNT", "10"))
 
+    # 템플릿 포맷팅 설정
+    TEMPLATE_USE_SPECIAL_CHARACTERS: bool = os.getenv("TEMPLATE_USE_SPECIAL_CHARACTERS", "true").lower() == "true"
+    TEMPLATE_VARIABLE_PREFIX: str = os.getenv("TEMPLATE_VARIABLE_PREFIX", "▶")
+    TEMPLATE_USE_EMOJI: bool = os.getenv("TEMPLATE_USE_EMOJI", "false").lower() == "true"
+
     def __init__(self):
         """설정 초기화 시 필요한 디렉토리 생성"""
         self._ensure_directories()

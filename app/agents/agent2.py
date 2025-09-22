@@ -85,7 +85,7 @@ class Agent2:
         from pathlib import Path
 
         data = {}
-        predata_dir = Path("predata")
+        predata_dir = Path("data/presets")
         files = ["cleaned_black_list.md", "cleaned_white_list.md",
                 "cleaned_add_infotalk.md", "cleaned_alrimtalk.md",
                 "cleaned_content-guide.md", "cleaned_message.md",
@@ -157,7 +157,7 @@ class Agent2:
             def _load_whitelist(self):
                 try:
                     base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                    whitelist_path = os.path.join(base_path, "predata", "cleaned_white_list.md")
+                    whitelist_path = os.path.join(base_path, "data", "presets", "cleaned_white_list.md")
                     with open(whitelist_path, 'r', encoding='utf-8') as f:
                         return f.read()
                 except Exception as e:
@@ -214,7 +214,7 @@ class Agent2:
 
                     all_data = ""
                     for filename in guideline_files:
-                        file_path = os.path.join(base_path, "predata", filename)
+                        file_path = os.path.join(base_path, "data", "presets", filename)
                         if os.path.exists(file_path):
                             with open(file_path, 'r', encoding='utf-8') as f:
                                 all_data += f.read() + "\n"
@@ -266,7 +266,7 @@ class Agent2:
             def _load_law_data(self):
                 try:
                     base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                    law_path = os.path.join(base_path, "predata", "pdf_extraction_results.txt")
+                    law_path = os.path.join(base_path, "data", "presets", "pdf_extraction_results.txt")
                     with open(law_path, 'r', encoding='utf-8') as f:
                         return f.read()
                 except Exception as e:
@@ -521,8 +521,14 @@ class Agent2:
         guideline = tools_results["guideline"]
         law = tools_results["law"]
 
+        # 설정에서 포맷팅 옵션 가져오기
+        settings = get_settings()
+
+        # 포맷팅 규칙 동적 생성
+        formatting_rules = self._get_formatting_rules(settings)
+
         # LLM에 전달할 프롬프트 구성
-        system_prompt = """당신은 Agent2의 템플릿생성자입니다.
+        system_prompt = f"""당신은 Agent2의 템플릿생성자입니다.
 4개 Tools(BlackList, WhiteList, 가이드라인, 정보통신법)의 분석 결과를 바탕으로
 완벽하게 준수하는 알림톡 템플릿을 생성해야 합니다.
 
@@ -531,7 +537,7 @@ class Agent2:
 2. WhiteList 승인 패턴을 적극 활용
 3. 가이드라인 구조와 요구사항을 모두 적용
 4. 정보통신망법을 완벽 준수
-5. 변수는 반드시 #{변수명} 형식으로 작성 (예: #{카페이름}, #{고객명}, #{주문내용})
+5. 변수는 반드시 #{{변수명}} 형식으로 작성 (예: #{{카페이름}}, #{{고객명}}, #{{주문내용}})
 
 템플릿 생성 규칙:
 - 적절한 인사말
@@ -540,11 +546,13 @@ class Agent2:
 - 법적 고지사항 (필요시)
 - 정중한 마무리
 
+{formatting_rules}
+
  중요: 템플릿 메타 정보는 제외하고 실제 메시지 내용만 생성하세요.
 - "## 알림톡 템플릿", "**[템플릿 제목]**", "**[템플릿 내용]**" 같은 구조 텍스트 절대 금지
 - "참고사항", "본 템플릿은..." 같은 부가 설명 제외
 - 순수한 알림톡 메시지 내용만 출력
-- 모든 변수는 #{변수명} 형식으로 작성 ({변수명} 또는 [변수명] 형식 절대 금지)"""
+- 모든 변수는 #{{변수명}} 형식으로 작성 ({{변수명}} 또는 [변수명] 형식 절대 금지)"""
 
         human_prompt = f"""사용자 요청: {user_input}
 
@@ -598,8 +606,14 @@ class Agent2:
         guideline = tools_results["guideline"]
         law = tools_results["law"]
 
+        # 설정에서 포맷팅 옵션 가져오기
+        settings = get_settings()
+
+        # 포맷팅 규칙 동적 생성
+        formatting_rules = self._get_formatting_rules(settings)
+
         # LLM에 전달할 프롬프트 구성
-        system_prompt = """당신은 Agent2의 템플릿생성자입니다.
+        system_prompt = f"""당신은 Agent2의 템플릿생성자입니다.
 4개 Tools(BlackList, WhiteList, 가이드라인, 정보통신법)의 분석 결과를 바탕으로
 완벽하게 준수하는 알림톡 템플릿을 생성해야 합니다.
 
@@ -608,7 +622,7 @@ class Agent2:
 2. WhiteList 승인 패턴을 적극 활용
 3. 가이드라인 구조와 요구사항을 모두 적용
 4. 정보통신망법을 완벽 준수
-5. 변수는 반드시 #{변수명} 형식으로 작성 (예: #{카페이름}, #{고객명}, #{주문내용})
+5. 변수는 반드시 #{{변수명}} 형식으로 작성 (예: #{{카페이름}}, #{{고객명}}, #{{주문내용}})
 
 템플릿 생성 규칙:
 - 적절한 인사말
@@ -617,11 +631,13 @@ class Agent2:
 - 법적 고지사항 (필요시)
 - 정중한 마무리
 
+{formatting_rules}
+
  중요: 템플릿 메타 정보는 제외하고 실제 메시지 내용만 생성하세요.
 - "## 알림톡 템플릿", "**[템플릿 제목]**", "**[템플릿 내용]**" 같은 구조 텍스트 절대 금지
 - "참고사항", "본 템플릿은..." 같은 부가 설명 제외
 - 순수한 알림톡 메시지 내용만 출력
-- 모든 변수는 #{변수명} 형식으로 작성 ({변수명} 또는 [변수명] 형식 절대 금지)"""
+- 모든 변수는 #{{변수명}} 형식으로 작성 ({{변수명}} 또는 [변수명] 형식 절대 금지)"""
 
         human_prompt = f"""사용자 요청: {user_input}
 
@@ -680,6 +696,27 @@ class Agent2:
             fallback_template = self._create_fallback_template(user_input, tools_results)
             return fallback_template
 
+    def _get_formatting_rules(self, settings) -> str:
+        """설정에 따른 포맷팅 규칙 생성"""
+        rules = []
+
+        # 이모지 사용 규칙
+        if settings.TEMPLATE_USE_EMOJI:
+            rules.append("포맷팅 규칙:\n- 적절한 이모지 사용 허용 (예: 📅, 📍, ⏰ 등)")
+        else:
+            rules.append("포맷팅 규칙:\n- 이모지 사용 절대 금지 (📅, 📍, ⏰, 🎉 등 모든 이모지 금지)")
+
+        # 특수문자 사용 규칙
+        if settings.TEMPLATE_USE_SPECIAL_CHARACTERS:
+            prefix = settings.TEMPLATE_VARIABLE_PREFIX
+            rules.append(f"- 변수 앞에 '{prefix}' 특수문자를 사용하여 구조화")
+            rules.append(f"- 예시: '{prefix} 모임명 : #{{모임명}}', '{prefix} 일시 : #{{모임일시}}', '{prefix} 장소 : #{{모임장소}}'")
+        else:
+            rules.append("- 변수 앞에 특수문자를 사용하지 않음")
+            rules.append("- 예시: '모임명: #{모임명}', '일시: #{모임일시}', '장소: #{모임장소}'")
+
+        return "\n".join(rules)
+
     def _create_fallback_template(self, user_input: str, tools_results: Dict) -> str:
         """LLM 오류 시 폴백 템플릿"""
         law = tools_results["law"]
@@ -715,12 +752,12 @@ class Agent2:
         pattern = r'#\{([^}]+)\}'
         matches = re.findall(pattern, template)
 
-        for var_name in set(matches):  # 중복 제거
+        for i, var_name in enumerate(set(matches)):  # 중복 제거
             variables.append({
-                "variable_key": var_name,
+                "id": i + 1,  # 1부터 시작하는 순차 ID
+                "variableKey": var_name,
                 "placeholder": f"#{{{var_name}}}",
-                "input_type": "TEXT",
-                "required": True
+                "inputType": "TEXT"
             })
 
         return variables

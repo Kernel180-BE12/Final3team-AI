@@ -17,21 +17,21 @@ class WhiteListTool(BaseTool):
     
     def __init__(self, index_manager=None):
         super().__init__()
-        self.index_manager = index_manager
+        self._index_manager = index_manager
         self._whitelist_data = None
         
     def _get_whitelist_data(self) -> str:
         """WhiteList 데이터 로드 (캐시 사용)"""
         if self._whitelist_data is None:
             try:
-                if self.index_manager:
+                if self._index_manager:
                     # IndexManager에서 캐시된 데이터 사용
-                    predata = self.index_manager.get_predata_cache()
+                    predata = self._index_manager.get_predata_cache()
                     self._whitelist_data = predata.get("cleaned_white_list.md", "")
                 else:
                     # 직접 파일 로드
                     base_path = Path(__file__).parent.parent.parent
-                    whitelist_path = base_path / "predata" / "cleaned_white_list.md"
+                    whitelist_path = base_path / ".." / "data" / "presets" / "cleaned_white_list.md"
                     
                     if whitelist_path.exists():
                         with open(whitelist_path, 'r', encoding='utf-8') as f:

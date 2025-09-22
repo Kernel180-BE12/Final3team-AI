@@ -23,7 +23,7 @@ class ProfanityChecker:
         Args:
             keyword_file_path: 비속어 키워드 파일 경로 (기본값: predata/cleaned_blacklist_keyword.txt)
         """
-        self.keyword_file_path = keyword_file_path or str(project_root / "predata" / "cleaned_blacklist_keyword.txt")
+        self.keyword_file_path = keyword_file_path or str(project_root / "data" / "presets" / "cleaned_blacklist_keyword.txt")
         self.profanity_keywords: Set[str] = set()
         self._load_keywords()
 

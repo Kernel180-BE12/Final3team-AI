@@ -18,21 +18,21 @@ class InfoCommLawTool(BaseTool):
     
     def __init__(self, index_manager=None):
         super().__init__()
-        self.index_manager = index_manager
+        self._index_manager = index_manager
         self._law_data = None
         
     def _get_law_data(self) -> str:
         """법령 데이터 로드 (캐시 사용)"""
         if self._law_data is None:
             try:
-                if self.index_manager:
+                if self._index_manager:
                     # IndexManager에서 캐시된 데이터 사용
-                    predata = self.index_manager.get_predata_cache()
+                    predata = self._index_manager.get_predata_cache()
                     self._law_data = predata.get("pdf_extraction_results.txt", "")
                 else:
                     # 직접 파일 로드
                     base_path = Path(__file__).parent.parent.parent
-                    law_path = base_path / "predata" / "pdf_extraction_results.txt"
+                    law_path = base_path / ".." / "data" / "presets" / "pdf_extraction_results.txt"
                     
                     if law_path.exists():
                         with open(law_path, 'r', encoding='utf-8') as f:

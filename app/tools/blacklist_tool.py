@@ -14,24 +14,25 @@ class BlackListTool(BaseTool):
     """
     name: str = "blacklist_generator_guide"
     description: str = "금지어 패턴 기반 안전한 템플릿 생성 가이드"
-    
+
     def __init__(self, index_manager=None):
         super().__init__()
-        self.index_manager = index_manager
+        # 초기화 시 데이터 로드
         self._blacklist_data = None
+        self._load_blacklist_data(index_manager)
         
     def _get_blacklist_data(self) -> str:
         """BlackList 데이터 로드 (캐시 사용)"""
         if self._blacklist_data is None:
             try:
-                if self.index_manager:
+                if self._index_manager:
                     # IndexManager에서 캐시된 데이터 사용
-                    predata = self.index_manager.get_predata_cache()
+                    predata = self._index_manager.get_predata_cache()
                     self._blacklist_data = predata.get("cleaned_black_list.md", "")
                 else:
                     # 직접 파일 로드
                     base_path = Path(__file__).parent.parent
-                    blacklist_path = base_path / "predata" / "cleaned_black_list.md"
+                    blacklist_path = base_path / ".." / "data" / "presets" / "cleaned_black_list.md"
                     
                     if blacklist_path.exists():
                         with open(blacklist_path, 'r', encoding='utf-8') as f:
