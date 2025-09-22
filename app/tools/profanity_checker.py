@@ -68,11 +68,10 @@ class ProfanityChecker:
 
         detected_words = []
         text_lower = text.lower()
-        text_no_space = text_lower.replace(" ", "")
 
         # 키워드 검사
         for keyword in self.profanity_keywords:
-            if keyword in text_lower or keyword in text_no_space:
+            if keyword in text_lower:
                 detected_words.append(keyword)
 
         is_clean = len(detected_words) == 0
