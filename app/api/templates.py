@@ -15,7 +15,7 @@ if str(project_root) not in sys.path:
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Union
 
 # 모듈 임포트
@@ -23,7 +23,7 @@ from app.agents.agent1 import Agent1
 from app.agents.agent2 import Agent2
 from app.core.template_selector import TemplateSelector
 from app.utils.llm_provider_manager import get_llm_manager
-from app.dto.api_result import ApiResult, ErrorResponse
+from app.dto.api_result import ApiResult
 
 router = APIRouter()
 
@@ -34,7 +34,8 @@ class TemplateRequest(BaseModel):
     requestContent: str = Field(..., min_length=10, max_length=1000, description="구체적인 알림톡 템플릿 요청 내용 (최소 10자 이상)")
     conversationContext: Optional[str] = None  # 재질문 컨텍스트
 
-    @validator('requestContent')
+    @field_validator('requestContent')
+    @classmethod
     def validate_request_content(cls, v):
         """requestContent 유효성 검증"""
         if not v or v.strip() == "":
@@ -127,11 +128,12 @@ class PartialTemplateResponse(BaseModel):
 
 def create_error_response(error_code: str, message: str, details: Any = None, status_code: int = 400) -> JSONResponse:
     """Java 호환 에러 응답 생성"""
-    error_response = ErrorResponse(code=error_code, message=message)
+    error_detail = ErrorDetail(code=error_code, message=message, details=details)
+    error_response = ErrorResponse(error=error_detail, timestamp=datetime.now().isoformat() + "Z")
     error_result = ApiResult(data=None, message=None, error=error_response)
     return JSONResponse(
         status_code=status_code,
-        content=error_result.dict()
+        content=error_result.model_dump()
     )
 
 
@@ -147,8 +149,8 @@ def create_partial_response(user_id: int, partial_template: str, missing_variabl
         type="MESSAGE",
         buttons=[],
         variables=missing_variables,  # 누락된 변수들
-        industry=[item.get('name', item) if isinstance(item, dict) else item for item in industry],
-        purpose=[item.get('name', item) if isinstance(item, dict) else item for item in purpose],
+        industry=[item.get('name', item) if isinstance(item, dict) else str(item) for item in (industry or [])],
+        purpose=[item.get('name', item) if isinstance(item, dict) else str(item) for item in (purpose or [])],
         _mapped_variables=mapped_variables  # 이미 매핑된 변수들
     )
 
@@ -156,7 +158,7 @@ def create_partial_response(user_id: int, partial_template: str, missing_variabl
     result = ApiResult.ok(template_data)
     return JSONResponse(
         status_code=202,
-        content=result.dict()
+        content=result.model_dump()
     )
 
 
@@ -309,8 +311,8 @@ async def create_template(request: TemplateRequest):
                 partial_template=final_template_result.get('template', ''),
                 missing_variables=formatted_missing_vars,
                 mapped_variables=final_template_result.get('mapped_variables', {}),
-                industry=[item.get('name', item) if isinstance(item, dict) else item for item in final_template_result.get('industry', [])],
-                purpose=[item.get('name', item) if isinstance(item, dict) else item for item in final_template_result.get('purpose', [])]
+                industry=[item.get('name', item) if isinstance(item, dict) else str(item) for item in final_template_result.get('industry', [])],
+                purpose=[item.get('name', item) if isinstance(item, dict) else str(item) for item in final_template_result.get('purpose', [])]
             )
 
         # Check if template generation failed
@@ -349,8 +351,8 @@ async def create_template(request: TemplateRequest):
             type='MESSAGE',
             buttons=[],
             variables=formatted_variables,
-            industry=[item.get('name', item) if isinstance(item, dict) else item for item in final_template_result.get('industry', [])],
-            purpose=[item.get('name', item) if isinstance(item, dict) else item for item in final_template_result.get('purpose', [])],
+            industry=[item.get('name', item) if isinstance(item, dict) else str(item) for item in final_template_result.get('industry', [])],
+            purpose=[item.get('name', item) if isinstance(item, dict) else str(item) for item in final_template_result.get('purpose', [])],
             _mapped_variables={}  # 완성된 템플릿은 빈 객체
         )
 
