@@ -256,6 +256,93 @@ class Agent1:
             print(f"정책 문서 로드 실패: {e}")
             return ""
     
+    def check_business_appropriateness(self, user_input: str) -> Dict[str, Any]:
+        """
+        비즈니스 알림톡에 적합하지 않은 요청을 필터링
+
+        Args:
+            user_input: 사용자 입력
+
+        Returns:
+            dict: 적합성 검증 결과
+        """
+        user_input_lower = user_input.lower().strip()
+
+        # 부적절한 요청 패턴들
+        inappropriate_patterns = {
+            '요리_레시피': [
+                '김치찌개', '레시피', '요리법', '만드는 방법', '조리법',
+                '음식 만들기', '요리 방법', '식재료', '칼로리', '영양소',
+                '맛있게 만드는', '레시피 알려', '요리 알려', '만들어 먹기'
+            ],
+            '개인_연애_상담': [
+                '여자친구', '남자친구', '연애', '데이트', '썸', '고백',
+                '이별', '짝사랑', '결혼', '만남', '소개팅', '애인',
+                '헤어진', '연인', '커플', '사랑', '좋아하는 사람'
+            ],
+            '개인_생활_상담': [
+                '인생 상담', '고민 상담', '스트레스', '우울', '힘들어',
+                '개인적인', '사생활', '일상 고민', '심리 상담',
+                '정신적', '감정적', '마음이', '기분이'
+            ],
+            '오락_게임': [
+                '게임', '오락', '놀이', 'pc방', '노래방', '영화',
+                '엔터테인먼트', '취미', '여가', '재미있는', '놀거리',
+                '게임방법', '룰', '규칙', '점수'
+            ],
+            '학업_개인지도': [
+                '숙제', '과제', '공부 방법', '시험', '성적', '학습',
+                '교육', '강의', '수업', '개인 지도', '과외',
+                '문제 풀이', '학원', '책 추천'
+            ],
+            '건강_의료_상담': [
+                '병원', '의사', '진료', '약', '치료', '수술',
+                '건강 상담', '증상', '질병', '아픈', '의학',
+                '처방', '검사', '진단'
+            ]
+        }
+
+        # 패턴 매칭 검사
+        for category, patterns in inappropriate_patterns.items():
+            for pattern in patterns:
+                if pattern in user_input_lower:
+                    return {
+                        'is_appropriate': False,
+                        'message': f"비즈니스 알림톡에 적합하지 않은 요청입니다. '{pattern}' 관련 내용은 처리할 수 없습니다.",
+                        'category': category,
+                        'detected_pattern': pattern
+                    }
+
+        # 알림톡 관련 키워드가 있는지 확인 (긍정적 신호)
+        business_keywords = [
+            '알림', '안내', '공지', '확인', '접수', '예약', '주문',
+            '결제', '배송', '이벤트', '회원', '고객', '서비스',
+            '업체', '매장', '사업', '상품', '제품', '할인', '혜택'
+        ]
+
+        has_business_context = any(keyword in user_input_lower for keyword in business_keywords)
+
+        # 비즈니스 컨텍스트가 전혀 없고 개인적 요청으로 보이는 경우
+        if not has_business_context:
+            personal_indicators = [
+                '개인적으로', '나는', '내가', '나에게', '개인',
+                '친구', '가족', '개인용', '혼자서', '나만'
+            ]
+
+            if any(indicator in user_input_lower for indicator in personal_indicators):
+                return {
+                    'is_appropriate': False,
+                    'message': "개인적인 용도로 보이는 요청입니다. 비즈니스 알림톡 템플릿 생성 서비스입니다.",
+                    'category': 'personal_use',
+                    'detected_pattern': 'personal_indicators'
+                }
+
+        return {
+            'is_appropriate': True,
+            'message': "비즈니스 알림톡에 적합한 요청입니다.",
+            'category': 'business_appropriate'
+        }
+
     def check_initial_profanity(self, text: str) -> bool:
         """
         초기 비속어 검출 (새로운 ProfanityChecker 도구 사용)
@@ -566,7 +653,17 @@ class Agent1:
         if not is_follow_up or self.conversation_state is None:
             self.conversation_state = ConversationState()
 
-        # 1. 초기 비속어 검출 - 재시도 요청으로 변경
+        # 1. 부적절한 요청 검출 (비즈니스 알림톡에 적합하지 않은 요청)
+        inappropriate_check = self.check_business_appropriateness(user_input)
+        if not inappropriate_check['is_appropriate']:
+            return {
+                'status': 'inappropriate_request',
+                'message': inappropriate_check['message'],
+                'error_code': 'INAPPROPRIATE_REQUEST',
+                'original_input': user_input
+            }
+
+        # 2. 초기 비속어 검출 - 재시도 요청으로 변경
         if self.check_initial_profanity(user_input):
             return {
                 'status': 'profanity_retry',
@@ -575,11 +672,11 @@ class Agent1:
                 'original_input': user_input
             }
 
-        # 2. 질의 분석 (새로운 입력만)
+        # 3. 질의 분석 (새로운 입력만)
         analysis_result = self.analyze_query(user_input)
         new_variables = analysis_result['variables']
 
-        # 3. 변수 업데이트 (점진적)
+        # 4. 변수 업데이트 (점진적)
         if is_follow_up:
             # 추가 입력에 대한 더 스마트한 변수 매핑
             self.smart_variable_update(user_input, new_variables)

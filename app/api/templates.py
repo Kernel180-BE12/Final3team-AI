@@ -204,7 +204,14 @@ async def create_template(request: TemplateRequest):
         )
 
         # 3. Agent1 처리 결과에 따른 분기
-        if agent1_result['status'] == 'profanity_retry':
+        if agent1_result['status'] == 'inappropriate_request':
+            # 부적절한 요청 검출 (비즈니스 알림톡에 적합하지 않음)
+            return create_error_response(
+                "INAPPROPRIATE_REQUEST",
+                agent1_result['message']
+            )
+
+        elif agent1_result['status'] == 'profanity_retry':
             # 비속어 검출
             return create_error_response(
                 "PROFANITY_DETECTED",
@@ -375,7 +382,14 @@ async def create_template(request: TemplateRequest):
         traceback.print_exc()
 
         # 특정 오류에 대한 세부 처리
-        if "quota" in error_message.lower() or "rate limit" in error_message.lower():
+        if "Please enter in Korean" in error_message:
+            return create_error_response(
+                "LANGUAGE_VALIDATION_ERROR",
+                error_message,
+                None,
+                400
+            )
+        elif "quota" in error_message.lower() or "rate limit" in error_message.lower():
             return create_error_response(
                 "API_QUOTA_EXCEEDED",
                 "API 할당량을 초과했습니다. 잠시 후 다시 시도해주세요.",
@@ -422,11 +436,37 @@ class LLMStatusResponse(BaseModel):
     llm_status: Dict[str, Any]
     timestamp: str
 
-@router.get("/templates/llm/status", tags=["Template Generation"],
-           response_model=LLMStatusResponse)
+@router.get("/llm/status", tags=["Template Generation"])
 async def get_llm_status() -> Dict[str, Any]:
     """
-    템플릿 생성에 사용되는 LLM 상태 확인
+    LLM 제공자 상태 간단 확인 (AI명세서.txt 호환)
+    """
+    try:
+        llm_manager = get_llm_manager()
+        llm_status = llm_manager.get_status()
+
+        # AI명세서.txt 형식에 맞는 응답 구조
+        result_data = {
+            "available_providers": llm_status.get("available_providers", []),
+            "primary_provider": llm_status.get("primary_provider", "unknown"),
+            "failure_counts": llm_status.get("failure_counts", {}),
+            "gemini_configured": llm_status.get("gemini_configured", False),
+            "openai_configured": llm_status.get("openai_configured", False)
+        }
+
+        return ApiResult.ok(result_data)
+
+    except Exception as e:
+        return create_error_response(
+            "LLM_STATUS_ERROR",
+            f"LLM 상태 확인 실패: {e}"
+        )
+
+@router.get("/templates/llm/status", tags=["Template Generation"],
+           response_model=LLMStatusResponse)
+async def get_llm_status_detailed() -> Dict[str, Any]:
+    """
+    템플릿 생성에 사용되는 LLM 상태 확인 (상세 버전)
     """
     try:
         llm_manager = get_llm_manager()
