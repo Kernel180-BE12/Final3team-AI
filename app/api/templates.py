@@ -109,7 +109,8 @@ class PartialTemplateResponse(BaseModel):
 
 def create_error_response(error_code: str, message: str, details: Any = None, status_code: int = 400) -> JSONResponse:
     """Java 호환 에러 응답 생성"""
-    error_result = ApiResult.error(error_code, message)
+    error_response = ErrorResponse(code=error_code, message=message)
+    error_result = ApiResult(data=None, message=None, error=error_response)
     return JSONResponse(
         status_code=status_code,
         content=error_result.dict()
@@ -257,13 +258,41 @@ async def create_template(request: TemplateRequest):
 
         # Check if more variables are needed
         if final_template_result.get('status') == 'need_more_variables':
+            # Convert TemplateVariable format to Variable format
+            missing_vars = final_template_result.get('missing_variables', [])
+            formatted_missing_vars = []
+            for i, var in enumerate(missing_vars):
+                if isinstance(var, dict) and 'variable_key' in var:
+                    # TemplateVariable format from Agent2
+                    formatted_missing_vars.append({
+                        "id": i+1,
+                        "variableKey": var["variable_key"],
+                        "placeholder": var["placeholder"],
+                        "inputType": var["input_type"],
+                        "value": ""
+                    })
+                elif isinstance(var, dict):
+                    # Already in Variable format
+                    if 'value' not in var:
+                        var['value'] = ""
+                    formatted_missing_vars.append(var)
+                else:
+                    # String format (fallback)
+                    formatted_missing_vars.append({
+                        "id": i+1,
+                        "variableKey": str(var),
+                        "placeholder": f"#{{{var}}}",
+                        "inputType": "TEXT",
+                        "value": ""
+                    })
+
             return create_partial_response(
                 user_id=request.userId,
                 partial_template=final_template_result.get('template', ''),
-                missing_variables=final_template_result.get('missing_variables', []),
+                missing_variables=formatted_missing_vars,
                 mapped_variables=final_template_result.get('mapped_variables', {}),
-                industry=final_template_result.get('industry', []),
-                purpose=final_template_result.get('purpose', [])
+                industry=[item.get('name', item) if isinstance(item, dict) else item for item in final_template_result.get('industry', [])],
+                purpose=[item.get('name', item) if isinstance(item, dict) else item for item in final_template_result.get('purpose', [])]
             )
 
         # Check if template generation failed
@@ -274,6 +303,24 @@ async def create_template(request: TemplateRequest):
             )
 
         # 6. 성공 응답 반환 (Java 호환 구조)
+        # Ensure variables have required value field
+        variables_list = final_template_result.get('variables', [])
+        formatted_variables = []
+        for i, var in enumerate(variables_list):
+            if isinstance(var, dict):
+                if 'value' not in var:
+                    var['value'] = ""  # Add missing value field
+                formatted_variables.append(var)
+            else:
+                # Handle other formats if needed
+                formatted_variables.append({
+                    "id": i+1,
+                    "variableKey": str(var),
+                    "placeholder": f"#{{{var}}}",
+                    "inputType": "TEXT",
+                    "value": ""
+                })
+
         template_data = TemplateSuccessData(
             id=1,
             userId=request.userId,
@@ -283,9 +330,9 @@ async def create_template(request: TemplateRequest):
             imageUrl=None,
             type='MESSAGE',
             buttons=[],
-            variables=final_template_result.get('variables', []),
-            industry=final_template_result.get('industry', []),
-            purpose=final_template_result.get('purpose', []),
+            variables=formatted_variables,
+            industry=[item.get('name', item) if isinstance(item, dict) else item for item in final_template_result.get('industry', [])],
+            purpose=[item.get('name', item) if isinstance(item, dict) else item for item in final_template_result.get('purpose', [])],
             _mapped_variables={}  # 완성된 템플릿은 빈 객체
         )
 
