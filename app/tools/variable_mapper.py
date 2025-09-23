@@ -83,6 +83,17 @@ class VariableMapper:
             "사유": ["왜 (Why/Reason)"]
         }
 
+    def _get_variable_key(self, template_var: dict) -> Optional[str]:
+        """템플릿 변수에서 variable_key를 안전하게 가져오기 (camelCase/snake_case 모두 지원)"""
+        # snake_case 우선 시도
+        if "variable_key" in template_var:
+            return template_var["variable_key"]
+        # camelCase fallback
+        elif "variableKey" in template_var:
+            return template_var["variableKey"]
+        else:
+            return None
+
     def map_variables(self, agent1_variables: Dict[str, str], template_variables: List[TemplateVariable], method: str = "hybrid") -> MappingResult:
         """
         Agent1 변수를 템플릿 변수에 매핑 (키워드 기반 + LLM 기반 하이브리드)
@@ -107,7 +118,11 @@ class VariableMapper:
 
             # 매핑되지 않은 변수들 찾기 (빈 문자열이 아닌 것만 성공으로 판단)
             for template_var in template_variables:
-                var_key = template_var["variable_key"]
+                var_key = self._get_variable_key(template_var)
+                if not var_key:
+                    print(f"변수 키를 찾을 수 없음: {template_var}")
+                    unmapped_template_vars.append(template_var)
+                    continue
                 mapped_value = mapped_variables.get(var_key, "")
 
                 if mapped_value and mapped_value.strip():
@@ -138,7 +153,11 @@ class VariableMapper:
                 # LLM 결과 통합
                 still_unmapped = []
                 for template_var in unmapped_template_vars:
-                    var_key = template_var["variable_key"]
+                    var_key = self._get_variable_key(template_var)
+                    if not var_key:
+                        print(f"Hybrid fallback: 변수 키를 찾을 수 없음: {template_var}")
+                        still_unmapped.append(template_var)
+                        continue
                     llm_value = llm_result.get(var_key, "")
 
                     if llm_value and llm_value.strip():
@@ -173,7 +192,11 @@ class VariableMapper:
         mapping_details = []
 
         for template_var in template_variables:
-            var_key = template_var["variable_key"]
+            var_key = self._get_variable_key(template_var)
+            if not var_key:
+                print(f"키워드 매핑: 변수 키를 찾을 수 없음: {template_var}")
+                unmapped_template_vars.append(template_var)
+                continue
             mapped_value = self._find_direct_mapping(var_key, agent1_variables)
 
             if mapped_value:
@@ -277,7 +300,11 @@ class VariableMapper:
             print("LLM 매핑을 위한 llm_provider_manager를 찾을 수 없습니다.")
             return {}
 
-        template_var_keys = [var["variable_key"] for var in template_variables if var.get("variable_key")]
+        template_var_keys = []
+        for var in template_variables:
+            var_key = self._get_variable_key(var)
+            if var_key:
+                template_var_keys.append(var_key)
 
         if not template_var_keys:
             return {}
@@ -356,7 +383,10 @@ Agent1 추출 변수:
         # 사용자 친화적인 질문 생성
         questions = []
         for var in unmapped_variables:
-            var_key = var["variable_key"]
+            var_key = self._get_variable_key(var)
+            if not var_key:
+                print(f"수집 요청: 변수 키를 찾을 수 없음: {var}")
+                continue
             question = self._generate_question_for_variable(var_key)
             questions.append({
                 "variable_key": var_key,

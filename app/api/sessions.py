@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from app.core.session_manager import get_session_manager, create_session_for_user, get_user_session
 from app.core.template_preview import get_preview_generator
 from app.core.session_models import SessionStatus
+from app.dto.api_result import ApiResult, ErrorResponse
 
 router = APIRouter()
 
@@ -137,17 +138,9 @@ class SessionDeleteResponse(BaseModel):
 
 
 def create_error_response(error_code: str, message: str, details: Any = None) -> Dict[str, Any]:
-    """표준화된 에러 응답 생성"""
-    return {
-        "detail": {
-            "error": {
-                "code": error_code,
-                "message": message,
-                "details": details
-            },
-            "timestamp": datetime.now().isoformat() + "Z"
-        }
-    }
+    """Java 호환 에러 응답 생성"""
+    error_result = ApiResult.error(error_code, message)
+    return error_result.dict()
 
 
 # ===========================================
@@ -469,11 +462,12 @@ async def get_session_stats():
     """세션 통계 조회 (관리용)"""
     session_manager = get_session_manager()
     stats = session_manager.get_stats()
-    return {
+    stats_data = {
         "success": True,
         "stats": stats.to_dict(),
         "timestamp": datetime.now().isoformat()
     }
+    return ApiResult.ok(stats_data)
 
 
 @router.get("/sessions", tags=["Session Management"], response_model=SessionListResponse)

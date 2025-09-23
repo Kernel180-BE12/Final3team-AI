@@ -332,14 +332,6 @@ class Agent1:
         validation = self.variable_extractor.validate_variables(variables)
         mandatory_check = self.variable_extractor.check_mandatory_variables(variables, user_input)
 
-        # 🚨 강제 완료 모드: "무엇을"이 추출되면 항상 완료로 처리
-        force_complete = False
-        what_subject = variables.get('무엇을 (What/Subject)', '').strip()
-        if what_subject and what_subject not in ['없음', 'none', 'null', '모름', '알 수 없음']:
-            force_complete = True
-            # 강제로 완료 상태로 변경
-            mandatory_check['is_complete'] = True
-            mandatory_check['missing_mandatory'] = []
 
         analysis_result = {
             'user_input': user_input,
@@ -348,7 +340,6 @@ class Agent1:
             'validation': validation,
             'mandatory_check': mandatory_check,
             'missing_variables': self.variable_extractor.get_missing_variables(variables),
-            'force_complete': force_complete  # 디버깅용 플래그 추가
         }
 
         print(f"분석 완료 (비동기) - 의도: {intent_result['intent']}, 완성도: {mandatory_check['completeness_score']:.1%}")
@@ -695,18 +686,7 @@ class Agent1:
         # 4. 기본 필수 변수 체크 (동기 - 빠른 처리)
         mandatory_check = self.conversation_state.check_mandatory_variables()
 
-        # 🚨 하드코딩된 완료 로직: "무엇을"이 있으면 항상 완료로 처리
-        what_subject = self.conversation_state.variables.get('무엇을 (What/Subject)', '').strip()
-        force_complete = (what_subject and
-                         what_subject not in ['없음', 'none', 'null', '모름', '알 수 없음'] and
-                         len(what_subject) > 0)
-
-        if force_complete:
-            print(f"🚨 하드코딩 완료 모드: '{what_subject}' 발견 - 강제 완료 처리")
-            mandatory_check['is_complete'] = True
-            mandatory_check['missing_mandatory'] = []
-
-        # 필수 변수가 부족하면 재질문 (하드코딩 완료 모드에서는 건너뜀)
+        # 필수 변수가 부족하면 재질문
         if not mandatory_check['is_complete']:
             missing_vars = mandatory_check['missing_mandatory']
             reask_question = self.generate_contextual_reask(self.conversation_state, missing_vars)

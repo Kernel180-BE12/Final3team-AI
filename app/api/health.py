@@ -11,6 +11,7 @@ import time
 from datetime import datetime
 
 from app.utils.llm_provider_manager import get_llm_manager
+from app.dto.api_result import ApiResult, ErrorResponse
 
 router = APIRouter()
 
@@ -86,12 +87,13 @@ async def health_check() -> Dict[str, Any]:
     기본 헬스체크
     서비스가 정상적으로 실행 중인지 확인
     """
-    return {
+    health_data = {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "service": "JOBER AI",
         "version": "2.0.0"
     }
+    return ApiResult.ok(health_data)
 
 
 @router.get("/health/detailed", tags=["System"], response_model=DetailedHealthResponse)

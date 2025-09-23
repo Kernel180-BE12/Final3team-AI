@@ -14,6 +14,7 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import List, Union
 
@@ -22,6 +23,7 @@ from app.agents.agent1 import Agent1
 from app.agents.agent2 import Agent2
 from app.core.template_selector import TemplateSelector
 from app.utils.llm_provider_manager import get_llm_manager
+from app.dto.api_result import ApiResult, ErrorResponse
 
 router = APIRouter()
 
@@ -55,9 +57,9 @@ class Variable(BaseModel):
     value: str
 
 
-class TemplateSuccessResponse(BaseModel):
-    """템플릿 생성 성공 응답 모델"""
-    id: int
+class TemplateSuccessData(BaseModel):
+    """Java AiTemplateResponse와 호환되는 데이터 구조"""
+    id: Optional[int]  # 부분 완성 시 null
     userId: int
     categoryId: str
     title: str
@@ -68,6 +70,13 @@ class TemplateSuccessResponse(BaseModel):
     variables: List[Variable]
     industry: List[str]
     purpose: List[str]
+    _mapped_variables: Dict[str, str] = {}  # FastAPI 전용 필드
+
+class TemplateSuccessResponse(BaseModel):
+    """ApiResult로 래핑된 템플릿 응답 모델"""
+    data: Optional[TemplateSuccessData] = None
+    message: Optional[str] = None
+    error: Optional[ErrorResponse] = None
 
 
 class IncompleteInfoDetails(BaseModel):
@@ -90,27 +99,62 @@ class ErrorResponseWithDetails(BaseModel):
     detail: Dict[str, Any]
 
 
-def create_error_response(error_code: str, message: str, details: Any = None) -> Dict[str, Any]:
-    """표준화된 에러 응답 생성"""
-    return {
-        "detail": {
-            "error": {
-                "code": error_code,
-                "message": message,
-                "details": details
-            },
-            "timestamp": datetime.now().isoformat() + "Z"
-        }
-    }
+class PartialTemplateResponse(BaseModel):
+    """부분 완성 템플릿 응답 모델"""
+    status: str = "PARTIAL_COMPLETION"
+    message: str
+    data: Dict[str, Any]
+    timestamp: str
+
+
+def create_error_response(error_code: str, message: str, details: Any = None, status_code: int = 400) -> JSONResponse:
+    """Java 호환 에러 응답 생성"""
+    error_result = ApiResult.error(error_code, message)
+    return JSONResponse(
+        status_code=status_code,
+        content=error_result.dict()
+    )
+
+
+def create_partial_response(user_id: int, partial_template: str, missing_variables: List[dict], mapped_variables: Dict[str, str], industry: List[dict], purpose: List[dict]) -> JSONResponse:
+    """부분 완성 응답 생성 (202 상태코드) - Java 호환 구조"""
+    template_data = TemplateSuccessData(
+        id=None,  # 부분 완성 상태 (아직 DB에 저장되지 않음)
+        userId=user_id,
+        categoryId="004001",
+        title="알림톡 (부분 완성)",
+        content=partial_template,
+        imageUrl=None,
+        type="MESSAGE",
+        buttons=[],
+        variables=missing_variables,  # 누락된 변수들
+        industry=[item.get('name', item) if isinstance(item, dict) else item for item in industry],
+        purpose=[item.get('name', item) if isinstance(item, dict) else item for item in purpose],
+        _mapped_variables=mapped_variables  # 이미 매핑된 변수들
+    )
+
+    # ApiResult로 래핑
+    result = ApiResult.ok(template_data)
+    return JSONResponse(
+        status_code=202,
+        content=result.dict()
+    )
 
 
 @router.post("/templates", tags=["Template Generation"],
             responses={
-                200: {"model": TemplateSuccessResponse},
+                200: {
+                    "model": TemplateSuccessResponse,
+                    "description": "템플릿 생성 완료"
+                },
+                202: {
+                    "model": TemplateSuccessResponse,
+                    "description": "부분 완성 - 추가 정보 필요 (200과 동일한 구조)"
+                },
                 400: {"model": ErrorResponseWithDetails},
                 500: {"model": ErrorResponseWithDetails}
             })
-async def create_template(request: TemplateRequest) -> Dict[str, Any]:
+async def create_template(request: TemplateRequest):
     """
     AI 기반 알림톡 템플릿 생성
 
@@ -140,17 +184,28 @@ async def create_template(request: TemplateRequest) -> Dict[str, Any]:
 
         elif agent1_result['status'] == 'reask_required':
             # 추가 정보 필요
-            return create_error_response(
-                "INCOMPLETE_INFORMATION",
-                "추가 정보가 필요합니다",
-                {
-                    "confirmed_variables": agent1_result.get('analysis', {}).get('variables', {}),
-                    "missing_variables": agent1_result.get('missing_variables', []),
-                    "contextual_question": agent1_result.get('message', ''),
-                    "original_input": request.requestContent,
-                    "validation_status": "incomplete",
-                    "reasoning": agent1_result.get('reasoning', '')
-                }
+            missing_vars = agent1_result.get('missing_variables', [])
+            # missing_variables 형태를 Variable 형태로 변환
+            formatted_missing_vars = []
+            for i, var in enumerate(missing_vars):
+                if isinstance(var, str):
+                    formatted_missing_vars.append({
+                        "id": i+1,
+                        "variableKey": var,
+                        "placeholder": f"#{{{var}}}",
+                        "inputType": "TEXT",
+                        "value": ""
+                    })
+                else:
+                    formatted_missing_vars.append(var)
+
+            return create_partial_response(
+                user_id=request.userId,
+                partial_template="",  # Agent1 단계에서는 템플릿이 없음
+                missing_variables=formatted_missing_vars,
+                mapped_variables=agent1_result.get('analysis', {}).get('variables', {}),
+                industry=[],
+                purpose=[]
             )
 
         elif agent1_result['status'] == 'policy_violation':
@@ -202,17 +257,13 @@ async def create_template(request: TemplateRequest) -> Dict[str, Any]:
 
         # Check if more variables are needed
         if final_template_result.get('status') == 'need_more_variables':
-            return create_error_response(
-                "INCOMPLETE_INFORMATION",
-                "추가 정보가 필요합니다",
-                {
-                    "mapped_variables": final_template_result.get('mapped_variables', {}),
-                    "missing_variables": final_template_result.get('missing_variables', []),
-                    "partial_template": final_template_result.get('template', ''),
-                    "mapping_coverage": final_template_result.get('mapping_coverage', 0.0),
-                    "industry": final_template_result.get('industry', []),
-                    "purpose": final_template_result.get('purpose', [])
-                }
+            return create_partial_response(
+                user_id=request.userId,
+                partial_template=final_template_result.get('template', ''),
+                missing_variables=final_template_result.get('missing_variables', []),
+                mapped_variables=final_template_result.get('mapped_variables', {}),
+                industry=final_template_result.get('industry', []),
+                purpose=final_template_result.get('purpose', [])
             )
 
         # Check if template generation failed
@@ -222,20 +273,24 @@ async def create_template(request: TemplateRequest) -> Dict[str, Any]:
                 "템플릿 생성에 실패했습니다"
             )
 
-        # 6. 성공 응답 반환
-        return {
-            "id": 1,
-            "userId": request.userId,
-            "categoryId": '004001',
-            "title": '알림톡',
-            "content": final_template_result.get('template', ''),
-            "imageUrl": None,
-            "type": 'MESSAGE',
-            "buttons": [],
-            "variables": final_template_result.get('variables', []),
-            "industry": final_template_result.get('industry', []),
-            "purpose": final_template_result.get('purpose', [])
-        }
+        # 6. 성공 응답 반환 (Java 호환 구조)
+        template_data = TemplateSuccessData(
+            id=1,
+            userId=request.userId,
+            categoryId='004001',
+            title='알림톡',
+            content=final_template_result.get('template', ''),
+            imageUrl=None,
+            type='MESSAGE',
+            buttons=[],
+            variables=final_template_result.get('variables', []),
+            industry=final_template_result.get('industry', []),
+            purpose=final_template_result.get('purpose', []),
+            _mapped_variables={}  # 완성된 템플릿은 빈 객체
+        )
+
+        # ApiResult로 래핑하여 반환
+        return ApiResult.ok(template_data)
 
     except Exception as e:
         # 예상치 못한 오류
@@ -246,19 +301,22 @@ async def create_template(request: TemplateRequest) -> Dict[str, Any]:
             return create_error_response(
                 "API_QUOTA_EXCEEDED",
                 "API 할당량을 초과했습니다. 잠시 후 다시 시도해주세요.",
-                error_message
+                error_message,
+                429
             )
         elif "timeout" in error_message.lower():
             return create_error_response(
                 "PROCESSING_TIMEOUT",
                 "템플릿 생성 시간이 초과되었습니다. 다시 시도해주세요.",
-                "AI 처리 시간 초과 (30초 제한)"
+                "AI 처리 시간 초과 (30초 제한)",
+                408
             )
         else:
             return create_error_response(
                 "INTERNAL_SERVER_ERROR",
                 "서버 내부 오류가 발생했습니다.",
-                error_message
+                error_message,
+                500
             )
 
 

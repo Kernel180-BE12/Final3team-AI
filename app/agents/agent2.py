@@ -824,7 +824,9 @@ class Agent2:
             return mapping_result
 
         except Exception as e:
+            import traceback
             print(f"변수 매핑 중 오류: {e}")
+            print(f"스택 트레이스: {traceback.format_exc()}")
             # 폴백: 모든 변수를 누락으로 처리
             return {
                 "mapped_variables": {},

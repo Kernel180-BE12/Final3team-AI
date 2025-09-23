@@ -222,4 +222,21 @@ def invoke_llm_with_fallback(prompt: str) -> Tuple[str, str, str]:
     Returns:
         Tuple[응답_텍스트, 사용된_제공자, 사용된_모델]
     """
-    return asyncio.run(ainvoke_llm_with_fallback(prompt))
+    try:
+        # 이미 실행 중인 이벤트 루프가 있는지 확인
+        loop = asyncio.get_running_loop()
+        # 이미 이벤트 루프가 실행 중이면 동기적으로 처리할 수 없음
+        # 이 경우 현재 루프에서 비동기 작업을 생성
+        import concurrent.futures
+        import threading
+
+        def run_in_thread():
+            return asyncio.run(ainvoke_llm_with_fallback(prompt))
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(run_in_thread)
+            return future.result()
+
+    except RuntimeError:
+        # 실행 중인 이벤트 루프가 없으면 새로 만들어서 실행
+        return asyncio.run(ainvoke_llm_with_fallback(prompt))
