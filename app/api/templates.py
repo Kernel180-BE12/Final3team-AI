@@ -23,7 +23,8 @@ from app.agents.agent1 import Agent1
 from app.agents.agent2 import Agent2
 from app.core.template_selector import TemplateSelector
 from app.utils.llm_provider_manager import get_llm_manager
-from app.dto.api_result import ApiResult
+from app.dto.api_result import ApiResult, ErrorResponse as ApiErrorResponse
+from app.utils.language_detector import validate_input_language, ValidationError
 
 router = APIRouter()
 
@@ -41,12 +42,20 @@ class TemplateRequest(BaseModel):
         if not v or v.strip() == "":
             raise ValueError("템플릿 요청 내용을 입력해주세요")
 
-        # 기본값이나 의미없는 텍스트 필터링
-        invalid_inputs = ["string", "test", "example", "샘플", "테스트", "없음", "기본값"]
+        # 언어별 검증을 먼저 실행 (영어 입력 감지)
+        is_valid, error_type, message = validate_input_language(v)
+        if not is_valid:
+            if error_type == ValidationError.ENGLISH_ONLY:
+                raise ValueError("Please enter in Korean. English-only input cannot generate KakaoTalk templates.")
+            else:
+                raise ValueError(message)
+
+        # 한국어 기본값이나 의미없는 텍스트 필터링 (영어는 위에서 이미 처리됨)
+        invalid_inputs = ["샘플", "테스트", "없음", "기본값"]
         if v.strip().lower() in invalid_inputs:
             raise ValueError("구체적인 템플릿 요청 내용을 입력해주세요")
 
-        # 최소 단어 수 검증 (2단어 이상)
+        # 최소 단어 수 검증 (2단어 이상) - 언어 검증 통과 후에만 체크
         words = v.strip().split()
         if len(words) < 2:
             raise ValueError("더 구체적인 요청 내용을 입력해주세요 (최소 2단어 이상)")
@@ -128,9 +137,8 @@ class PartialTemplateResponse(BaseModel):
 
 def create_error_response(error_code: str, message: str, details: Any = None, status_code: int = 400) -> JSONResponse:
     """Java 호환 에러 응답 생성"""
-    error_detail = ErrorDetail(code=error_code, message=message, details=details)
-    error_response = ErrorResponse(error=error_detail, timestamp=datetime.now().isoformat() + "Z")
-    error_result = ApiResult(data=None, message=None, error=error_response)
+    api_error_response = ApiErrorResponse(code=error_code, message=message)
+    error_result = ApiResult(data=None, message=None, error=api_error_response)
     return JSONResponse(
         status_code=status_code,
         content=error_result.model_dump()
@@ -360,8 +368,11 @@ async def create_template(request: TemplateRequest):
         return ApiResult.ok(template_data)
 
     except Exception as e:
-        # 예상치 못한 오류
+        # 예상치 못한 오류 - 디버그 로깅 추가
         error_message = str(e)
+        print(f"DEBUG: 템플릿 생성 중 예외 발생: {error_message}")
+        import traceback
+        traceback.print_exc()
 
         # 특정 오류에 대한 세부 처리
         if "quota" in error_message.lower() or "rate limit" in error_message.lower():
