@@ -15,7 +15,7 @@ if str(project_root) not in sys.path:
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import List, Union
 
 # 모듈 임포트
@@ -31,8 +31,26 @@ router = APIRouter()
 class TemplateRequest(BaseModel):
     """템플릿 생성 요청 모델"""
     userId: int
-    requestContent: str
+    requestContent: str = Field(..., min_length=10, max_length=1000, description="구체적인 알림톡 템플릿 요청 내용 (최소 10자 이상)")
     conversationContext: Optional[str] = None  # 재질문 컨텍스트
+
+    @validator('requestContent')
+    def validate_request_content(cls, v):
+        """requestContent 유효성 검증"""
+        if not v or v.strip() == "":
+            raise ValueError("템플릿 요청 내용을 입력해주세요")
+
+        # 기본값이나 의미없는 텍스트 필터링
+        invalid_inputs = ["string", "test", "example", "샘플", "테스트", "없음", "기본값"]
+        if v.strip().lower() in invalid_inputs:
+            raise ValueError("구체적인 템플릿 요청 내용을 입력해주세요")
+
+        # 최소 단어 수 검증 (2단어 이상)
+        words = v.strip().split()
+        if len(words) < 2:
+            raise ValueError("더 구체적인 요청 내용을 입력해주세요 (최소 2단어 이상)")
+
+        return v.strip()
 
 
 class ErrorDetail(BaseModel):
