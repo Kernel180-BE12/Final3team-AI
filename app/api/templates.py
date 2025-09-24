@@ -85,6 +85,12 @@ class Variable(BaseModel):
     value: str
 
 
+class IndustryPurposeItem(BaseModel):
+    """Industry/Purpose 아이템 모델 (ID + 이름)"""
+    id: int
+    name: str
+
+
 class TemplateSuccessData(BaseModel):
     """Java AiTemplateResponse와 호환되는 데이터 구조"""
     id: Optional[int]  # 부분 완성 시 null
@@ -96,8 +102,8 @@ class TemplateSuccessData(BaseModel):
     type: str
     buttons: List[dict] = []
     variables: List[Variable]
-    industry: List[str]
-    purpose: List[str]
+    industries: List[IndustryPurposeItem] = []  # [{"id": 1, "name": "학원"}]
+    purposes: List[IndustryPurposeItem] = []    # [{"id": 2, "name": "공지/안내"}]
     _mapped_variables: Dict[str, str] = {}  # FastAPI 전용 필드
 
 class TemplateSuccessResponse(BaseModel):
@@ -145,8 +151,69 @@ def create_error_response(error_code: str, message: str, details: Any = None, st
     )
 
 
+def convert_industry_purpose_data(industry_list: List[dict] = None, purpose_list: List[dict] = None) -> Dict[str, List]:
+    """
+    Industry/Purpose 데이터를 ID+이름 객체 배열 형식으로 변환
+
+    Args:
+        industry_list: Agent2에서 받은 industry 데이터 [{"id": 1, "name": "학원", "confidence": 0.9}, ...]
+        purpose_list: Agent2에서 받은 purpose 데이터 [{"id": 2, "name": "공지/안내", "confidence": 0.8}, ...]
+
+    Returns:
+        {
+            "industries": [{"id": 1, "name": "학원"}],
+            "purposes": [{"id": 2, "name": "공지/안내"}]
+        }
+    """
+    result = {
+        "industries": [],
+        "purposes": []
+    }
+
+    # Industry 처리
+    for item in (industry_list or []):
+        if isinstance(item, dict):
+            if "id" in item and "name" in item:
+                # Agent2에서 오는 정상적인 형식
+                result["industries"].append({"id": item["id"], "name": item["name"]})
+            elif "name" in item:
+                # name만 있는 경우
+                result["industries"].append({"id": 9, "name": item["name"]})  # 기타 ID
+            else:
+                # 기타 dict 형식
+                name = str(item.get('name', item))
+                result["industries"].append({"id": 9, "name": name})
+        else:
+            # 문자열인 경우
+            name = str(item)
+            result["industries"].append({"id": 9, "name": name})
+
+    # Purpose 처리
+    for item in (purpose_list or []):
+        if isinstance(item, dict):
+            if "id" in item and "name" in item:
+                # Agent2에서 오는 정상적인 형식
+                result["purposes"].append({"id": item["id"], "name": item["name"]})
+            elif "name" in item:
+                # name만 있는 경우
+                result["purposes"].append({"id": 11, "name": item["name"]})  # 기타 ID
+            else:
+                # 기타 dict 형식
+                name = str(item.get('name', item))
+                result["purposes"].append({"id": 11, "name": name})
+        else:
+            # 문자열인 경우
+            name = str(item)
+            result["purposes"].append({"id": 11, "name": name})
+
+    return result
+
+
 def create_partial_response(user_id: int, partial_template: str, missing_variables: List[dict], mapped_variables: Dict[str, str], industry: List[dict], purpose: List[dict]) -> JSONResponse:
     """부분 완성 응답 생성 (202 상태코드) - Java 호환 구조"""
+    # Industry/Purpose 데이터를 기존 및 새로운 형식 둘 다 생성
+    converted_data = convert_industry_purpose_data(industry, purpose)
+
     template_data = TemplateSuccessData(
         id=None,  # 부분 완성 상태 (아직 DB에 저장되지 않음)
         userId=user_id,
@@ -157,8 +224,8 @@ def create_partial_response(user_id: int, partial_template: str, missing_variabl
         type="MESSAGE",
         buttons=[],
         variables=missing_variables,  # 누락된 변수들
-        industry=[item.get('name', item) if isinstance(item, dict) else str(item) for item in (industry or [])],
-        purpose=[item.get('name', item) if isinstance(item, dict) else str(item) for item in (purpose or [])],
+        industries=converted_data["industries"],
+        purposes=converted_data["purposes"],
         _mapped_variables=mapped_variables  # 이미 매핑된 변수들
     )
 
@@ -326,8 +393,8 @@ async def create_template(request: TemplateRequest):
                 partial_template=final_template_result.get('template', ''),
                 missing_variables=formatted_missing_vars,
                 mapped_variables=final_template_result.get('mapped_variables', {}),
-                industry=[item.get('name', item) if isinstance(item, dict) else str(item) for item in final_template_result.get('industry', [])],
-                purpose=[item.get('name', item) if isinstance(item, dict) else str(item) for item in final_template_result.get('purpose', [])]
+                industry=final_template_result.get('industry', []),  # Agent2에서 오는 dict 형태 그대로 전달
+                purpose=final_template_result.get('purpose', [])    # Agent2에서 오는 dict 형태 그대로 전달
             )
 
         # Check if template generation failed
@@ -356,6 +423,12 @@ async def create_template(request: TemplateRequest):
                     "value": ""
                 })
 
+        # Industry/Purpose 데이터를 기존 및 새로운 형식 둘 다 생성
+        converted_data = convert_industry_purpose_data(
+            final_template_result.get('industry', []),
+            final_template_result.get('purpose', [])
+        )
+
         template_data = TemplateSuccessData(
             id=1,
             userId=request.userId,
@@ -366,8 +439,8 @@ async def create_template(request: TemplateRequest):
             type='MESSAGE',
             buttons=[],
             variables=formatted_variables,
-            industry=[item.get('name', item) if isinstance(item, dict) else str(item) for item in final_template_result.get('industry', [])],
-            purpose=[item.get('name', item) if isinstance(item, dict) else str(item) for item in final_template_result.get('purpose', [])],
+            industries=converted_data["industries"],
+            purposes=converted_data["purposes"],
             _mapped_variables={}  # 완성된 템플릿은 빈 객체
         )
 

@@ -21,6 +21,7 @@ from app.core.session_manager import get_session_manager, create_session_for_use
 from app.core.template_preview import get_preview_generator
 from app.core.session_models import SessionStatus
 from app.dto.api_result import ApiResult, ErrorResponse
+from app.api.templates import IndustryPurposeItem, convert_industry_purpose_data
 
 router = APIRouter()
 
@@ -100,8 +101,8 @@ class CompleteTemplateResponse(BaseModel):
     type: str
     buttons: List[dict]
     variables: List[dict]
-    industry: List[str]
-    purpose: List[str]
+    industries: List[IndustryPurposeItem] = []
+    purposes: List[IndustryPurposeItem] = []
     session_summary: SessionSummary
 
 
@@ -414,6 +415,10 @@ async def complete_template_session(session_id: str, request: CompleteTemplateRe
                 "value": session.user_variables.get(var_key, "")
             })
 
+        # Industry/Purpose 데이터를 기존 및 새로운 형식 둘 다 생성
+        # 세션에서는 industry/purpose 데이터가 없으므로 기본값 사용
+        converted_data = convert_industry_purpose_data([], [])
+
         response_data = {
             "id": 1,
             "userId": session.user_id,
@@ -424,8 +429,8 @@ async def complete_template_session(session_id: str, request: CompleteTemplateRe
             "type": "MESSAGE",
             "buttons": [],
             "variables": variables_list,
-            "industry": [],
-            "purpose": []
+            "industries": converted_data["industries"],
+            "purposes": converted_data["purposes"]
         }
 
         # 세션 완료 요약 추가
