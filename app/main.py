@@ -25,6 +25,7 @@ import uvicorn
 from app.api import templates, health, sessions
 from app.utils.llm_provider_manager import get_llm_manager
 from config.llm_providers import get_llm_manager as get_config_manager
+from config.settings import Settings
 
 # 로깅 설정
 logging.basicConfig(
@@ -62,9 +63,9 @@ async def lifespan(app: FastAPI):
 
 # FastAPI 앱 생성
 app = FastAPI(
-    title="JOBER AI",
-    description="AI 기반 알림톡 템플릿 생성 서비스",
-    version="2.0.0",
+    title=Settings.PROJECT_NAME,
+    description=Settings.PROJECT_DESCRIPTION,
+    version=Settings.PROJECT_VERSION,
     lifespan=lifespan,
     openapi_tags=[
         {
@@ -144,9 +145,9 @@ class RootResponse(BaseModel):
 async def root():
     """루트 엔드포인트"""
     return {
-        "service": "JOBER AI",
-        "version": "2.0.0",
-        "description": "AI 기반 알림톡 템플릿 생성 서비스",
+        "service": Settings.PROJECT_NAME,
+        "version": Settings.PROJECT_VERSION,
+        "description": Settings.PROJECT_DESCRIPTION,
         "status": "running",
         "docs": "/docs"
     }

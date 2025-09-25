@@ -12,6 +12,7 @@ from datetime import datetime
 
 from app.utils.llm_provider_manager import get_llm_manager
 from app.dto.api_result import ApiResult, ErrorResponse
+from config.settings import Settings
 
 router = APIRouter()
 
@@ -90,8 +91,8 @@ async def health_check() -> Dict[str, Any]:
     health_data = {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "service": "JOBER AI",
-        "version": "2.0.0"
+        "service": Settings.PROJECT_NAME,
+        "version": Settings.PROJECT_VERSION
     }
     return ApiResult.ok(health_data)
 
@@ -116,8 +117,8 @@ async def detailed_health_check() -> Dict[str, Any]:
             "status": "healthy",
             "timestamp": datetime.now().isoformat(),
             "service": {
-                "name": "JOBER AI",
-                "version": "2.0.0",
+                "name": Settings.PROJECT_NAME,
+                "version": Settings.PROJECT_VERSION,
                 "uptime": time.time()  # 실제로는 시작 시간 기록 필요
             },
             "system": {

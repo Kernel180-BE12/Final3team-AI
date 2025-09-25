@@ -21,7 +21,8 @@ from app.core.session_manager import get_session_manager, create_session_for_use
 from app.core.template_preview import get_preview_generator
 from app.core.session_models import SessionStatus
 from app.dto.api_result import ApiResult, ErrorResponse
-from app.api.templates import IndustryPurposeItem, convert_industry_purpose_data
+from app.api.templates import IndustryPurposeItem, convert_industry_purpose_data, determine_template_type
+from app.utils.industry_purpose_mapping import get_category_info
 
 router = APIRouter()
 
@@ -417,16 +418,20 @@ async def complete_template_session(session_id: str, request: CompleteTemplateRe
 
         # Industry/Purpose 데이터를 기존 및 새로운 형식 둘 다 생성
         # 세션에서는 industry/purpose 데이터가 없으므로 기본값 사용
+        # TODO: 향후 세션에 industry/purpose 저장 기능 추가 필요
         converted_data = convert_industry_purpose_data([], [])
 
+        # 동적 카테고리 결정 (빈 데이터로 기본값 반환)
+        category_info = get_category_info([], [])
+
         response_data = {
-            "id": 1,
+            "id": None,  # Java 백엔드에서 DB 자동생성 ID 사용
             "userId": session.user_id,
-            "categoryId": "004001",
-            "title": "알림톡",
+            "categoryId": category_info["categoryId"],
+            "title": category_info["title"],
             "content": final_template,
             "imageUrl": None,
-            "type": "MESSAGE",
+            "type": determine_template_type([]),  # 세션에는 현재 버튼정보 없음, 추후 개선 필요
             "buttons": [],
             "variables": variables_list,
             "industries": converted_data["industries"],

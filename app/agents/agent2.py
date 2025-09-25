@@ -416,11 +416,15 @@ class Agent2:
                 # 모든 변수 매핑 완료
                 print(f"변수 매핑 완료: {mapping_result['mapping_coverage']:.1%}")
 
+        # 5단계: 템플릿 기반 버튼 자동 생성
+        buttons = self._generate_buttons_from_template(template)
+
         # 성공적인 결과를 딕셔너리 형태로 반환
         result = {
             "success": True,
             "template": template,
             "variables": variables,
+            "buttons": buttons,
             "industry": [{"id": classification_result["industry"]["id"], "name": classification_result["industry"]["name"]}],
             "purpose": [{"id": classification_result["purpose"]["id"], "name": classification_result["purpose"]["name"]}]
         }
@@ -502,11 +506,15 @@ class Agent2:
                 # 모든 변수 매핑 완료
                 print(f"변수 매핑 완료 (비동기): {mapping_result['mapping_coverage']:.1%}")
 
+        # 5단계: 템플릿 기반 버튼 자동 생성
+        buttons = self._generate_buttons_from_template(template)
+
         # 성공적인 결과를 딕셔너리 형태로 반환
         result = {
             "success": True,
             "template": template,
             "variables": variables,
+            "buttons": buttons,
             "industry": [{"id": classification_result["industry"]["id"], "name": classification_result["industry"]["name"]}],
             "purpose": [{"id": classification_result["purpose"]["id"], "name": classification_result["purpose"]["name"]}]
         }
@@ -835,6 +843,96 @@ class Agent2:
                 "mapping_coverage": 0.0,
                 "error": str(e)
             }
+
+    def _generate_buttons_from_template(self, template: str) -> List[dict]:
+        """템플릿 내용을 분석하여 자동으로 버튼 생성"""
+        import re
+
+        buttons = []
+
+        # 1. URL 패턴 감지
+        url_pattern = r'https?://[^\s\]]+|www\.[^\s\]]+|[^\s]+\.(com|kr|net|org|co\.kr)(?:/[^\s\]]*)?'
+        urls = re.findall(url_pattern, template)
+
+        # 2. 키워드 기반 버튼명 매핑
+        keyword_mappings = {
+            "자세히": "자세히 보기",
+            "자세한": "자세히 보기",
+            "계약서": "계약서 작성",
+            "설문": "설문 확인",
+            "신청": "신청하기",
+            "예약": "예약하기",
+            "확인": "확인하기",
+            "등록": "등록하기",
+            "구매": "구매하기",
+            "다운로드": "다운로드",
+            "문의": "문의하기",
+            "상담": "상담 신청"
+        }
+
+        # 3. 템플릿에서 키워드 검색 및 버튼 생성
+        found_keywords = []
+        for keyword, button_name in keyword_mappings.items():
+            if keyword in template:
+                found_keywords.append((keyword, button_name))
+
+        # 4. 버튼 생성
+        if urls:
+            # URL이 있으면 첫 번째 URL을 사용하여 버튼 생성
+            url = urls[0] if isinstance(urls[0], str) else urls[0][0]
+            # URL이 http://나 https://로 시작하지 않으면 추가
+            if not url.startswith(('http://', 'https://')):
+                url = 'https://' + url
+
+            # 가장 적절한 버튼명 선택 (우선순위: 자세히 > 기타)
+            button_name = "자세히 보기"  # 기본값
+            if found_keywords:
+                # 우선순위에 따라 버튼명 선택
+                priority_order = ["자세히", "자세한", "신청", "예약", "확인", "등록", "구매", "계약서", "설문"]
+                for priority_keyword in priority_order:
+                    for keyword, name in found_keywords:
+                        if keyword == priority_keyword:
+                            button_name = name
+                            break
+                    if button_name != "자세히 보기":
+                        break
+
+            buttons.append({
+                "name": button_name,
+                "linkMo": url,
+                "linkPc": url,
+                "linkAnd": None,
+                "linkIos": None,
+                "linkType": "WL",
+                "ordering": 1,
+                "pluginId": None,
+                "bizFormId": None,
+                "linkTypeName": "웹링크",
+                "targetUrl": None
+            })
+
+        elif found_keywords:
+            # URL은 없지만 키워드가 있으면 기본 URL로 버튼 생성
+            keyword, button_name = found_keywords[0]  # 첫 번째 키워드 사용
+
+            buttons.append({
+                "name": button_name,
+                "linkMo": "https://jober.io/#{link}",  # 기존 temp_fix.json 패턴 참조
+                "linkPc": "https://jober.io/#{link}",
+                "linkAnd": None,
+                "linkIos": None,
+                "linkType": "WL",
+                "ordering": 1,
+                "pluginId": None,
+                "bizFormId": None,
+                "linkTypeName": "웹링크",
+                "targetUrl": None
+            })
+
+        if buttons:
+            print(f" 버튼 자동 생성: {len(buttons)}개 - {[btn['name'] for btn in buttons]}")
+
+        return buttons
 
 
 # 테스트 실행 블록

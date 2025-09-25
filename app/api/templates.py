@@ -25,6 +25,7 @@ from app.core.template_selector import TemplateSelector
 from app.utils.llm_provider_manager import get_llm_manager
 from app.dto.api_result import ApiResult, ErrorResponse as ApiErrorResponse
 from app.utils.language_detector import validate_input_language, ValidationError
+from app.utils.industry_purpose_mapping import get_category_info
 
 router = APIRouter()
 
@@ -151,6 +152,21 @@ def create_error_response(error_code: str, message: str, details: Any = None, st
     )
 
 
+def determine_template_type(buttons: List[dict] = None) -> str:
+    """
+    버튼 존재 여부에 따라 템플릿 타입 결정
+
+    Args:
+        buttons: 버튼 리스트
+
+    Returns:
+        "LINKS" if buttons exist, else "MESSAGE"
+    """
+    if buttons and len(buttons) > 0:
+        return "LINKS"
+    return "MESSAGE"
+
+
 def convert_industry_purpose_data(industry_list: List[dict] = None, purpose_list: List[dict] = None) -> Dict[str, List]:
     """
     Industry/Purpose 데이터를 ID+이름 객체 배열 형식으로 변환
@@ -214,14 +230,17 @@ def create_partial_response(user_id: int, partial_template: str, missing_variabl
     # Industry/Purpose 데이터를 기존 및 새로운 형식 둘 다 생성
     converted_data = convert_industry_purpose_data(industry, purpose)
 
+    # 동적 카테고리 결정
+    category_info = get_category_info(converted_data["industries"], converted_data["purposes"])
+
     template_data = TemplateSuccessData(
         id=None,  # 부분 완성 상태 (아직 DB에 저장되지 않음)
         userId=user_id,
-        categoryId="004001",
-        title="알림톡 (부분 완성)",
+        categoryId=category_info["categoryId"],
+        title=f"{category_info['title']} (부분 완성)",
         content=partial_template,
         imageUrl=None,
-        type="MESSAGE",
+        type=determine_template_type([]),  # 부분완성은 버튼이 없으므로 MESSAGE
         buttons=[],
         variables=missing_variables,  # 누락된 변수들
         industries=converted_data["industries"],
@@ -429,15 +448,18 @@ async def create_template(request: TemplateRequest):
             final_template_result.get('purpose', [])
         )
 
+        # 동적 카테고리 결정
+        category_info = get_category_info(converted_data["industries"], converted_data["purposes"])
+
         template_data = TemplateSuccessData(
-            id=1,
+            id=None,  # Java 백엔드에서 DB 자동생성 ID 사용
             userId=request.userId,
-            categoryId='004001',
-            title='알림톡',
+            categoryId=category_info["categoryId"],
+            title=category_info["title"],
             content=final_template_result.get('template', ''),
             imageUrl=None,
-            type='MESSAGE',
-            buttons=[],
+            type=determine_template_type(final_template_result.get('buttons', [])),
+            buttons=final_template_result.get('buttons', []),
             variables=formatted_variables,
             industries=converted_data["industries"],
             purposes=converted_data["purposes"],
