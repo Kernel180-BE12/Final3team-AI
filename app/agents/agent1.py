@@ -232,16 +232,22 @@ class Agent1:
     def _load_policy_document(self) -> str:
         """정책 문서 로드"""
         try:
+            import yaml  # YAML 파일 처리를 위해 추가
             policy_content = ""
-            
-            # 1. cleaned_alrimtalk.md 로드
-            alrimtalk_path = project_root / "data" / "cleaned_alrimtalk.md"
+
+            # 1. cleaned_add_infotalk.yaml 로드
+            alrimtalk_path = project_root / "data" / "presets" / "cleaned_add_infotalk.yaml"
             if alrimtalk_path.exists():
                 with open(alrimtalk_path, 'r', encoding='utf-8') as f:
-                    policy_content += f.read() + "\n\n"
+                    yaml_data = yaml.safe_load(f)
+                    # YAML에서 guidelines 섹션의 내용 추출
+                    if yaml_data and 'guidelines' in yaml_data:
+                        for guideline in yaml_data['guidelines']:
+                            if 'title' in guideline:
+                                policy_content += guideline['title'] + "\n\n"
                     
             # 2. advertise_info.md 로드
-            advertise_path = project_root / "data" / "advertise_info.md"
+            advertise_path = project_root / "data" / "docs" / "advertise_info.md"
             if advertise_path.exists():
                 with open(advertise_path, 'r', encoding='utf-8') as f:
                     policy_content += f.read()
@@ -258,7 +264,7 @@ class Agent1:
     
     def check_business_appropriateness(self, user_input: str) -> Dict[str, Any]:
         """
-        비즈니스 알림톡에 적합하지 않은 요청을 필터링
+        비즈니스 알림톡에 적합하지 않은 요청을 필터링 (고도화된 룰 기반)
 
         Args:
             user_input: 사용자 입력
@@ -266,81 +272,188 @@ class Agent1:
         Returns:
             dict: 적합성 검증 결과
         """
-        user_input_lower = user_input.lower().strip()
+        if not user_input or not user_input.strip():
+            return {
+                'is_appropriate': False,
+                'message': "빈 입력입니다. 알림톡 템플릿 요청 내용을 입력해주세요.",
+                'category': 'empty_input',
+                'detected_pattern': 'empty'
+            }
 
-        # 부적절한 요청 패턴들
-        inappropriate_patterns = {
+        user_input_lower = user_input.lower().strip()
+        user_input_length = len(user_input_lower)
+
+        # 스코어링 기반 필터링 (가중치 적용)
+        score = 0
+        detected_patterns = []
+
+        # 1. 강력한 부적절 패턴 (즉시 차단급, -10점)
+        high_risk_patterns = {
             '요리_레시피': [
-                '김치찌개', '레시피', '요리법', '만드는 방법', '조리법',
-                '음식 만들기', '요리 방법', '식재료', '칼로리', '영양소',
-                '맛있게 만드는', '레시피 알려', '요리 알려', '만들어 먹기'
+                '김치찌개', '된장찌개', '라면', '파스타', '볶음밥',
+                '레시피', '요리법', '만드는 방법', '조리법', '음식 만들기',
+                '재료', '양념', '조미료', '맛있게', '달콤한', '매운'
             ],
             '개인_연애_상담': [
                 '여자친구', '남자친구', '연애', '데이트', '썸', '고백',
-                '이별', '짝사랑', '결혼', '만남', '소개팅', '애인',
-                '헤어진', '연인', '커플', '사랑', '좋아하는 사람'
-            ],
-            '개인_생활_상담': [
-                '인생 상담', '고민 상담', '스트레스', '우울', '힘들어',
-                '개인적인', '사생활', '일상 고민', '심리 상담',
-                '정신적', '감정적', '마음이', '기분이'
-            ],
-            '오락_게임': [
-                '게임', '오락', '놀이', 'pc방', '노래방', '영화',
-                '엔터테인먼트', '취미', '여가', '재미있는', '놀거리',
-                '게임방법', '룰', '규칙', '점수'
+                '이별', '짝사랑', '결혼 준비', '소개팅', '애인',
+                '헤어진', '연인', '커플', '사랑해', '좋아하는 사람'
             ],
             '학업_개인지도': [
-                '숙제', '과제', '공부 방법', '시험', '성적', '학습',
-                '교육', '강의', '수업', '개인 지도', '과외',
-                '문제 풀이', '학원', '책 추천'
+                '숙제', '과제', '시험 문제', '문제 풀이', '정답',
+                '수학', '영어', '국어', '과학', '공부 방법', '한국 지리', '세계 지리', '세계사', 
+                '한국사', '과외', '대학교', '고등학교'
             ],
-            '건강_의료_상담': [
-                '병원', '의사', '진료', '약', '치료', '수술',
-                '건강 상담', '증상', '질병', '아픈', '의학',
-                '처방', '검사', '진단'
+            '개인_일상_잡담': [
+                '심심해', '졸려', '피곤해', '배고파', '목말라',
+                '날씨', '비 와', '눈 와', '더워', '추워',
+                '아침', '점심', '저녁', '밤늦게'
             ]
         }
 
-        # 패턴 매칭 검사
-        for category, patterns in inappropriate_patterns.items():
+        for category, patterns in high_risk_patterns.items():
             for pattern in patterns:
                 if pattern in user_input_lower:
+                    score -= 10
+                    detected_patterns.append(f"high_risk_{category}_{pattern}")
                     return {
                         'is_appropriate': False,
                         'message': f"비즈니스 알림톡에 적합하지 않은 요청입니다. '{pattern}' 관련 내용은 처리할 수 없습니다.",
                         'category': category,
-                        'detected_pattern': pattern
+                        'detected_pattern': pattern,
+                        'confidence': 0.95
                     }
 
-        # 알림톡 관련 키워드가 있는지 확인 (긍정적 신호)
-        business_keywords = [
-            '알림', '안내', '공지', '확인', '접수', '예약', '주문',
-            '결제', '배송', '이벤트', '회원', '고객', '서비스',
-            '업체', '매장', '사업', '상품', '제품', '할인', '혜택'
+        # 2. 중간 위험 패턴 (-5점)
+        medium_risk_patterns = {
+            '오락_게임': [
+                '게임', '오락', '놀이', 'pc방', '노래방', '영화 추천',
+                '넷플릭스', '유튜브', '만화', '웹툰'
+            ],
+            '개인적_용도': [
+                '개인적으로', '나는', '내가', '나에게', '개인용',
+                '친구', '가족', '엄마', '아빠', '혼자서'
+            ]
+        }
+
+        for category, patterns in medium_risk_patterns.items():
+            pattern_count = 0
+            for pattern in patterns:
+                if pattern in user_input_lower:
+                    pattern_count += 1
+                    detected_patterns.append(f"medium_risk_{category}_{pattern}")
+            if pattern_count >= 1:
+                score -= 5 * pattern_count
+
+        # 3. 경미한 잡담 신호 (-2점)
+        casual_patterns = [
+            'ㅋㅋ', 'ㅎㅎ', 'ㅠㅠ', 'ㅜㅜ', '^^', '>_<',
+            '하하', '호호', '히히', '크크'
         ]
 
-        has_business_context = any(keyword in user_input_lower for keyword in business_keywords)
+        casual_count = sum(1 for pattern in casual_patterns if pattern in user_input_lower)
+        if casual_count > 0:
+            score -= 2 * casual_count
+            detected_patterns.append(f"casual_chat_{casual_count}개")
 
-        # 비즈니스 컨텍스트가 전혀 없고 개인적 요청으로 보이는 경우
-        if not has_business_context:
-            personal_indicators = [
-                '개인적으로', '나는', '내가', '나에게', '개인',
-                '친구', '가족', '개인용', '혼자서', '나만'
-            ]
+        # 4. 의미없는 입력 (-5점)
+        import re
+        meaningless_patterns = [
+            r'^[ㄱ-ㅎㅏ-ㅣ]{2,}$',  # 자음모음만
+            r'^[?!]{2,}$',  # 물음표/느낌표만
+            r'^[0-9]{1,3}$',  # 단순 숫자
+            r'^(안녕|하이|hi|hello)$',  # 단순 인사
+            r'^(네|아니|음|어|그래|맞아)$'  # 단답형
+        ]
 
-            if any(indicator in user_input_lower for indicator in personal_indicators):
+        for pattern in meaningless_patterns:
+            if re.match(pattern, user_input_lower):
+                score -= 5
+                detected_patterns.append("meaningless_input")
+                break
+
+        # 5. 길이 기반 조정
+        if user_input_length < 3:
+            score -= 3
+            detected_patterns.append("too_short")
+        elif user_input_length < 8:
+            score -= 1
+            detected_patterns.append("short_input")
+
+        # 6. 템플릿/알림톡 관련 긍정 신호 (+점수)
+        template_keywords = [
+            '템플릿', '알림톡', '카카오톡', '메시지', '양식', '서식',
+            '만들어', '생성', '작성', '제작', '수정', '편집',
+            '#{', '}', '치환변수', '변수', '버튼', '링크'
+        ]
+
+        positive_count = sum(1 for keyword in template_keywords if keyword in user_input_lower)
+        if positive_count > 0:
+            score += 5 * positive_count
+            detected_patterns.append(f"template_keywords_{positive_count}개")
+
+        # 7. 비즈니스 컨텍스트 긍정 신호 (+점수)
+        business_keywords = [
+            '예약', '주문', '결제', '배송', '발송', '접수', '신청',
+            '고객', '회원', '사용자', '구매자', '신청자',
+            '안내', '알림', '공지', '확인', '통보',
+            '할인', '이벤트', '쿠폰', '포인트', '혜택',
+            '서비스', '상품', '제품', '업체', '매장', '센터',
+            '병원', '의원', '진료', '학원', '수업', '카페',
+            '미용실', '은행', '부동산', '여행'
+        ]
+
+        business_count = sum(1 for keyword in business_keywords if keyword in user_input_lower)
+        if business_count > 0:
+            score += 3 * business_count
+            detected_patterns.append(f"business_context_{business_count}개")
+
+        # 8. 최종 판정 (스코어 기반)
+        if score <= -8:
+            return {
+                'is_appropriate': False,
+                'message': "알림톡 템플릿과 관련없는 요청으로 보입니다. 예약확인, 배송안내, 이벤트 안내 등 비즈니스 메시지 템플릿을 요청해주세요.",
+                'category': 'offtopic_chat',
+                'detected_pattern': detected_patterns,
+                'score': score,
+                'confidence': min(0.9, 0.7 + abs(score) * 0.02)
+            }
+
+        if score <= -5:
+            return {
+                'is_appropriate': False,
+                'message': "비즈니스 알림톡에 적합하지 않은 요청으로 보입니다. 고객 안내, 주문 확인, 예약 알림 등 비즈니스 목적의 템플릿을 요청해주세요.",
+                'category': 'inappropriate_content',
+                'detected_pattern': detected_patterns,
+                'score': score,
+                'confidence': 0.8
+            }
+
+        # 9. 경계선 케이스 (추가 검증 권장)
+        if -5 < score < 2:
+            # 템플릿 키워드가 전혀 없으면서 비즈니스 컨텍스트도 없는 경우
+            has_template_context = any(kw in user_input_lower for kw in ['템플릿', '알림톡', '메시지', '만들어', '작성'])
+            has_business_context = business_count > 0
+
+            if not has_template_context and not has_business_context:
                 return {
                     'is_appropriate': False,
-                    'message': "개인적인 용도로 보이는 요청입니다. 비즈니스 알림톡 템플릿 생성 서비스입니다.",
-                    'category': 'personal_use',
-                    'detected_pattern': 'personal_indicators'
+                    'message': "알림톡 템플릿 요청인지 확실하지 않습니다. '○○ 알림톡 템플릿 만들어주세요' 형태로 구체적으로 요청해주세요.",
+                    'category': 'uncertain_intent',
+                    'detected_pattern': detected_patterns,
+                    'score': score,
+                    'confidence': 0.6
                 }
 
+        # 10. 통과 판정
+        confidence = 0.7 if score >= 5 else 0.8 if score >= 2 else 0.6
         return {
             'is_appropriate': True,
             'message': "비즈니스 알림톡에 적합한 요청입니다.",
-            'category': 'business_appropriate'
+            'category': 'business_appropriate',
+            'detected_pattern': detected_patterns,
+            'score': score,
+            'confidence': confidence
         }
 
     def check_initial_profanity(self, text: str) -> bool:

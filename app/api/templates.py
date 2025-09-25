@@ -160,10 +160,10 @@ def determine_template_type(buttons: List[dict] = None) -> str:
         buttons: 버튼 리스트
 
     Returns:
-        "LINKS" if buttons exist, else "MESSAGE"
+        "LINK" if buttons exist, else "MESSAGE"
     """
     if buttons and len(buttons) > 0:
-        return "LINKS"
+        return "LINK"
     return "MESSAGE"
 
 
