@@ -86,18 +86,23 @@ class Agent2:
 
         data = {}
         predata_dir = Path("data/presets")
-        files = ["cleaned_black_list.md", "cleaned_white_list.md",
-                "cleaned_add_infotalk.md", "cleaned_alrimtalk.md",
-                "cleaned_content-guide.md", "cleaned_message.md",
-                "cleaned_run_message.md", "cleaned_zipguide.md",
-                "pdf_extraction_results.txt"]
+        files = ["cleaned_black_list.yaml", "cleaned_white_list.yaml",
+                "cleaned_add_infotalk.yaml", "cleaned_message.yaml",
+                "cleaned_content-guide.yaml", "cleaned_zipguide.yaml",
+                "info_comm_law_guide.yaml", "cleaned_info_simsa.yaml",
+                "cleaned_message_yuisahang.yaml"]
 
         for filename in files:
             file_path = predata_dir / filename
             if file_path.exists():
                 try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        data[filename] = f.read()
+                    if filename.endswith('.yaml'):
+                        import yaml
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            data[filename] = yaml.safe_load(f)
+                    else:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            data[filename] = f.read()
                 except Exception as e:
                     print(f" {filename} 로드 실패: {e}")
         return data
@@ -112,7 +117,12 @@ class Agent2:
             def _get_blacklist_data(self):
                 if self.blacklist_data is None:
                     predata = self.parent._get_predata_cache()
-                    self.blacklist_data = predata.get("cleaned_black_list.md", "")
+                    yaml_data = predata.get("cleaned_black_list.yaml", {})
+                    if isinstance(yaml_data, dict):
+                        # YAML 구조에서 텍스트 추출
+                        self.blacklist_data = str(yaml_data)
+                    else:
+                        self.blacklist_data = yaml_data or ""
                 return self.blacklist_data
 
             def invoke(self, input_data):
@@ -156,10 +166,12 @@ class Agent2:
 
             def _load_whitelist(self):
                 try:
+                    import yaml
                     base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                    whitelist_path = os.path.join(base_path, "data", "presets", "cleaned_white_list.md")
+                    whitelist_path = os.path.join(base_path, "data", "presets", "cleaned_white_list.yaml")
                     with open(whitelist_path, 'r', encoding='utf-8') as f:
-                        return f.read()
+                        yaml_data = yaml.safe_load(f)
+                        return str(yaml_data) if yaml_data else ""
                 except Exception as e:
                     print(f" WhiteList 로드 실패: {e}")
                     return ""
@@ -202,14 +214,13 @@ class Agent2:
 
             def _load_guidelines(self):
                 try:
+                    import yaml
                     base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                     guideline_files = [
-                        "cleaned_add_infotalk.md",
-                        "cleaned_alrimtalk.md",
-                        "cleaned_content-guide.md",
-                        "cleaned_message.md",
-                        "cleaned_run_message.md",
-                        "cleaned_zipguide.md"
+                        "cleaned_add_infotalk.yaml",
+                        "cleaned_content-guide.yaml",
+                        "cleaned_message.yaml",
+                        "cleaned_zipguide.yaml"
                     ]
 
                     all_data = ""
@@ -217,7 +228,8 @@ class Agent2:
                         file_path = os.path.join(base_path, "data", "presets", filename)
                         if os.path.exists(file_path):
                             with open(file_path, 'r', encoding='utf-8') as f:
-                                all_data += f.read() + "\n"
+                                yaml_data = yaml.safe_load(f)
+                                all_data += str(yaml_data) + "\n"
 
                     return all_data
                 except Exception as e:
@@ -265,10 +277,12 @@ class Agent2:
 
             def _load_law_data(self):
                 try:
+                    import yaml
                     base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                    law_path = os.path.join(base_path, "data", "presets", "pdf_extraction_results.txt")
+                    law_path = os.path.join(base_path, "data", "presets", "info_comm_law_guide.yaml")
                     with open(law_path, 'r', encoding='utf-8') as f:
-                        return f.read()
+                        yaml_data = yaml.safe_load(f)
+                        return str(yaml_data) if yaml_data else ""
                 except Exception as e:
                     print(f" 정보통신법 데이터 로드 실패: {e}")
                     return ""
@@ -416,8 +430,8 @@ class Agent2:
                 # 모든 변수 매핑 완료
                 print(f"변수 매핑 완료: {mapping_result['mapping_coverage']:.1%}")
 
-        # 5단계: 템플릿 기반 버튼 자동 생성
-        buttons = self._generate_buttons_from_template(template)
+        # 5단계: 사용자 입력 + 템플릿 기반 버튼 자동 생성
+        buttons = self._generate_buttons_from_content(preprocessed_input, template)
 
         # 성공적인 결과를 딕셔너리 형태로 반환
         result = {
@@ -506,8 +520,8 @@ class Agent2:
                 # 모든 변수 매핑 완료
                 print(f"변수 매핑 완료 (비동기): {mapping_result['mapping_coverage']:.1%}")
 
-        # 5단계: 템플릿 기반 버튼 자동 생성
-        buttons = self._generate_buttons_from_template(template)
+        # 5단계: 사용자 입력 + 템플릿 기반 버튼 자동 생성
+        buttons = self._generate_buttons_from_content(preprocessed_input, template)
 
         # 성공적인 결과를 딕셔너리 형태로 반환
         result = {
@@ -844,17 +858,13 @@ class Agent2:
                 "error": str(e)
             }
 
-    def _generate_buttons_from_template(self, template: str) -> List[dict]:
-        """템플릿 내용을 분석하여 자동으로 버튼 생성"""
+    def _generate_buttons_from_content(self, user_input: str, template: str) -> List[dict]:
+        """사용자 입력과 템플릿 내용을 분석하여 자동으로 버튼 생성"""
         import re
 
         buttons = []
 
-        # 1. URL 패턴 감지
-        url_pattern = r'https?://[^\s\]]+|www\.[^\s\]]+|[^\s]+\.(com|kr|net|org|co\.kr)(?:/[^\s\]]*)?'
-        urls = re.findall(url_pattern, template)
-
-        # 2. 키워드 기반 버튼명 매핑
+        # 키워드 기반 버튼명 매핑
         keyword_mappings = {
             "자세히": "자세히 보기",
             "자세한": "자세히 보기",
@@ -870,13 +880,27 @@ class Agent2:
             "상담": "상담 신청"
         }
 
-        # 3. 템플릿에서 키워드 검색 및 버튼 생성
-        found_keywords = []
+        # 1. 사용자 입력과 템플릿을 합친 전체 내용에서 URL 패턴 감지
+        combined_content = user_input + "\n" + template
+        url_pattern = r'https?://[^\s\]]+|www\.[^\s\]]+|[^\s]+\.(com|kr|net|org|co\.kr)(?:/[^\s\]]*)?'
+        urls = re.findall(url_pattern, combined_content)
+
+        # 2. 사용자 입력에서 키워드 검색 (우선순위 높음)
+        user_input_keywords = []
+        for keyword, button_name in keyword_mappings.items():
+            if keyword in user_input:
+                user_input_keywords.append((keyword, button_name))
+
+        # 3. 템플릿에서 키워드 검색 (보조적)
+        template_keywords = []
         for keyword, button_name in keyword_mappings.items():
             if keyword in template:
-                found_keywords.append((keyword, button_name))
+                template_keywords.append((keyword, button_name))
 
-        # 4. 버튼 생성
+        # 4. 키워드 우선순위 결정 (사용자 입력 > 템플릿)
+        found_keywords = user_input_keywords if user_input_keywords else template_keywords
+
+        # 5. 버튼 생성
         if urls:
             # URL이 있으면 첫 번째 URL을 사용하여 버튼 생성
             url = urls[0] if isinstance(urls[0], str) else urls[0][0]
@@ -929,8 +953,15 @@ class Agent2:
                 "targetUrl": None
             })
 
+        # 6. 로깅
         if buttons:
-            print(f" 버튼 자동 생성: {len(buttons)}개 - {[btn['name'] for btn in buttons]}")
+            source = "사용자 입력" if user_input_keywords else "생성된 템플릿"
+            detected_keywords = [kw[0] for kw in found_keywords]
+            print(f" 버튼 자동 생성 ({source}): {len(buttons)}개")
+            print(f"   감지된 키워드: {detected_keywords}")
+            print(f"   생성된 버튼: {[btn['name'] for btn in buttons]}")
+            if urls:
+                print(f"   감지된 URL: {urls[0]}")
 
         return buttons
 
