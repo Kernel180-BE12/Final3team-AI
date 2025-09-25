@@ -72,6 +72,10 @@ class Settings:
     TEMPLATE_VARIABLE_PREFIX: str = os.getenv("TEMPLATE_VARIABLE_PREFIX", "▶")
     TEMPLATE_USE_EMOJI: bool = os.getenv("TEMPLATE_USE_EMOJI", "false").lower() == "true"
 
+    # 연락처 정보 처리 설정
+    REQUIRE_USER_CONTACT_INFO: bool = os.getenv("REQUIRE_USER_CONTACT_INFO", "true").lower() == "true"
+    AUTO_ADD_CONTACT_FIELDS: bool = os.getenv("AUTO_ADD_CONTACT_FIELDS", "false").lower() == "true"
+
     def __init__(self):
         """설정 초기화 시 필요한 디렉토리 생성"""
         self._ensure_directories()

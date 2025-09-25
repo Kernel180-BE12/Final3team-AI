@@ -872,8 +872,9 @@ class Agent1:
         if not is_follow_up or self.conversation_state is None:
             self.conversation_state = ConversationState()
 
-        # 1. 초기 비속어 검출 - 재시도 요청으로 변경 (동기 - 빠른 처리)
-        if self.check_initial_profanity(user_input):
+        # 1. 초기 비속어 검출 - 재시도 요청으로 변경 (비동기)
+        profanity_result = await self.profanity_checker.check_text_async(user_input)
+        if not profanity_result['is_clean']:
             return {
                 'status': 'profanity_retry',
                 'message': "비속어가 검출되었습니다. 다시 입력해주세요.",
@@ -917,8 +918,9 @@ class Agent1:
         # 정책 준수 확인 (동기 - 규칙 기반)
         policy_result = self.check_policy_compliance(combined_text, current_variables)
 
-        # 최종 비속어 검사 (동기 - 빠른 처리)
-        has_profanity = self.check_initial_profanity(combined_text)
+        # 최종 비속어 검사 (비동기)
+        final_profanity_result = await self.profanity_checker.check_text_async(combined_text)
+        has_profanity = not final_profanity_result['is_clean']
 
         # 8. 위반사항이 있으면 안내 후 재시작
         if not policy_result['is_compliant']:

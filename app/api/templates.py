@@ -33,8 +33,18 @@ router = APIRouter()
 class TemplateRequest(BaseModel):
     """템플릿 생성 요청 모델"""
     userId: int
-    requestContent: str = Field(..., min_length=10, max_length=1000, description="구체적인 알림톡 템플릿 요청 내용 (최소 10자 이상)")
-    conversationContext: Optional[str] = None  # 재질문 컨텍스트
+    requestContent: str = Field(
+        ...,
+        min_length=10,
+        max_length=1000,
+        description="구체적인 알림톡 템플릿 요청 내용 (최소 10자 이상)",
+        examples=["카페 예약 확인 알림톡 템플릿을 만들어주세요"]
+    )
+    conversationContext: Optional[str] = Field(
+        None,
+        description="재질문 컨텍스트",
+        examples=["이전 대화 내용"]
+    )
 
     @field_validator('requestContent')
     @classmethod

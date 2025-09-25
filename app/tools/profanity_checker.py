@@ -82,6 +82,19 @@ class ProfanityChecker:
             'message': '정상 텍스트입니다.' if is_clean else f'비속어 검출: {", ".join(detected_words)}'
         }
 
+    async def check_text_async(self, text: str) -> Dict[str, Any]:
+        """
+        텍스트 비속어 검사 - 비동기 버전 (하위 호환성 유지)
+
+        Args:
+            text: 검사할 텍스트
+
+        Returns:
+            검사 결과 딕셔너리
+        """
+        # 규칙 기반 처리라 동기 메서드를 그대로 호출
+        return self.check_text(text)
+
     def check_multiple_texts(self, texts: List[str]) -> Dict[str, Any]:
         """
         여러 텍스트 일괄 검사

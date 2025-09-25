@@ -549,6 +549,9 @@ class Agent2:
         # 포맷팅 규칙 동적 생성
         formatting_rules = self._get_formatting_rules(settings)
 
+        # 연락처 정보 처리 규칙
+        contact_rules = self._get_contact_rules(settings)
+
         # LLM에 전달할 프롬프트 구성
         system_prompt = f"""당신은 Agent2의 템플릿생성자입니다.
 4개 Tools(BlackList, WhiteList, 가이드라인, 정보통신법)의 분석 결과를 바탕으로
@@ -564,7 +567,7 @@ class Agent2:
 템플릿 생성 규칙:
 - 적절한 인사말
 - 핵심 내용 (사용자가 제공한 구체적인 정보를 그대로 사용)
-- 연락처 정보
+{contact_rules}
 - 법적 고지사항 (필요시)
 - 정중한 마무리
 
@@ -634,6 +637,9 @@ class Agent2:
         # 포맷팅 규칙 동적 생성
         formatting_rules = self._get_formatting_rules(settings)
 
+        # 연락처 정보 처리 규칙
+        contact_rules = self._get_contact_rules(settings)
+
         # LLM에 전달할 프롬프트 구성
         system_prompt = f"""당신은 Agent2의 템플릿생성자입니다.
 4개 Tools(BlackList, WhiteList, 가이드라인, 정보통신법)의 분석 결과를 바탕으로
@@ -649,7 +655,7 @@ class Agent2:
 템플릿 생성 규칙:
 - 적절한 인사말
 - 핵심 내용 (사용자가 제공한 구체적인 정보를 그대로 사용)
-- 연락처 정보
+{contact_rules}
 - 법적 고지사항 (필요시)
 - 정중한 마무리
 
@@ -739,13 +745,31 @@ class Agent2:
 
         return "\n".join(rules)
 
+    def _get_contact_rules(self, settings) -> str:
+        """설정에 따른 연락처 정보 처리 규칙 생성"""
+        if settings.REQUIRE_USER_CONTACT_INFO and not settings.AUTO_ADD_CONTACT_FIELDS:
+            return "- 연락처 정보: 사용자가 명시적으로 제공한 경우에만 포함 (자동으로 추가하지 않음)"
+        elif settings.AUTO_ADD_CONTACT_FIELDS:
+            return "- 연락처 정보: 항상 포함 (#{연락처}, #{문의전화} 등 변수 형태로)"
+        else:
+            return "- 연락처 정보: 사용자 입력에 따라 선택적 포함"
+
     def _create_fallback_template(self, user_input: str, tools_results: Dict) -> str:
         """LLM 오류 시 폴백 템플릿"""
         law = tools_results["law"]
         whitelist = tools_results["whitelist"]
+        settings = get_settings()
 
         # 광고성 메시지 여부에 따른 접두사
         prefix = "[광고] " if law["message_type"] == "광고성" else ""
+
+        # 연락처 정보 포함 여부 결정
+        contact_section = ""
+        if settings.AUTO_ADD_CONTACT_FIELDS or "연락처" in user_input.lower() or "전화" in user_input.lower():
+            contact_section = """
+ 문의처
+- 연락처: #{{연락처}}
+- 운영시간: #{{운영시간}}"""
 
         template = f"""{prefix}안녕하세요, #{{고객명}}님.
 
@@ -753,12 +777,8 @@ class Agent2:
 
  주요 내용
 - 일시: #{{일시}}
-- 장소: #{{장소}}  
-- 내용: #{{상세내용}}
-
- 문의처
-- 연락처: #{{연락처}}
-- 운영시간: #{{운영시간}}
+- 장소: #{{장소}}
+- 내용: #{{상세내용}}{contact_section}
 
 ※ 본 메시지는 {whitelist['category']} 목적으로 발송되는 {'광고성 정보 전송에 동의하신 분께 발송되는' if law['message_type'] == '광고성' else '서비스 안내'} 메시지입니다.
 
