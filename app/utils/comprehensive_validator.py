@@ -37,7 +37,7 @@ class ComprehensiveValidator:
         self.korean_validator = get_korean_validator()
         self.ai_validator = get_ai_validator()
 
-        print("🛡️ 3단계 통합 입력 검증 시스템 초기화 완료")
+        print("3단계 통합 입력 검증 시스템 초기화 완료")
 
     def validate_input_comprehensive(self, user_input: str, agent1_result: Optional[Dict] = None) -> ComprehensiveValidationResult:
         """
@@ -53,7 +53,7 @@ class ComprehensiveValidator:
         result = ComprehensiveValidationResult()
 
         # 1단계: 언어 감지 및 기본 검증
-        print(f"🔍 1단계 검증: 언어 감지 및 기본 검증")
+        print(f"1단계 검증: 언어 감지 및 기본 검증")
         stage1_valid, stage1_error, stage1_message = self.language_detector.validate_language_input(user_input)
 
         result.stage_results['stage1'] = {
@@ -70,10 +70,10 @@ class ComprehensiveValidator:
             result.suggestion = self.language_detector.get_validation_suggestion(user_input, stage1_error)
             return result
 
-        print(f"✅ 1단계 통과: {stage1_message}")
+        print(f"1단계 통과: {stage1_message}")
 
         # 2단계: 한국어 품질 검증
-        print(f"🔍 2단계 검증: 한국어 품질 검증")
+        print(f"2단계 검증: 한국어 품질 검증")
         stage2_valid, stage2_error, stage2_message = self.korean_validator.validate_korean_quality(user_input)
 
         result.stage_results['stage2'] = {
@@ -90,10 +90,10 @@ class ComprehensiveValidator:
             result.suggestion = self.korean_validator.get_quality_suggestions(user_input, stage2_error)
             return result
 
-        print(f"✅ 2단계 통과: {stage2_message}")
+        print(f"2단계 통과: {stage2_message}")
 
         # 3단계: AI 레벨 검증
-        print(f"🔍 3단계 검증: AI 레벨 검증")
+        print(f"3단계 검증: AI 레벨 검증")
         stage3_valid, stage3_error, stage3_message = self.ai_validator.comprehensive_ai_validation(user_input, agent1_result)
 
         result.stage_results['stage3'] = {
@@ -110,7 +110,7 @@ class ComprehensiveValidator:
             result.suggestion = self.ai_validator.get_ai_validation_suggestions(stage3_error, user_input)
             return result
 
-        print(f"✅ 3단계 통과: {stage3_message}")
+        print(f"3단계 통과: {stage3_message}")
 
         # 모든 단계 통과
         result.is_valid = True
@@ -213,7 +213,7 @@ def is_meaningful_text_advanced(user_input: str) -> bool:
 
 if __name__ == "__main__":
     # 테스트 코드
-    print("🧪 3단계 통합 입력 검증 시스템 테스트")
+    print("3단계 통합 입력 검증 시스템 테스트")
     print("=" * 60)
 
     validator = ComprehensiveValidator()
@@ -259,15 +259,15 @@ if __name__ == "__main__":
 
         # 결과 출력
         if result.is_valid:
-            print(f"    🎉 전체 통과: {result.error_message}")
+            print(f"    전체 통과: {result.error_message}")
         else:
-            print(f"    ❌ 차단됨 [{result.failed_stage.value}]: {result.error_message}")
-            print(f"    💡 제안: {result.suggestion}")
+            print(f"    차단됨 [{result.failed_stage.value}]: {result.error_message}")
+            print(f"    제안: {result.suggestion}")
 
         # 단계별 상세 결과
         for stage, stage_result in result.stage_results.items():
-            status = "✅" if stage_result['valid'] else "❌"
+            status = "통과" if stage_result['valid'] else "실패"
             print(f"        {stage}: {status} {stage_result['message']}")
 
-    print(f"\n🔧 3단계 통합 입력 검증 시스템 테스트 완료")
-    print(f"🎯 Issue 5 무의미한 입력 템플릿 생성 문제 해결!")
+    print(f"\n3단계 통합 입력 검증 시스템 테스트 완료")
+    print(f"Issue 5 무의미한 입력 템플릿 생성 문제 해결!")

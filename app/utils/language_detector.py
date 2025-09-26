@@ -236,7 +236,7 @@ def is_valid_korean_input(text: str) -> bool:
 
 if __name__ == "__main__":
     # 테스트 코드
-    print("🧪 언어 감지 시스템 테스트")
+    print("언어 감지 시스템 테스트")
     print("=" * 50)
 
     detector = LanguageDetector()

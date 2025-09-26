@@ -32,7 +32,7 @@
 
 ---
 
-## 🏗️ 시스템 아키텍처
+## 시스템 아키텍처
 
 ### 템플릿 생성 워크플로우
 ```
@@ -420,4 +420,82 @@ MIT License - 자세한 내용은 [LICENSE](LICENSE) 파일 참조
 
 ---
 
-**🎯 JOBER AI - AI로 완성하는 완벽한 알림톡 템플릿!**
+## 코드베이스 분석 및 개선사항
+
+### 현재 아키텍처 상태
+
+이 프로젝트는 FastAPI 기반의 한국어 비즈니스 메시지 템플릿 생성 서비스로, AI 에이전트와 벡터 데이터베이스를 활용한 계층화된 구조를 가지고 있습니다.
+
+**주요 구성요소:**
+- **Agent1**: 입력 검증, 변수 추출, 의도 분류, 대화 상태 관리
+- **Agent2**: 4개 도구를 활용한 템플릿 생성 및 컴플라이언스 검증
+- **Core Layer**: 비즈니스 로직 및 템플릿 처리
+- **API Layer**: FastAPI 라우트 핸들러
+
+### 식별된 구조적 문제점
+
+#### 중요 (Critical)
+1. **Import 시스템 문제**: 수동 경로 조작 및 importlib 사용으로 인한 불안정성
+2. **대형 클래스**: Agent1 (1,279줄), Agent2 (1,008줄) - 단일 책임 원칙 위반
+3. **설정 시스템 분산**: 3개의 경쟁하는 설정 시스템
+
+#### 보통 (Important)
+4. **순환 의존성 위험**: 복잡한 교차 모듈 의존성
+5. **오류 처리 불일치**: 중앙화된 오류 처리 전략 부재
+6. **계층간 강한 결합**: API가 비즈니스 로직을 직접 인스턴스화
+
+### 리팩토링 권장사항
+
+#### 단계별 개선 계획
+1. **Phase 1**: Import 시스템 안정화 (필수)
+2. **Phase 2**: 서비스 레이어 추출 (필수)
+3. **Phase 3**: 대형 클래스 분해 (중요)
+4. **Phase 4**: 설정 시스템 통합 (중요)
+5. **Phase 5**: 적절한 오류 처리 구현 (보통)
+
+### LangGraph 마이그레이션 평가
+
+#### LangGraph 적합성 - 권장
+
+**현재 시스템의 복잡한 대화형 워크플로우는 LangGraph의 강점과 일치합니다:**
+
+- **복잡한 상태 관리**: 다중 턴 대화에서 변수 수집
+- **조건부 라우팅**: Agent1의 여러 검증 단계
+- **도구 오케스트레이션**: Agent2의 4개 도구 병렬 실행
+- **오류 처리**: 여러 실패 모드에 대한 복구 경로
+
+#### 구현 전략
+```python
+# LangGraph 구현 예시
+from langgraph.graph import StateGraph
+
+class JoberState(TypedDict):
+    user_input: str
+    variables: dict
+    validation_status: str
+    template_result: dict
+
+workflow = StateGraph(JoberState)
+workflow.add_node("validate_input", agent1_validate)
+workflow.add_node("generate_template", agent2_generate)
+workflow.add_conditional_edges(
+    "validate_input",
+    check_completeness,
+    {"generate_template": "generate_template", "reask": "reask_variables"}
+)
+```
+
+#### 예상 효과
+- 대화 상태 버그 30% 감소
+- 새로운 에이전트 기능 추가 50% 용이
+- 향상된 오류 복구 메커니즘
+- 프로덕션 디버깅을 위한 관찰 가능성 개선
+
+#### 마이그레이션 계획
+1. **Phase 1** (3주): 핵심 Agent1→Agent2 플로우의 LangGraph 버전 구현
+2. **Phase 2** (4-6주): 점진적 시스템 교체 및 A/B 테스트
+3. **Phase 3** (2-3주): 고급 기능 (재시도 로직, 모니터링) 구현
+
+---
+
+**JOBER AI - AI로 완성하는 완벽한 알림톡 템플릿!**

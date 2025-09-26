@@ -26,6 +26,9 @@ from app.utils.llm_provider_manager import get_llm_manager
 from app.dto.api_result import ApiResult, ErrorResponse as ApiErrorResponse
 from app.utils.language_detector import validate_input_language, ValidationError
 from app.utils.industry_purpose_mapping import get_category_info
+from app.utils.performance_logger import get_performance_logger, TimingContext
+import time
+import uuid
 
 router = APIRouter()
 
@@ -289,15 +292,27 @@ async def create_template(request: TemplateRequest):
     Returns:
         생성된 템플릿 정보 또는 에러 응답
     """
+    # 성능 로깅 초기화
+    request_id = str(uuid.uuid4())[:8]
+    start_time = time.time()
+    perf_logger = get_performance_logger()
+    stage_times = {}
+
+    print(f"🚀 [REQUEST START] {request_id} - User: {request.userId} - Content: '{request.requestContent[:50]}...'")
+
     try:
         # 1. Agent1 초기화 및 분석
-        agent1 = Agent1()
+        with TimingContext(perf_logger, "Agent1_Initialization", request_id) as ctx:
+            agent1 = Agent1()
+        stage_times['agent1_init'] = ctx.duration
 
         # 2. 사용자 입력 처리
-        agent1_result = await agent1.process_query_async(
-            request.requestContent,
-            conversation_context=request.conversationContext
-        )
+        with TimingContext(perf_logger, "Agent1_Processing", request_id) as ctx:
+            agent1_result = await agent1.process_query_async(
+                request.requestContent,
+                conversation_context=request.conversationContext
+            )
+        stage_times['agent1_processing'] = ctx.duration
 
         # 3. Agent1 처리 결과에 따른 분기
         if agent1_result['status'] == 'inappropriate_request':
@@ -355,17 +370,19 @@ async def create_template(request: TemplateRequest):
             )
 
         # 4. 템플릿 선택
-        template_selector = TemplateSelector()
-        analysis = agent1_result.get('analysis', {})
+        with TimingContext(perf_logger, "Template_Selection", request_id) as ctx:
+            template_selector = TemplateSelector()
+            analysis = agent1_result.get('analysis', {})
 
-        selected_template = await template_selector.select_template_async(
-            user_input=request.requestContent,
-            options={
-                'variables': analysis.get('variables', {}),
-                'intent': analysis.get('intent', {}),
-                'user_id': request.userId
-            }
-        )
+            selected_template = await template_selector.select_template_async(
+                user_input=request.requestContent,
+                options={
+                    'variables': analysis.get('variables', {}),
+                    'intent': analysis.get('intent', {}),
+                    'user_id': request.userId
+                }
+            )
+        stage_times['template_selection'] = ctx.duration
 
         if not selected_template:
             return create_error_response(
@@ -374,12 +391,16 @@ async def create_template(request: TemplateRequest):
             )
 
         # 5. Agent2로 최종 템플릿 생성
-        agent2 = Agent2()
+        with TimingContext(perf_logger, "Agent2_Initialization", request_id) as ctx:
+            agent2 = Agent2()
+        stage_times['agent2_init'] = ctx.duration
 
-        final_template_result, metadata = await agent2.generate_compliant_template_async(
-            user_input=request.requestContent,
-            agent1_variables=analysis.get('variables', {})
-        )
+        with TimingContext(perf_logger, "Agent2_Template_Generation", request_id) as ctx:
+            final_template_result, metadata = await agent2.generate_compliant_template_async(
+                user_input=request.requestContent,
+                agent1_variables=analysis.get('variables', {})
+            )
+        stage_times['agent2_generation'] = ctx.duration
 
         if not final_template_result:
             return create_error_response(
@@ -476,12 +497,45 @@ async def create_template(request: TemplateRequest):
             _mapped_variables={}  # 완성된 템플릿은 빈 객체
         )
 
+        # 최종 성능 로깅
+        total_time = time.time() - start_time
+        stage_times['total'] = total_time
+        stage_times['response_formatting'] = total_time - sum([v for k, v in stage_times.items() if k != 'total'])
+
+        # 상세 로깅
+        perf_logger.log_request_timing(
+            request_id=request_id,
+            user_id=request.userId,
+            request_content=request.requestContent,
+            total_time=total_time,
+            stage_times=stage_times,
+            metadata={
+                "status": "success",
+                "template_length": len(str(template_data.get('content', ''))),
+                "variables_count": len(template_data.get('variables', [])),
+                "has_conversation_context": bool(request.conversationContext)
+            }
+        )
+
+        print(f"✅ [REQUEST SUCCESS] {request_id} - Total: {total_time:.2f}s")
+
         # ApiResult로 래핑하여 반환
         return ApiResult.ok(template_data)
 
     except Exception as e:
-        # 예상치 못한 오류 - 디버그 로깅 추가
+        # 에러 성능 로깅
+        total_time = time.time() - start_time
         error_message = str(e)
+
+        perf_logger.log_error(
+            error_msg=f"템플릿 생성 실패: {error_message}",
+            request_id=request_id,
+            duration=total_time
+        )
+
+        print(f"❌ [REQUEST ERROR] {request_id} - Duration: {total_time:.2f}s - Error: {error_message}")
+
+        # 예상치 못한 오류 - 디버그 로깅 추가
         print(f"DEBUG: 템플릿 생성 중 예외 발생: {error_message}")
         import traceback
         traceback.print_exc()

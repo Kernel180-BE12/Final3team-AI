@@ -43,7 +43,7 @@ class AIInputValidator:
             '혜택': ['할인', '쿠폰', '혜택', '특가', '포인트']
         }
 
-        print("🤖 AI 레벨 입력 검증 시스템 초기화 완료")
+        print("AI 레벨 입력 검증 시스템 초기화 완료")
 
     def extract_basic_information(self, user_input: str) -> Dict[str, str]:
         """
@@ -360,7 +360,7 @@ def is_ai_interpretable(user_input: str) -> bool:
 
 if __name__ == "__main__":
     # 테스트 코드
-    print("🧪 AI 레벨 입력 검증 시스템 테스트")
+    print("AI 레벨 입력 검증 시스템 테스트")
     print("=" * 50)
 
     validator = AIInputValidator()

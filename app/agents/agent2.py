@@ -13,6 +13,8 @@ from typing_extensions import TypedDict
 from langchain.schema import HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.schema.runnable import RunnableParallel
+import concurrent.futures
+import asyncio
 
 # 타입 정의
 class TemplateVariable(TypedDict):
@@ -370,10 +372,31 @@ class Agent2:
         input_data = {"user_input": preprocessed_input}
 
         try:
-            tools_results = {}
-            for tool_name, tool in self.tools.items():
-                tools_results[tool_name] = tool.invoke(input_data)
-            print(f" 4개 Tools 분석 완료")
+            # 4개 Tools 병렬 실행 (ThreadPoolExecutor 사용)
+            import concurrent.futures
+            import time
+
+            parallel_start = time.time()
+            print(f" 4개 Tools 병렬 실행 시작")
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                # 모든 도구를 병렬로 실행
+                future_to_tool = {executor.submit(tool.invoke, input_data): tool_name
+                                for tool_name, tool in self.tools.items()}
+
+                tools_results = {}
+                for future in concurrent.futures.as_completed(future_to_tool):
+                    tool_name = future_to_tool[future]
+                    try:
+                        result = future.result()
+                        tools_results[tool_name] = result
+                        print(f" {tool_name} 완료")
+                    except Exception as exc:
+                        print(f" {tool_name} 오류: {exc}")
+                        tools_results[tool_name] = {"error": str(exc)}
+
+            parallel_time = time.time() - parallel_start
+            print(f" 4개 Tools 병렬 분석 완료 - {parallel_time:.2f}초")
 
         except Exception as e:
             print(f" Tools 실행 오류: {e}")
@@ -460,10 +483,31 @@ class Agent2:
         input_data = {"user_input": preprocessed_input}
 
         try:
-            tools_results = {}
-            for tool_name, tool in self.tools.items():
-                tools_results[tool_name] = tool.invoke(input_data)
-            print(f" 4개 Tools 분석 완료 (비동기)")
+            # 4개 Tools 비동기 병렬 실행
+            import time
+
+            parallel_start = time.time()
+            print(f" 4개 Tools 비동기 병렬 실행 시작")
+
+            # asyncio.to_thread를 사용하여 동기 tool.invoke를 비동기로 실행
+            async def run_tool(tool_name, tool, input_data):
+                try:
+                    result = await asyncio.to_thread(tool.invoke, input_data)
+                    print(f" {tool_name} 비동기 완료")
+                    return tool_name, result
+                except Exception as e:
+                    print(f" {tool_name} 비동기 오류: {e}")
+                    return tool_name, {"error": str(e)}
+
+            # 모든 도구를 병렬로 실행
+            tasks = [run_tool(tool_name, tool, input_data) for tool_name, tool in self.tools.items()]
+            results = await asyncio.gather(*tasks)
+
+            # 결과를 dict로 변환
+            tools_results = {tool_name: result for tool_name, result in results}
+
+            parallel_time = time.time() - parallel_start
+            print(f" 4개 Tools 비동기 병렬 분석 완료 - {parallel_time:.2f}초")
 
         except Exception as e:
             print(f" Tools 실행 오류 (비동기): {e}")

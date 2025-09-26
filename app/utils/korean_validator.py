@@ -297,7 +297,7 @@ def is_quality_korean(text: str) -> bool:
 
 if __name__ == "__main__":
     # 테스트 코드
-    print("🧪 한국어 품질 검증 시스템 테스트")
+    print("한국어 품질 검증 시스템 테스트")
     print("=" * 50)
 
     validator = KoreanValidator()

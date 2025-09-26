@@ -75,7 +75,7 @@ class VariableExtractor:
             variables = self._parse_variables(response_text)
             print(f"변수 추출 완료 (비동기) - Provider: {provider}, Model: {model}")
 
-            # 🚨 안전모드: 핵심 변수가 누락되면 강제 채우기
+            # 안전모드: 핵심 변수가 누락되면 강제 채우기
             variables = self._apply_safety_mode(variables, query)
             return variables
         except Exception as e:

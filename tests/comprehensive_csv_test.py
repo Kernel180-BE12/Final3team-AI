@@ -100,7 +100,7 @@ def test_single_case(text, expected, test_id, retry_count=2):
 def run_comprehensive_test():
     """전체 데이터에 대한 포괄적 테스트"""
 
-    print("🧪 CSV 전체 데이터 포괄적 테스트 시작")
+    print("CSV 전체 데이터 포괄적 테스트 시작")
     print("=" * 80)
 
     # 데이터 로드

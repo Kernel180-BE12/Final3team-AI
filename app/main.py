@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """애플리케이션 라이프사이클 관리"""
     # 시작 시
-    logger.info("🚀 JOBER AI 서비스 시작")
+    logger.info("JOBER AI 서비스 시작")
 
     # LLM 제공자 초기화 확인
     try:
@@ -48,17 +48,17 @@ async def lifespan(app: FastAPI):
         logger.info(f"LLM 제공자 상태: {status}")
 
         if not status['available_providers']:
-            logger.warning("⚠️ 사용 가능한 LLM 제공자가 없습니다. API 키를 확인해주세요.")
+            logger.warning("사용 가능한 LLM 제공자가 없습니다. API 키를 확인해주세요.")
         else:
-            logger.info(f"✅ 사용 가능한 LLM 제공자: {status['available_providers']}")
+            logger.info(f"사용 가능한 LLM 제공자: {status['available_providers']}")
 
     except Exception as e:
-        logger.error(f"❌ LLM 제공자 초기화 실패: {e}")
+        logger.error(f"LLM 제공자 초기화 실패: {e}")
 
     yield
 
     # 종료 시
-    logger.info("🛑 JOBER AI 서비스 종료")
+    logger.info("JOBER AI 서비스 종료")
 
 
 # FastAPI 앱 생성
