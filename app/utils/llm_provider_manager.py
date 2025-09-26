@@ -9,6 +9,10 @@ import logging
 from typing import Any, Dict, Optional, Tuple, Union
 from enum import Enum
 
+# 환경변수 로드
+from dotenv import load_dotenv
+load_dotenv()
+
 import google.generativeai as genai
 import openai
 from openai import AsyncOpenAI

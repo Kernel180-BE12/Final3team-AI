@@ -511,8 +511,8 @@ async def create_template(request: TemplateRequest):
             stage_times=stage_times,
             metadata={
                 "status": "success",
-                "template_length": len(str(template_data.get('content', ''))),
-                "variables_count": len(template_data.get('variables', [])),
+                "template_length": len(str(template_data.content or '')),
+                "variables_count": len(template_data.variables or []),
                 "has_conversation_context": bool(request.conversationContext)
             }
         )
