@@ -88,23 +88,34 @@ class Agent2:
 
         data = {}
         predata_dir = Path("data/presets")
-        files = ["cleaned_black_list.yaml", "cleaned_white_list.yaml",
-                "cleaned_add_infotalk.yaml", "cleaned_message.yaml",
-                "cleaned_content-guide.yaml", "cleaned_zipguide.yaml",
-                "info_comm_law_guide.yaml", "cleaned_info_simsa.yaml",
-                "cleaned_message_yuisahang.yaml"]
+        files = ["cleaned_add_infotalk.md",        # 알림톡 정보
+                "cleaned_black_list.md",          # 블랙리스트
+                "cleaned_content-guide.md",       # 콘텐츠 가이드
+                "cleaned_info_simsa.md",          # 정보성 메시지 심사
+                "cleaned_message.md",             # 메시지 가이드
+                "cleaned_message_yuisahang.md",   # 유사행 메시지
+                "cleaned_white_list.md",          # 화이트리스트
+                "cleaned_zipguide.md",            # 집행가이드
+                "info_comm_law_guide.yaml"]       # 정보통신망법 가이드
 
         for filename in files:
             file_path = predata_dir / filename
             if file_path.exists():
                 try:
-                    if filename.endswith('.yaml'):
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+
+                    if filename.endswith('.yaml') or filename.endswith('.yml'):
+                        # YAML 파일인 경우
                         import yaml
-                        with open(file_path, 'r', encoding='utf-8') as f:
-                            data[filename] = yaml.safe_load(f)
+                        data[filename] = yaml.safe_load(content)
+                    elif filename.endswith('.md'):
+                        # MD 파일인 경우 raw content 저장
+                        data[filename] = content
                     else:
-                        with open(file_path, 'r', encoding='utf-8') as f:
-                            data[filename] = f.read()
+                        # 기타 텍스트 파일
+                        data[filename] = content
+
                 except Exception as e:
                     print(f" {filename} 로드 실패: {e}")
         return data
@@ -119,12 +130,12 @@ class Agent2:
             def _get_blacklist_data(self):
                 if self.blacklist_data is None:
                     predata = self.parent._get_predata_cache()
-                    yaml_data = predata.get("cleaned_black_list.yaml", {})
-                    if isinstance(yaml_data, dict):
-                        # YAML 구조에서 텍스트 추출
-                        self.blacklist_data = str(yaml_data)
+                    md_data = predata.get("cleaned_black_list.md", "")
+                    if isinstance(md_data, str):
+                        # MD 파일 내용 직접 사용
+                        self.blacklist_data = md_data
                     else:
-                        self.blacklist_data = yaml_data or ""
+                        self.blacklist_data = md_data or ""
                 return self.blacklist_data
 
             def invoke(self, input_data):
@@ -168,12 +179,12 @@ class Agent2:
 
             def _load_whitelist(self):
                 try:
-                    import yaml
                     base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                    whitelist_path = os.path.join(base_path, "data", "presets", "cleaned_white_list.yaml")
+                    whitelist_path = os.path.join(base_path, "data", "presets", "cleaned_white_list.md")
                     with open(whitelist_path, 'r', encoding='utf-8') as f:
-                        yaml_data = yaml.safe_load(f)
-                        return str(yaml_data) if yaml_data else ""
+                        content = f.read()
+                        print(f" WhiteList 로드 성공: {len(content)}자")
+                        return content
                 except Exception as e:
                     print(f" WhiteList 로드 실패: {e}")
                     return ""
@@ -216,13 +227,12 @@ class Agent2:
 
             def _load_guidelines(self):
                 try:
-                    import yaml
                     base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                     guideline_files = [
-                        "cleaned_add_infotalk.yaml",
-                        "cleaned_content-guide.yaml",
-                        "cleaned_message.yaml",
-                        "cleaned_zipguide.yaml"
+                        "cleaned_add_infotalk.md",
+                        "cleaned_content-guide.md",
+                        "cleaned_message.md",
+                        "cleaned_zipguide.md"
                     ]
 
                     all_data = ""
@@ -230,9 +240,10 @@ class Agent2:
                         file_path = os.path.join(base_path, "data", "presets", filename)
                         if os.path.exists(file_path):
                             with open(file_path, 'r', encoding='utf-8') as f:
-                                yaml_data = yaml.safe_load(f)
-                                all_data += str(yaml_data) + "\n"
+                                content = f.read()
+                                all_data += content + "\n\n"
 
+                    print(f" Guideline 로드 성공: {len(all_data)}자")
                     return all_data
                 except Exception as e:
                     print(f" 가이드라인 로드 실패: {e}")
@@ -284,6 +295,7 @@ class Agent2:
                     law_path = os.path.join(base_path, "data", "presets", "info_comm_law_guide.yaml")
                     with open(law_path, 'r', encoding='utf-8') as f:
                         yaml_data = yaml.safe_load(f)
+                        print(f" 정보통신법 데이터 로드 성공: {len(str(yaml_data))}자")
                         return str(yaml_data) if yaml_data else ""
                 except Exception as e:
                     print(f" 정보통신법 데이터 로드 실패: {e}")
@@ -293,10 +305,13 @@ class Agent2:
                 """정보통신망법 준수사항 분석"""
                 user_input = input_data.get("user_input", "")
 
-                # 메시지 유형 분류
+                # 메시지 유형 분류 - 알림톡은 항상 정보성으로 처리
+                # 알림톡은 광고성 내용이 금지되므로 모든 내용을 정보성으로 분류
                 message_type = "정보성"
-                if any(word in user_input for word in ["할인", "이벤트", "특가"]):
-                    message_type = "광고성"
+
+                # 광고성 키워드 감지 시 경고 (실제로는 정보성으로 처리)
+                promotional_keywords = ["할인", "이벤트", "특가", "세일", "쿠폰", "혜택"]
+                detected_promotional = [word for word in promotional_keywords if word in user_input]
 
                 # 법적 요구사항
                 legal_requirements = []
@@ -305,9 +320,13 @@ class Agent2:
                         legal_requirements.append("정보통신망법 제50조 준수")
                     if "21시" in self.law_data:
                         legal_requirements.append("야간 전송 금지 (21시~8시)")
-                    if message_type == "광고성":
-                        legal_requirements.append("[광고] 표기 의무")
-                        legal_requirements.append("수신동의자에게만 발송")
+
+                    # 알림톡 특성상 항상 비광고성
+                    legal_requirements.append("알림톡 - 비광고성 정보 전달 목적")
+                    legal_requirements.append("광고성 내용 금지")
+
+                    if detected_promotional:
+                        legal_requirements.append(f"주의: '{', '.join(detected_promotional)}' 키워드 감지됨 - 정보성 목적으로 처리")
 
                 return {
                     "tool_name": "정보통신법",
@@ -599,14 +618,21 @@ class Agent2:
         # LLM에 전달할 프롬프트 구성
         system_prompt = f"""당신은 Agent2의 템플릿생성자입니다.
 4개 Tools(BlackList, WhiteList, 가이드라인, 정보통신법)의 분석 결과를 바탕으로
-완벽하게 준수하는 알림톡 템플릿을 생성해야 합니다.
+완벽하게 준수하는 **알림톡** 템플릿을 생성해야 합니다.
+
+**중요: 알림톡 특성**
+- 알림톡은 **비광고성 정보 전달** 목적만 허용
+- (광고) 표시 금지 - 절대 추가하지 말것
+- 순수한 정보성 내용만 포함 (예약확인, 배송안내, 본인인증, 결제확인 등)
+- 광고/마케팅 목적 콘텐츠는 친구톡에서만 가능
 
 중요한 원칙:
 1. BlackList 위반 사항은 절대 포함하지 않음
 2. WhiteList 승인 패턴을 적극 활용
 3. 가이드라인 구조와 요구사항을 모두 적용
-4. 정보통신망법을 완벽 준수
+4. 정보통신망법을 완벽 준수 (비광고성 원칙)
 5. 변수는 반드시 #{{변수명}} 형식으로 작성 (예: #{{카페이름}}, #{{고객명}}, #{{주문내용}})
+6. **절대 (광고) 접두사를 추가하지 않음**
 
 템플릿 생성 규칙:
 - 적절한 인사말
@@ -687,14 +713,21 @@ class Agent2:
         # LLM에 전달할 프롬프트 구성
         system_prompt = f"""당신은 Agent2의 템플릿생성자입니다.
 4개 Tools(BlackList, WhiteList, 가이드라인, 정보통신법)의 분석 결과를 바탕으로
-완벽하게 준수하는 알림톡 템플릿을 생성해야 합니다.
+완벽하게 준수하는 **알림톡** 템플릿을 생성해야 합니다.
+
+**중요: 알림톡 특성**
+- 알림톡은 **비광고성 정보 전달** 목적만 허용
+- (광고) 표시 금지 - 절대 추가하지 말것
+- 순수한 정보성 내용만 포함 (예약확인, 배송안내, 본인인증, 결제확인 등)
+- 광고/마케팅 목적 콘텐츠는 친구톡에서만 가능
 
 중요한 원칙:
 1. BlackList 위반 사항은 절대 포함하지 않음
 2. WhiteList 승인 패턴을 적극 활용
 3. 가이드라인 구조와 요구사항을 모두 적용
-4. 정보통신망법을 완벽 준수
+4. 정보통신망법을 완벽 준수 (비광고성 원칙)
 5. 변수는 반드시 #{{변수명}} 형식으로 작성 (예: #{{카페이름}}, #{{고객명}}, #{{주문내용}})
+6. **절대 (광고) 접두사를 추가하지 않음**
 
 템플릿 생성 규칙:
 - 적절한 인사말
@@ -804,8 +837,8 @@ class Agent2:
         whitelist = tools_results["whitelist"]
         settings = get_settings()
 
-        # 광고성 메시지 여부에 따른 접두사
-        prefix = "[광고] " if law["message_type"] == "광고성" else ""
+        # 알림톡은 항상 비광고성이므로 접두사 없음
+        prefix = ""  # 알림톡에는 [광고] 표시 불가
 
         # 연락처 정보 포함 여부 결정
         contact_section = ""
@@ -824,7 +857,7 @@ class Agent2:
 - 장소: #{{장소}}
 - 내용: #{{상세내용}}{contact_section}
 
-※ 본 메시지는 {whitelist['category']} 목적으로 발송되는 {'광고성 정보 전송에 동의하신 분께 발송되는' if law['message_type'] == '광고성' else '서비스 안내'} 메시지입니다.
+※ 본 메시지는 {whitelist['category']} 목적으로 발송되는 서비스 안내 메시지입니다.
 
 감사합니다."""
 

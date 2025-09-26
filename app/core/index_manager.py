@@ -7,6 +7,8 @@ import os
 import json
 import pickle
 import hashlib
+import re
+import yaml
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 import chromadb
@@ -57,28 +59,89 @@ class IndexManager:
         
         return hashlib.md5(hash_input.encode()).hexdigest()
     
-    def _load_predata_files(self) -> Dict[str, str]:
-        """data/presets 폴더의 모든 파일 로드"""
+    def _parse_metadata_from_md(self, content: str) -> List[Dict]:
+        """MD 파일에서 메타데이터를 파싱하여 청크별로 분리"""
+        # HTML 주석에서 메타데이터 추출하는 정규식
+        metadata_pattern = r'<!--\s*METADATA:(.*?)-->'
+
+        matches = re.findall(metadata_pattern, content, re.DOTALL)
+        parsed_metadata = []
+
+        for match in matches:
+            try:
+                # METADATA: 키워드를 제거하고 YAML 파싱
+                yaml_content = match.strip()
+                # 만약 yaml_content가 METADATA:로 시작하면 제거
+                if yaml_content.startswith('METADATA:'):
+                    yaml_content = yaml_content[9:].strip()
+
+                metadata = yaml.safe_load(yaml_content)
+                if isinstance(metadata, dict):
+                    parsed_metadata.append(metadata)
+                else:
+                    parsed_metadata.append({})
+            except Exception as e:
+                print(f"⚠️ 메타데이터 파싱 실패: {e}")
+                # 메타데이터 파싱 실패시 빈 dict 추가
+                parsed_metadata.append({})
+
+        return parsed_metadata
+
+    def _extract_content_chunks(self, content: str) -> List[str]:
+        """MD 파일에서 메타데이터를 제거한 실제 콘텐츠를 청크별로 분리"""
+        # HTML 주석 제거
+        content_without_metadata = re.sub(r'<!--\s*METADATA:.*?-->', '', content, flags=re.DOTALL)
+
+        # 연속된 빈 줄 제거 및 정리
+        cleaned_content = re.sub(r'\n\s*\n\s*\n', '\n\n', content_without_metadata).strip()
+
+        # 메타데이터가 있는 구간별로 콘텐츠 분리
+        # 각 메타데이터 주석 이후의 콘텐츠를 추출
+        metadata_positions = []
+        for match in re.finditer(r'<!--\s*METADATA:.*?-->', content, re.DOTALL):
+            metadata_positions.append(match.end())
+
+        if not metadata_positions:
+            return [cleaned_content] if cleaned_content else []
+
+        chunks = []
+        for i, pos in enumerate(metadata_positions):
+            # 다음 메타데이터까지의 콘텐츠 추출
+            if i + 1 < len(metadata_positions):
+                next_metadata_start = content.find('<!--', pos)
+                chunk_content = content[pos:next_metadata_start] if next_metadata_start != -1 else content[pos:]
+            else:
+                chunk_content = content[pos:]
+
+            # HTML 주석 제거 및 정리
+            chunk_content = re.sub(r'<!--\s*METADATA:.*?-->', '', chunk_content, flags=re.DOTALL)
+            chunk_content = re.sub(r'\n\s*\n\s*\n', '\n\n', chunk_content).strip()
+
+            if chunk_content:
+                chunks.append(chunk_content)
+
+        return chunks
+
+    def _load_predata_files(self) -> Dict[str, Dict]:
+        """data/presets 폴더의 모든 파일 로드 (메타데이터 포함)"""
         predata_dir = Path("data/presets")
 
         if not predata_dir.exists():
             print(" data/presets 폴더가 존재하지 않습니다.")
             return {}
-        
+
         predata_files = [
-            "cleaned_add_infotalk.md",
-            "cleaned_alrimtalk.md",
-            "cleaned_black_list.md", 
-            "cleaned_content-guide.md",
-            "cleaned_info_simsa.md",
-            "cleaned_message.md",
-            "cleaned_message_yuisahang.md",
-            "cleaned_run_message.md",
-            "cleaned_white_list.md",
-            "cleaned_zipguide.md",
-            "pdf_extraction_results.txt"
+            "cleaned_add_infotalk.md",        # 알림톡 정보
+            "cleaned_black_list.md",          # 블랙리스트
+            "cleaned_content-guide.md",       # 콘텐츠 가이드
+            "cleaned_info_simsa.md",          # 정보성 메시지 심사
+            "cleaned_message.md",             # 메시지 가이드
+            "cleaned_message_yuisahang.md",   # 유사행 메시지
+            "cleaned_white_list.md",          # 화이트리스트
+            "cleaned_zipguide.md",            # 집행가이드
+            "info_comm_law_guide.yaml"       # 정보통신망법 가이드
         ]
-        
+
         data = {}
         for filename in predata_files:
             file_path = predata_dir / filename
@@ -86,100 +149,168 @@ class IndexManager:
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         content = f.read()
-                        data[filename] = content
+
+                        if filename.endswith('.md'):
+                            # MD 파일인 경우 메타데이터와 콘텐츠 분리
+                            metadata_list = self._parse_metadata_from_md(content)
+                            content_chunks = self._extract_content_chunks(content)
+
+                            data[filename] = {
+                                'content_chunks': content_chunks,
+                                'metadata_list': metadata_list,
+                                'raw_content': content
+                            }
+                        elif filename.endswith('.yaml') or filename.endswith('.yml'):
+                            # YAML 파일인 경우 특별 처리
+                            try:
+                                yaml_data = yaml.safe_load(content)
+                                if isinstance(yaml_data, dict):
+                                    # YAML을 텍스트로 변환하여 청크화
+                                    yaml_text = yaml.dump(yaml_data, allow_unicode=True, default_flow_style=False)
+                                    data[filename] = {
+                                        'content_chunks': [yaml_text],
+                                        'metadata_list': [{'file_type': 'yaml_guide', 'source_file': filename}],
+                                        'raw_content': content
+                                    }
+                                else:
+                                    # YAML 파싱 실패시 텍스트로 처리
+                                    data[filename] = {
+                                        'content_chunks': [content],
+                                        'metadata_list': [{'file_type': 'text', 'source_file': filename}],
+                                        'raw_content': content
+                                    }
+                            except Exception as e:
+                                print(f"⚠️ YAML 파싱 실패 {filename}: {e}")
+                                data[filename] = {
+                                    'content_chunks': [content],
+                                    'metadata_list': [{'file_type': 'text', 'source_file': filename}],
+                                    'raw_content': content
+                                }
+                        else:
+                            # TXT 파일 등 기타 파일인 경우 기존 방식
+                            data[filename] = {
+                                'content_chunks': [content],
+                                'metadata_list': [{'file_type': 'text', 'source_file': filename}],
+                                'raw_content': content
+                            }
                 except Exception as e:
                     print(f" {filename} 로드 실패: {e}")
-        
+
         return data
     
-    def get_predata_cache(self) -> Dict[str, str]:
+    def get_predata_cache(self) -> Dict[str, Dict]:
         """predata 캐시 가져오기 (필요시 새로 로드)"""
         predata_dir = Path("data/presets")
-        
+
         # predata 파일들의 경로 목록
         predata_files = list(predata_dir.glob("*.md")) + list(predata_dir.glob("*.txt"))
         current_hash = self._get_files_hash(predata_files)
-        
+
         # 메타데이터 확인
         metadata = self._load_metadata()
         cached_hash = metadata.get("predata_hash", "")
-        
+
         # 캐시가 유효한지 확인
-        if (self.predata_cache.exists() and 
+        if (self.predata_cache.exists() and
             cached_hash == current_hash):
             print(" predata 캐시에서 로드")
             with open(self.predata_cache, 'rb') as f:
                 return pickle.load(f)
-        
+
         # 새로 로드하고 캐시 저장
         print(" predata 파일들을 새로 로드 중...")
         data = self._load_predata_files()
-        
+
         # 캐시 저장
         with open(self.predata_cache, 'wb') as f:
             pickle.dump(data, f)
-        
+
         # 메타데이터 업데이트
         metadata["predata_hash"] = current_hash
         metadata["predata_updated"] = datetime.now().isoformat()
         self._save_metadata(metadata)
-        
+
         print(f" predata 캐시 업데이트 완료: {len(data)}개 파일")
         return data
     
-    def get_guidelines_chunks(self, chunk_func, chunk_size: int = 800, overlap: int = 100) -> List[str]:
-        """가이드라인 청크 캐시 가져오기"""
+    def get_guidelines_chunks_with_metadata(self, chunk_func, chunk_size: int = 800, overlap: int = 100) -> Tuple[List[str], List[Dict]]:
+        """가이드라인 청크와 메타데이터를 함께 가져오기"""
         predata = self.get_predata_cache()
-        
+
         # 청크 캐시 키 생성
-        chunk_key = f"chunks_{chunk_size}_{overlap}"
+        chunk_key = f"chunks_meta_{chunk_size}_{overlap}"
         metadata = self._load_metadata()
-        
+
         # 캐시된 청크가 있고 predata가 변경되지 않았으면 재사용
-        if (self.guidelines_cache.exists() and 
+        if (self.guidelines_cache.exists() and
             chunk_key in metadata.get("chunk_configs", {})):
-            print(" 가이드라인 청크 캐시에서 로드")
+            print(" 가이드라인 청크+메타데이터 캐시에서 로드")
             with open(self.guidelines_cache, 'rb') as f:
                 cached_data = pickle.load(f)
-                return cached_data.get(chunk_key, [])
-        
+                cached_result = cached_data.get(chunk_key, {})
+                return cached_result.get('chunks', []), cached_result.get('metadata_list', [])
+
         # 새로 청킹
-        print(" 가이드라인 청킹 중...")
+        print(" 가이드라인 청킹+메타데이터 처리 중...")
         all_chunks = []
-        
-        for filename, content in predata.items():
-            if content.strip():
-                chunks = chunk_func(content, chunk_size, overlap)
-                all_chunks.extend(chunks)
-                print(f"   {filename}: {len(chunks)}개 청크")
-        
+        all_metadata = []
+
+        for filename, file_data in predata.items():
+            if isinstance(file_data, dict) and 'content_chunks' in file_data:
+                content_chunks = file_data['content_chunks']
+                metadata_list = file_data['metadata_list']
+
+                for i, content in enumerate(content_chunks):
+                    if content.strip():
+                        chunks = chunk_func(content, chunk_size, overlap)
+                        all_chunks.extend(chunks)
+
+                        # 각 청크에 해당하는 메타데이터 추가
+                        chunk_metadata = metadata_list[i] if i < len(metadata_list) else {}
+                        chunk_metadata['source_file'] = filename
+
+                        for _ in chunks:
+                            all_metadata.append(chunk_metadata.copy())
+
+                print(f"   {filename}: {len(content_chunks)}개 섹션 → 총 청크 수 증가")
+
         # 캐시 저장
         cached_data = {}
         if self.guidelines_cache.exists():
             with open(self.guidelines_cache, 'rb') as f:
                 cached_data = pickle.load(f)
-        
-        cached_data[chunk_key] = all_chunks
-        
+
+        cached_data[chunk_key] = {
+            'chunks': all_chunks,
+            'metadata_list': all_metadata
+        }
+
         with open(self.guidelines_cache, 'wb') as f:
             pickle.dump(cached_data, f)
-        
+
         # 메타데이터 업데이트
         if "chunk_configs" not in metadata:
             metadata["chunk_configs"] = {}
         metadata["chunk_configs"][chunk_key] = {
             "created": datetime.now().isoformat(),
-            "chunks_count": len(all_chunks)
+            "chunks_count": len(all_chunks),
+            "metadata_count": len(all_metadata)
         }
         self._save_metadata(metadata)
-        
-        print(f" 청크 캐시 저장 완료: {len(all_chunks)}개")
-        return all_chunks
+
+        print(f" 청크+메타데이터 캐시 저장 완료: {len(all_chunks)}개 청크, {len(all_metadata)}개 메타데이터")
+        return all_chunks, all_metadata
+
+    def get_guidelines_chunks(self, chunk_func, chunk_size: int = 800, overlap: int = 100) -> List[str]:
+        """가이드라인 청크만 가져오기 (기존 호환성 유지)"""
+        chunks, _ = self.get_guidelines_chunks_with_metadata(chunk_func, chunk_size, overlap)
+        return chunks
     
-    def get_chroma_collection(self, 
-                             collection_name: str, 
-                             data: List[str], 
-                             encode_func) -> Optional[chromadb.Collection]:
+    def get_chroma_collection(self,
+                             collection_name: str,
+                             data: List[str],
+                             encode_func,
+                             metadata_list: List[Dict] = None) -> Optional[chromadb.Collection]:
         """Chroma DB 컬렉션 가져오기 (필요시 새로 구축)"""
         
         # 데이터 해시 계산
@@ -220,12 +351,13 @@ class IndexManager:
         batch_size = self.ec2_settings.get("batch_size", 50)
         print(f" 총 {len(data)}개 항목을 {batch_size}개씩 병렬 배치 처리")
         
-        # 배치 데이터 준비
+        # 배치 데이터 준비 (메타데이터 포함)
         batches = []
         for i in range(0, len(data), batch_size):
             batch_data = data[i:i + batch_size]
-            batches.append((i, batch_data))
-        
+            batch_metadata = metadata_list[i:i + batch_size] if metadata_list else [{} for _ in batch_data]
+            batches.append((i, batch_data, batch_metadata))
+
         # 병렬 처리로 임베딩 생성 및 저장
         self._process_batches_parallel_chroma(batches, encode_func, collection, collection_name)
         
@@ -245,23 +377,30 @@ class IndexManager:
         import time
         
         def process_single_batch(batch_info):
-            batch_idx, batch_data = batch_info
+            if len(batch_info) == 3:
+                batch_idx, batch_data, batch_metadata = batch_info
+            else:
+                # 기존 호환성을 위해
+                batch_idx, batch_data = batch_info
+                batch_metadata = [{} for _ in batch_data]
+
             batch_num = batch_idx // 50 + 1
             total_batches = len(batches)
             try:
                 start_time = time.time()
                 embeddings = encode_func(batch_data)
-                
-                # Chroma DB에 배치 데이터 추가
+
+                # Chroma DB에 배치 데이터 추가 (메타데이터 포함)
                 ids = [f"{collection_name}_{batch_idx + i}" for i in range(len(batch_data))]
                 collection.add(
                     embeddings=embeddings.tolist() if hasattr(embeddings, 'tolist') else embeddings,
                     documents=batch_data,
+                    metadatas=batch_metadata,
                     ids=ids
                 )
-                
+
                 end_time = time.time()
-                print(f" 배치 {batch_num}/{total_batches} 완료 ({end_time - start_time:.1f}초, {len(embeddings)}개 임베딩)")
+                print(f" 배치 {batch_num}/{total_batches} 완료 ({end_time - start_time:.1f}초, {len(embeddings)}개 임베딩, {len(batch_metadata)}개 메타데이터)")
                 return True
             except Exception as e:
                 print(f" 배치 {batch_num}/{total_batches} 실패: {e}")

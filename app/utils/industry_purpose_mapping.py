@@ -218,7 +218,7 @@ if __name__ == "__main__":
             "name": "학원 결제",
             "industry": [{"name": "학원"}],
             "purpose": [{"name": "결제 안내"}],
-            "expected": "007003"
+            "expected": "002001"
         },
         {
             "name": "동문회 공지",

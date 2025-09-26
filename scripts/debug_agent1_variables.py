@@ -37,7 +37,7 @@ async def debug_agent1_variables():
     ]
 
     for i, test_input in enumerate(test_inputs, 1):
-        print(f"\n🧪 테스트 {i}: {test_input}")
+        print(f"\n테스트 {i}: {test_input}")
         print("-" * 60)
 
         try:
