@@ -38,10 +38,10 @@ class BasicTemplateMatcher:
                 if processed:
                     self.templates.append(processed)
 
-            print(f"✅ {len(self.templates)}개 기본 템플릿 로드 완료")
+            print(f" {len(self.templates)}개 기본 템플릿 로드 완료")
 
         except Exception as e:
-            print(f"⚠️ 템플릿 로드 실패: {e}")
+            print(f"템플릿 로드 실패: {e}")
             self.templates = []
 
     def _process_template(self, template: Dict) -> Optional[Dict]:
@@ -140,7 +140,7 @@ class BasicTemplateMatcher:
                 chroma_id = f"basic_templates_{i}"
                 self.chroma_id_to_template_id[chroma_id] = template["id"]
 
-            print("✅ 템플릿 임베딩 저장 완료")
+            print(" 템플릿 임베딩 저장 완료")
 
         except Exception as e:
             print(f"⚠️ 임베딩 생성 실패: {e}")

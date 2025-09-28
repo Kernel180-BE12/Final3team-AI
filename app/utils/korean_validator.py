@@ -30,19 +30,19 @@ class KoreanValidator:
         self.min_word_count = 1  # 최소 의미있는 단어 개수
         self.max_jamo_ratio = 0.5  # 최대 자음/모음 비율 50%
 
-        print("🔍 한국어 품질 검증 시스템 초기화 완료")
+        print(" 한국어 품질 검증 시스템 초기화 완료")
 
     def _init_morphological_analyzer(self):
         """형태소 분석기 초기화 (지연 로딩)"""
         try:
             from konlpy.tag import Okt
             self.okt = Okt()
-            print("✅ KoNLPy 형태소 분석기 로드 완료")
+            print("KoNLPy 형태소 분석기 로드 완료")
         except ImportError:
-            print("⚠️ KoNLPy가 설치되지 않았습니다. 기본 검증 모드로 동작")
+            print("KoNLPy가 설치되지 않았습니다. 기본 검증 모드로 동작")
             self.okt = None
         except Exception as e:
-            print(f"⚠️ 형태소 분석기 초기화 실패: {e}")
+            print(f"형태소 분석기 초기화 실패: {e}")
             self.okt = None
 
     def _init_korean_dictionaries(self):
@@ -147,7 +147,7 @@ class KoreanValidator:
             return list(set(meaningful_words))
 
         except Exception as e:
-            print(f"⚠️ KoNLPy 분석 중 오류: {e}")
+            print(f"KoNLPy 분석 중 오류: {e}")
             return self.extract_meaningful_words_fallback(text)
 
     def extract_meaningful_words(self, text: str) -> List[str]:
@@ -346,7 +346,7 @@ if __name__ == "__main__":
 
         # 검증 결과
         is_valid = analysis.get('is_valid', False)
-        status = "✅ 통과" if is_valid else "❌ 차단"
+        status = "통과" if is_valid else "차단"
         message = analysis.get('error_message', '')
         print(f"    결과: {status} - {message}")
 
@@ -355,4 +355,4 @@ if __name__ == "__main__":
             suggestion = validator.get_quality_suggestions(test_input, error_type)
             print(f"    제안: {suggestion}")
 
-    print(f"\n🔧 한국어 품질 검증 시스템 테스트 완료")
+    print(f"\n한국어 품질 검증 시스템 테스트 완료")

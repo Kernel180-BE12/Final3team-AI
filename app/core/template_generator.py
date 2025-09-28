@@ -38,21 +38,7 @@ class TemplateGenerator(BaseTemplateProcessor):
         preprocessor = DatePreprocessor()
         return preprocessor.preprocess_dates(query)
 
-    def embed_texts(self, texts):
-        """텍스트 임베딩 생성 (prototype.py에서 가져옴)"""
-        try:
-            import google.generativeai as genai
-            genai.configure(api_key=self.api_key)
-            
-            result = genai.embed_content(
-                model="models/embedding-001",
-                content=texts,
-                task_type="retrieval_document"
-            )
-            return result['embedding']
-        except Exception as e:
-            print(f"임베딩 중 오류 발생: {e}")
-            return [[0.0] * 768 for _ in range(len(texts))]
+
 
     def load_vector_databases(self):
         """벡터 데이터베이스 로드"""
@@ -66,7 +52,7 @@ class TemplateGenerator(BaseTemplateProcessor):
             return False, None, None, None
             
         print("\n--- 정책 위반 검증 시작 ---")
-        query_embedding = np.array(self.embed_texts([query])).astype('float32')
+        query_embedding = np.array(self.encode_texts([query])).astype('float32')
         distances, indices = self.validation_index.search(query_embedding, top_k)
         
         if distances.size == 0 or distances[0][0] > threshold:
@@ -175,7 +161,7 @@ class TemplateGenerator(BaseTemplateProcessor):
         """벡터 검색 기반 템플릿 생성 (prototype.py 스타일)"""
         
         # 의도 기반 벡터 검색으로 관련 정책/예시 찾기
-        intent_embedding = np.array(self.embed_texts([intent])).astype('float32')
+        intent_embedding = np.array(self.encode_texts([intent])).astype('float32')
         
         # 정책 검색
         policy_context = ""

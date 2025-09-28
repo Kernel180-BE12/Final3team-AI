@@ -375,7 +375,7 @@ class TemplateSelector:
                 variables = result.get("variables", [])
                 standardized_template, standardized_variables = self._standardize_variables(template, variables)
 
-                # 🔍 템플릿 검증 실행
+                # 템플릿 검증 실행
                 self.logger.info(f"생성된 템플릿 검증 중... (시도 {attempt + 1})")
                 validation_report = self.template_validator.validate_template(
                     template=standardized_template,
@@ -390,9 +390,9 @@ class TemplateSelector:
                 if validation_report.failed_checks:
                     self.logger.error(f"검증 실패: {', '.join(validation_report.failed_checks[:3])}")
 
-                # ✅ 검증 통과시 템플릿 반환
+                # 검증 통과시 템플릿 반환
                 if validation_report.success:
-                    self.logger.info("✅ 템플릿 검증 통과 - 최종 템플릿 완성")
+                    self.logger.info("템플릿 검증 통과 - 최종 템플릿 완성")
                     return TemplateSelectionResult(
                         success=True,
                         template=standardized_template,
@@ -408,14 +408,14 @@ class TemplateSelector:
                         selection_path=selection_path
                     )
 
-                # ❌ 재생성이 필요한 경우
+                # 재생성이 필요한 경우
                 elif validation_report.should_regenerate:
-                    self.logger.warning(f"⚠️ 템플릿 검증 실패 (점수: {validation_report.overall_score:.2f}) - 재생성 필요")
+                    self.logger.warning(f"템플릿 검증 실패 (점수: {validation_report.overall_score:.2f}) - 재생성 필요")
                     if attempt < self.max_regeneration_attempts - 1:
                         continue  # 재생성 시도
                     else:
                         # 최대 시도 횟수 초과 - 최선의 결과라도 반환
-                        self.logger.error("❌ 최대 재생성 횟수 초과 - 최선의 템플릿 반환")
+                        self.logger.error("최대 재생성 횟수 초과 - 최선의 템플릿 반환")
                         return TemplateSelectionResult(
                             success=False,
                             template=standardized_template,
@@ -433,9 +433,9 @@ class TemplateSelector:
                             selection_path=selection_path
                         )
 
-                # ⚠️ 경고 수준이지만 사용 가능한 경우
+                # 경고 수준이지만 사용 가능한 경우
                 else:
-                    self.logger.info(f"⚠️ 템플릿 검증 경고 수준 (점수: {validation_report.overall_score:.2f}) - 사용 가능")
+                    self.logger.info(f"템플릿 검증 경고 수준 (점수: {validation_report.overall_score:.2f}) - 사용 가능")
                     return TemplateSelectionResult(
                         success=True,
                         template=standardized_template,
@@ -505,7 +505,7 @@ class TemplateSelector:
                 variables = result.get("variables", [])
                 standardized_template, standardized_variables = self._standardize_variables(template, variables)
 
-                # 🔍 템플릿 검증 실행 (동기 - 빠른 처리)
+                # 템플릿 검증 실행 (동기 - 빠른 처리)
                 self.logger.info(f"생성된 템플릿 검증 중... (시도 {attempt + 1}, 비동기)")
                 validation_report = self.template_validator.validate_template(
                     template=standardized_template,
@@ -520,9 +520,9 @@ class TemplateSelector:
                 if validation_report.failed_checks:
                     self.logger.error(f"검증 실패 (비동기): {', '.join(validation_report.failed_checks[:3])}")
 
-                # ✅ 검증 통과시 템플릿 반환
+                # 검증 통과시 템플릿 반환
                 if validation_report.success:
-                    self.logger.info("✅ 템플릿 검증 통과 - 최종 템플릿 완성 (비동기)")
+                    self.logger.info("템플릿 검증 통과 - 최종 템플릿 완성 (비동기)")
                     return TemplateSelectionResult(
                         success=True,
                         template=standardized_template,
@@ -538,14 +538,14 @@ class TemplateSelector:
                         selection_path=selection_path
                     )
 
-                # ❌ 재생성이 필요한 경우
+                # 재생성이 필요한 경우
                 elif validation_report.should_regenerate:
-                    self.logger.warning(f"⚠️ 템플릿 검증 실패 (점수: {validation_report.overall_score:.2f}) - 재생성 필요 (비동기)")
+                    self.logger.warning(f"템플릿 검증 실패 (점수: {validation_report.overall_score:.2f}) - 재생성 필요 (비동기)")
                     if attempt < self.max_regeneration_attempts - 1:
                         continue  # 재생성 시도
                     else:
                         # 최대 시도 횟수 초과 - 최선의 결과라도 반환
-                        self.logger.error("❌ 최대 재생성 횟수 초과 - 최선의 템플릿 반환 (비동기)")
+                        self.logger.error("최대 재생성 횟수 초과 - 최선의 템플릿 반환 (비동기)")
                         return TemplateSelectionResult(
                             success=False,
                             template=standardized_template,
@@ -563,9 +563,9 @@ class TemplateSelector:
                             selection_path=selection_path
                         )
 
-                # ⚠️ 경고 수준이지만 사용 가능한 경우
+                # 경고 수준이지만 사용 가능한 경우
                 else:
-                    self.logger.info(f"⚠️ 템플릿 검증 경고 수준 (점수: {validation_report.overall_score:.2f}) - 사용 가능 (비동기)")
+                    self.logger.info(f"템플릿 검증 경고 수준 (점수: {validation_report.overall_score:.2f}) - 사용 가능 (비동기)")
                     return TemplateSelectionResult(
                         success=True,
                         template=standardized_template,

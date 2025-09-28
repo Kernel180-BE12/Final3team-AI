@@ -105,7 +105,7 @@ if __name__ == "__main__":
     processor = DataProcessor(data_dir="data", output_dir="predata")
     
     print(" 데이터 처리를 시작합니다...")
-    print(f"📂 입력 폴더: {processor.data_dir}")
+    print(f" 입력 폴더: {processor.data_dir}")
     print(f" 출력 폴더: {processor.output_dir}")
     print()
     

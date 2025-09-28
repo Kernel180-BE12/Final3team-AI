@@ -18,14 +18,14 @@ from app.agents.agent1 import Agent1
 async def debug_agent1_variables():
     """Agent1 변수 추출 디버깅"""
 
-    print("🔍 Agent1 변수 추출 디버깅")
+    print("Agent1 변수 추출 디버깅")
     print("=" * 50)
 
     try:
         agent1 = Agent1()
-        print("✅ Agent1 초기화 완료")
+        print("Agent1 초기화 완료")
     except Exception as e:
-        print(f"❌ Agent1 초기화 실패: {e}")
+        print(f"Agent1 초기화 실패: {e}")
         return
 
     test_inputs = [
@@ -42,7 +42,7 @@ async def debug_agent1_variables():
 
         try:
             # 동기 버전 테스트
-            print("📋 동기 분석 결과:")
+            print(" 동기 분석 결과:")
             sync_result = agent1.analyze_query(test_input)
             print(f"   Variables: {sync_result.get('variables', {})}")
             print(f"   Intent: {sync_result.get('intent', {}).get('intent', 'Unknown')}")
@@ -50,7 +50,7 @@ async def debug_agent1_variables():
             print(f"   Mandatory check: {sync_result.get('mandatory_check', {})}")
 
             # 비동기 버전 테스트
-            print("\n📋 비동기 분석 결과:")
+            print("\n 비동기 분석 결과:")
             async_result = await agent1.analyze_query_async(test_input)
             print(f"   Variables: {async_result.get('variables', {})}")
             print(f"   Intent: {async_result.get('intent', {}).get('intent', 'Unknown')}")
@@ -61,7 +61,7 @@ async def debug_agent1_variables():
             sync_vars = sync_result.get('variables', {})
             async_vars = async_result.get('variables', {})
 
-            print(f"\n🔍 동기 vs 비동기 비교:")
+            print(f"\n 동기 vs 비동기 비교:")
             print(f"   Variables 일치: {sync_vars == async_vars}")
             print(f"   Intent 일치: {sync_result.get('intent', {}).get('intent') == async_result.get('intent', {}).get('intent')}")
 
@@ -72,27 +72,27 @@ async def debug_agent1_variables():
                 print(f"   추출된 값: '{what_subject}'")
 
         except Exception as e:
-            print(f"   ❌ 오류: {e}")
+            print(f"   오류: {e}")
 
     # 직접 변수 추출 테스트
-    print(f"\n🔧 직접 변수 추출 테스트")
+    print(f"\n직접 변수 추출 테스트")
     print("-" * 40)
 
     test_text = "내일 오후 2시에 강남 스타벅스에서 독서모임이 있습니다"
 
     try:
         # 동기 변수 추출
-        print("📋 동기 변수 추출:")
+        print(" 동기 변수 추출:")
         sync_vars = agent1.variable_extractor.extract_variables(test_text)
         print(f"   결과: {sync_vars}")
 
         # 비동기 변수 추출
-        print("\n📋 비동기 변수 추출:")
+        print("\n 비동기 변수 추출:")
         async_vars = await agent1.variable_extractor.extract_variables_async(test_text)
         print(f"   결과: {async_vars}")
 
         # 필수 변수 체크
-        print(f"\n🔍 필수 변수 체크:")
+        print(f"\n 필수 변수 체크:")
         required_vars = agent1.variable_extractor.determine_required_variables_by_context(test_text)
         print(f"   필수 변수: {required_vars}")
 
@@ -100,7 +100,7 @@ async def debug_agent1_variables():
         print(f"   완성도: {mandatory_check}")
 
     except Exception as e:
-        print(f"   ❌ 변수 추출 오류: {e}")
+        print(f"   변수 추출 오류: {e}")
 
 if __name__ == "__main__":
     asyncio.run(debug_agent1_variables())

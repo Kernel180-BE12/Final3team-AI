@@ -4,7 +4,7 @@ Agent1용 변수 추출기
 """
 
 from typing import Dict, Optional, List
-import google.generativeai as genai
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 
 class VariableExtractor:
@@ -20,8 +20,7 @@ class VariableExtractor:
         """
         self.api_key = api_key
         self.model_name = model_name
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(model_name)
+        self.model = ChatGoogleGenerativeAI(model=model_name, google_api_key=api_key)
     
     def extract_variables(self, query: str) -> Dict[str, str]:
         """
@@ -36,8 +35,8 @@ class VariableExtractor:
         prompt = self._create_extraction_prompt(query)
 
         try:
-            response = self.model.generate_content(prompt)
-            variables = self._parse_variables(response.text)
+            response = self.model.invoke(prompt)
+            variables = self._parse_variables(response.content)
             return variables
         except Exception as e:
             print(f"변수 추출 중 오류 발생: {e}")
@@ -338,7 +337,7 @@ class VariableExtractor:
             return ['무엇을 (What/Subject)']
 
         # 배송/주문 - 내용만 필수
-        elif any(keyword in user_input_lower for keyword in ['배송', '주문', '결제', '구매', '발송']):
+        elif any(keyword in user_input_lower for keyword in ['배송', '주문', '결제', '구매' , '발송']):
             return ['무엇을 (What/Subject)']
 
         # 공지/안내 - 내용만 필수

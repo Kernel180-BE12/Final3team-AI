@@ -33,6 +33,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+print(f"[DEBUG] Loaded Gemini Model: {Settings.GEMINI_MODEL}")
 
 
 @asynccontextmanager

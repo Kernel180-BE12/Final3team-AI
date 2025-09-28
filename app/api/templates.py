@@ -15,7 +15,7 @@ if str(project_root) not in sys.path:
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, validator
 from typing import List, Union
 
 # 모듈 임포트
@@ -27,6 +27,14 @@ from app.dto.api_result import ApiResult, ErrorResponse as ApiErrorResponse
 from app.utils.language_detector import validate_input_language, ValidationError
 from app.utils.industry_purpose_mapping import get_category_info
 from app.utils.performance_logger import get_performance_logger, TimingContext
+
+# LangGraph 통합
+from app.core.langgraph_integration import (
+    process_template_with_langgraph,
+    is_langgraph_enabled,
+    LangGraphAPIResponseConverter
+)
+
 import time
 import uuid
 
@@ -49,7 +57,7 @@ class TemplateRequest(BaseModel):
         examples=["이전 대화 내용"]
     )
 
-    @field_validator('requestContent')
+    @validator('requestContent')
     @classmethod
     def validate_request_content(cls, v):
         """requestContent 유효성 검증"""
@@ -157,11 +165,12 @@ class PartialTemplateResponse(BaseModel):
 
 def create_error_response(error_code: str, message: str, details: Any = None, status_code: int = 400) -> JSONResponse:
     """Java 호환 에러 응답 생성"""
-    api_error_response = ApiErrorResponse(code=error_code, message=message)
-    error_result = ApiResult(data=None, message=None, error=api_error_response)
+    # ApiResult의 클래스 메소드를 사용하여 에러 응답 객체를 생성
+    api_result = ApiResult.error(code=error_code, message=message)
     return JSONResponse(
         status_code=status_code,
-        content=error_result.model_dump()
+        # Pydantic v1의 dict() 메소드를 사용하여 직렬화
+        content=api_result.dict()
     )
 
 
@@ -269,6 +278,112 @@ def create_partial_response(user_id: int, partial_template: str, missing_variabl
     )
 
 
+@router.post("/templates/langgraph", tags=["Template Generation"],
+            responses={
+                200: {
+                    "model": TemplateSuccessResponse,
+                    "description": "LangGraph 템플릿 생성 완료"
+                },
+                202: {
+                    "model": TemplateSuccessResponse,
+                    "description": "부분 완성 - 추가 정보 필요"
+                },
+                400: {"model": ErrorResponseWithDetails},
+                500: {"model": ErrorResponseWithDetails}
+            })
+async def create_template_langgraph(request: TemplateRequest):
+    """
+    LangGraph 기반 AI 템플릿 생성 (성능 최적화 버전)
+
+    60-85% 성능 향상을 위한 LangGraph 워크플로우 사용
+    백엔드 API 호환성 100% 유지
+
+    Args:
+        request: 템플릿 생성 요청 (userId, requestContent)
+
+    Returns:
+        생성된 템플릿 정보 또는 에러 응답
+    """
+    # 성능 로깅 초기화
+    request_id = str(uuid.uuid4())[:8]
+    start_time = time.time()
+
+    print(f"[LANGGRAPH REQUEST] {request_id} - User: {request.userId} - Content: '{request.requestContent[:50]}...'")
+
+    try:
+        # LangGraph 워크플로우로 처리
+        api_response, processing_time, metadata = await process_template_with_langgraph(
+            user_id=request.userId,
+            request_content=request.requestContent,
+            conversation_context=request.conversationContext
+        )
+
+        # 성능 개선 정보 출력
+        improvement_info = metadata.get("performance_improvement", {})
+        if improvement_info.get("improvement_percentage", 0) > 0:
+            print(f"성능 개선: {improvement_info['improvement_percentage']}% 단축 "
+                  f"({improvement_info.get('time_saved', 0):.2f}초 절약)")
+
+        # 응답 상태에 따른 처리
+        if api_response.get("success"):
+            # 성공 응답
+            converter = LangGraphAPIResponseConverter()
+            final_response = converter.convert_to_template_response(api_response, metadata)
+
+            print(f"[LANGGRAPH SUCCESS] {request_id} - Total: {processing_time:.2f}s")
+            return JSONResponse(
+                status_code=200,
+                content=final_response
+            )
+
+        elif api_response.get("status") == "need_more_info":
+            # 부분 완성 응답 (202)
+            converter = LangGraphAPIResponseConverter()
+            partial_response = converter.convert_to_partial_response(api_response, metadata)
+
+            print(f"[LANGGRAPH PARTIAL] {request_id} - Total: {processing_time:.2f}s")
+            return partial_response
+
+        else:
+            # 오류 응답
+            error_code = api_response.get("error_code", "LANGGRAPH_ERROR")
+
+            # 특정 오류 코드에 따른 상태 코드 결정
+            status_code = 400
+            if error_code == "PROFANITY_DETECTED":
+                status_code = 400
+            elif error_code == "LANGUAGE_VALIDATION_ERROR":
+                status_code = 400
+            elif error_code == "POLICY_VIOLATION":
+                status_code = 400
+            elif "TIMEOUT" in error_code:
+                status_code = 408
+            elif "QUOTA" in error_code or "RATE_LIMIT" in error_code:
+                status_code = 429
+            elif "INTERNAL" in error_code:
+                status_code = 500
+
+            converter = LangGraphAPIResponseConverter()
+            error_response = converter.convert_error_response(api_response, metadata, status_code)
+
+            print(f"[LANGGRAPH ERROR] {request_id} - Total: {processing_time:.2f}s - Code: {error_code}")
+            return error_response
+
+    except Exception as e:
+        # 예외 처리
+        total_time = time.time() - start_time
+        error_message = str(e)
+
+        print(f"[LANGGRAPH EXCEPTION] {request_id} - Duration: {total_time:.2f}s - Error: {error_message}")
+
+        return create_error_response(
+            "LANGGRAPH_WORKFLOW_ERROR",
+            f"LangGraph 워크플로우 실행 중 오류: {error_message}",
+            error_message,
+            500
+        )
+
+
 @router.post("/templates", tags=["Template Generation"],
             responses={
                 200: {
@@ -298,9 +413,44 @@ async def create_template(request: TemplateRequest):
     perf_logger = get_performance_logger()
     stage_times = {}
 
-    print(f"🚀 [REQUEST START] {request_id} - User: {request.userId} - Content: '{request.requestContent[:50]}...'")
+    print(f"[REQUEST START] {request_id} - User: {request.userId} - Content: '{request.requestContent[:50]}...'")
 
     try:
+        # LangGraph 활성화 여부 확인 후 자동 선택
+        if is_langgraph_enabled():
+            print(f"LangGraph 자동 선택 - 성능 최적화 모드")
+            # LangGraph 워크플로우로 처리
+            api_response, processing_time, metadata = await process_template_with_langgraph(
+                user_id=request.userId,
+                request_content=request.requestContent,
+                conversation_context=request.conversationContext
+            )
+
+            # 성능 개선 정보 출력
+            improvement_info = metadata.get("performance_improvement", {})
+            if improvement_info.get("improvement_percentage", 0) > 0:
+                print(f"성능 개선: {improvement_info['improvement_percentage']}% 단축 "
+                      f"({improvement_info.get('time_saved', 0):.2f}초 절약)")
+
+            # LangGraph 결과를 기존 API 형식으로 변환
+            if api_response.get("success"):
+                template_data = api_response.get("data", {})
+                print(f"[REQUEST SUCCESS] {request_id} - Total: {processing_time:.2f}s (LangGraph)")
+                return ApiResult.ok(template_data)
+
+            elif api_response.get("status") == "need_more_info":
+                # 부분 완성 응답 처리
+                template_data = api_response.get("data", {})
+                result = ApiResult.ok(template_data)
+                return JSONResponse(status_code=202, content=result.dict())
+
+            else:
+                # LangGraph 오류 시 기존 방식으로 폴백
+                print(f"LangGraph 처리 실패, 기존 방식으로 폴백: {api_response.get('error', 'Unknown error')}")
+
+        # 기존 방식 처리 (LangGraph 비활성화 또는 폴백)
+        print(f"기존 Agent 방식으로 처리")
+
         # 1. Agent1 초기화 및 분석
         with TimingContext(perf_logger, "Agent1_Initialization", request_id) as ctx:
             agent1 = Agent1()
@@ -517,7 +667,7 @@ async def create_template(request: TemplateRequest):
             }
         )
 
-        print(f"✅ [REQUEST SUCCESS] {request_id} - Total: {total_time:.2f}s")
+        print(f"[REQUEST SUCCESS] {request_id} - Total: {total_time:.2f}s")
 
         # ApiResult로 래핑하여 반환
         return ApiResult.ok(template_data)
@@ -533,7 +683,7 @@ async def create_template(request: TemplateRequest):
             duration=total_time
         )
 
-        print(f"❌ [REQUEST ERROR] {request_id} - Duration: {total_time:.2f}s - Error: {error_message}")
+        print(f"[REQUEST ERROR] {request_id} - Duration: {total_time:.2f}s - Error: {error_message}")
 
         # 예상치 못한 오류 - 디버그 로깅 추가
         print(f"DEBUG: 템플릿 생성 중 예외 발생: {error_message}")

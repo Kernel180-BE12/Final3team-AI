@@ -5,7 +5,7 @@ Agent2의 두 번째 도구
 """
 import os
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from langchain.tools import BaseTool
 
 class WhiteListTool(BaseTool):
@@ -14,35 +14,52 @@ class WhiteListTool(BaseTool):
     """
     name: str = "whitelist_template_optimizer"
     description: str = "승인된 패턴 기반 템플릿 최적화"
-    
-    def __init__(self, index_manager=None):
-        super().__init__()
-        self._index_manager = index_manager
-        self._whitelist_data = None
+
+    # 인스턴스 필드 선언
+    _index_manager: Optional[Any] = None
+    _whitelist_data: Optional[str] = None
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def __init__(self, index_manager=None, **kwargs):
+        super().__init__(**kwargs)
+        object.__setattr__(self, '_index_manager', index_manager)
         
     def _get_whitelist_data(self) -> str:
         """WhiteList 데이터 로드 (캐시 사용)"""
-        if self._whitelist_data is None:
+        # object.__getattribute__로 안전하게 접근
+        try:
+            whitelist_data = object.__getattribute__(self, '_whitelist_data')
+        except AttributeError:
+            whitelist_data = None
+
+        if whitelist_data is None:
             try:
-                if self._index_manager:
+                index_manager = object.__getattribute__(self, '_index_manager')
+                if index_manager:
                     # IndexManager에서 캐시된 데이터 사용
-                    predata = self._index_manager.get_predata_cache()
-                    self._whitelist_data = predata.get("cleaned_white_list.md", "")
+                    predata = index_manager.get_predata_cache()
+                    whitelist_data = predata.get("cleaned_white_list.md", "")
                 else:
                     # 직접 파일 로드
-                    base_path = Path(__file__).parent.parent.parent
+                    base_path = Path(__file__).parent.parent
                     whitelist_path = base_path / ".." / "data" / "presets" / "cleaned_white_list.md"
-                    
+
                     if whitelist_path.exists():
                         with open(whitelist_path, 'r', encoding='utf-8') as f:
-                            self._whitelist_data = f.read()
+                            whitelist_data = f.read()
                     else:
-                        self._whitelist_data = ""
+                        whitelist_data = ""
+
+                # 안전하게 저장
+                object.__setattr__(self, '_whitelist_data', whitelist_data)
             except Exception as e:
                 print(f" WhiteList 데이터 로드 실패: {e}")
-                self._whitelist_data = ""
-        
-        return self._whitelist_data
+                whitelist_data = ""
+                object.__setattr__(self, '_whitelist_data', whitelist_data)
+
+        return whitelist_data
     
     def _categorize_message_type(self, user_input: str) -> str:
         """메시지 유형 분류"""

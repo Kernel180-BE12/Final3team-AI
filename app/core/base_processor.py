@@ -2,8 +2,8 @@ import re
 import json
 import numpy as np
 from typing import List, Dict, Tuple, Optional
-import google.generativeai as genai
 from pathlib import Path
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from .index_manager import get_index_manager
 
 class BaseTemplateProcessor:
@@ -13,8 +13,8 @@ class BaseTemplateProcessor:
         self.api_key = api_key
         
         # AI 모델 초기화
-        genai.configure(api_key=api_key)
-        self.gemini_model = genai.GenerativeModel(gemini_model)
+        self.gemini_model = ChatGoogleGenerativeAI(model=gemini_model, google_api_key=api_key)
+        self.embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=api_key)
         
         print(f" Gemini 모델 초기화: {gemini_model}")
         print(" Gemini Embedding API 사용 준비 완료")
@@ -34,15 +34,7 @@ class BaseTemplateProcessor:
         """텍스트 리스트를 Gemini Embedding으로 변환"""
         try:
             # Gemini Embedding API 사용
-            embeddings = []
-            for text in texts:
-                result = genai.embed_content(
-                    model="models/embedding-001",
-                    content=text,
-                    task_type="retrieval_document"
-                )
-                embeddings.append(result['embedding'])
-            
+            embeddings = self.embeddings_model.embed_documents(texts)
             return np.array(embeddings)
         except Exception as e:
             print(f" Gemini Embedding 오류: {e}")
@@ -109,8 +101,8 @@ class BaseTemplateProcessor:
         """Gemini로 텍스트 생성"""
         for attempt in range(max_retries):
             try:
-                response = self.gemini_model.generate_content(prompt)
-                return response.text.strip()
+                response = self.gemini_model.invoke(prompt)
+                return response.content.strip()
             except Exception as e:
                 if attempt == max_retries - 1:
                     raise e

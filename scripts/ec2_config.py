@@ -83,9 +83,9 @@ def print_environment_info():
     is_ec2 = is_ec2_environment()
     paths = get_environment_paths()
     
-    print(f"🌍 환경: {'EC2' if is_ec2 else '로컬'}")
-    print(f"📂 캐시 디렉토리: {paths['cache_dir']}")
-    print(f"🗂️  Chroma DB: {paths['chroma_db_path']}")
+    print(f" 환경: {'EC2' if is_ec2 else '로컬'}")
+    print(f" 캐시 디렉토리: {paths['cache_dir']}")
+    print(f"Chroma DB: {paths['chroma_db_path']}")
     print(f" Predata: {paths['predata_path']}")
     
     if is_ec2:

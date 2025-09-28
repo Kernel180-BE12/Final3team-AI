@@ -23,8 +23,8 @@ class TemplatePreviewGenerator:
         self.placeholder_styles = {
             "missing": "#{{{var_name}}}",           # 누락 변수
             "partial": "[{var_name}]",              # 부분 입력
-            "invalid": "⚠️ {var_name} ⚠️",         # 유효하지 않은 값
-            "preview": "📝 {var_name}을(를) 입력해주세요"  # 상세 안내
+            "invalid": "{var_name}",         # 유효하지 않은 값
+            "preview": "{var_name}을(를) 입력해주세요"  # 상세 안내
         }
 
     def generate_preview(self, session: SessionData, preview_style: str = "missing") -> Dict[str, Any]:

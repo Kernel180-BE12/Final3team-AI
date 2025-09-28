@@ -13,7 +13,7 @@ from enum import Enum
 from dotenv import load_dotenv
 load_dotenv()
 
-import google.generativeai as genai
+from langchain_google_genai import ChatGoogleGenerativeAI
 import openai
 from openai import AsyncOpenAI
 
@@ -34,9 +34,9 @@ class LLMProviderManager:
         self.gemini_api_key = os.getenv('GEMINI_API_KEY')
         self.openai_api_key = os.getenv('OPENAI_API_KEY')
 
-        # 모델 설정
-        self.gemini_model = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash-exp')
-        self.openai_model = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')
+        # 모델 설정 - Option 1: GPT-4o primary + Gemini 2.5-pro fallback
+        self.gemini_model = os.getenv('GEMINI_MODEL', 'gemini-2.5-pro')
+        self.openai_model = os.getenv('OPENAI_MODEL', 'gpt-4o')
 
         # 클라이언트 초기화
         self._init_clients()
@@ -54,8 +54,7 @@ class LLMProviderManager:
         # Gemini 클라이언트
         if self.gemini_api_key:
             try:
-                genai.configure(api_key=self.gemini_api_key)
-                self.gemini_client = genai.GenerativeModel(self.gemini_model)
+                self.gemini_client = ChatGoogleGenerativeAI(model=self.gemini_model, google_api_key=self.gemini_api_key)
                 self.logger.info("Gemini 클라이언트 초기화 완료")
             except Exception as e:
                 self.logger.error(f"Gemini 클라이언트 초기화 실패: {e}")
@@ -85,17 +84,22 @@ class LLMProviderManager:
         return available
 
     def _get_primary_provider(self) -> Optional[LLMProvider]:
-        """기본 제공자 결정"""
-        # 환경변수로 우선순위 지정 가능
-        primary = os.getenv("PRIMARY_LLM_PROVIDER", "gemini").lower()
+        """기본 제공자 결정 - Option 1: GPT-4o 우선"""
+        # 환경변수로 우선순위 지정 가능 (기본값을 openai로 변경)
+        primary = os.getenv("PRIMARY_LLM_PROVIDER", "openai").lower()
 
         if primary == "openai" and LLMProvider.OPENAI in self.available_providers:
             return LLMProvider.OPENAI
         elif primary == "gemini" and LLMProvider.GEMINI in self.available_providers:
             return LLMProvider.GEMINI
 
-        # 기본값: 사용 가능한 첫 번째 제공자
-        return self.available_providers[0] if self.available_providers else None
+        # 기본값: OpenAI 우선, 없으면 Gemini
+        if LLMProvider.OPENAI in self.available_providers:
+            return LLMProvider.OPENAI
+        elif LLMProvider.GEMINI in self.available_providers:
+            return LLMProvider.GEMINI
+
+        return None
 
     async def _invoke_gemini(self, prompt: str) -> str:
         """Gemini API 호출"""
@@ -103,8 +107,8 @@ class LLMProviderManager:
             raise Exception("Gemini 클라이언트가 초기화되지 않았습니다")
 
         try:
-            response = self.gemini_client.generate_content(prompt)
-            return response.text
+            response = await self.gemini_client.ainvoke(prompt)
+            return response.content
         except Exception as e:
             self.failure_counts[LLMProvider.GEMINI] += 1
             self.logger.error(f"Gemini API 호출 실패: {e}")

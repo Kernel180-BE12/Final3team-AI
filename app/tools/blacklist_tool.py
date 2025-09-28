@@ -5,7 +5,7 @@ Agent2의 첫 번째 도구
 """
 import os
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from langchain.tools import BaseTool
 
 class BlackListTool(BaseTool):
@@ -15,35 +15,53 @@ class BlackListTool(BaseTool):
     name: str = "blacklist_generator_guide"
     description: str = "금지어 패턴 기반 안전한 템플릿 생성 가이드"
 
-    def __init__(self, index_manager=None):
-        super().__init__()
-        # 초기화 시 데이터 로드
-        self._blacklist_data = None
-        self._load_blacklist_data(index_manager)
+    # 인스턴스 필드 선언
+    _blacklist_data: Optional[str] = None
+    _index_manager: Optional[Any] = None
+
+    # Pydantic v1 모델 속성 선언
+    class Config:
+        arbitrary_types_allowed = True
+
+    def __init__(self, index_manager=None, **kwargs):
+        super().__init__(**kwargs)
+        # 초기화 시 인덱스 매니저 설정 (object.__setattr__ 사용)
+        object.__setattr__(self, '_index_manager', index_manager)
         
     def _get_blacklist_data(self) -> str:
         """BlackList 데이터 로드 (캐시 사용)"""
-        if self._blacklist_data is None:
+        # object.__getattribute__로 안전하게 접근
+        try:
+            blacklist_data = object.__getattribute__(self, '_blacklist_data')
+        except AttributeError:
+            blacklist_data = None
+
+        if blacklist_data is None:
             try:
-                if self._index_manager:
+                index_manager = object.__getattribute__(self, '_index_manager')
+                if index_manager:
                     # IndexManager에서 캐시된 데이터 사용
-                    predata = self._index_manager.get_predata_cache()
-                    self._blacklist_data = predata.get("cleaned_black_list.md", "")
+                    predata = index_manager.get_predata_cache()
+                    blacklist_data = predata.get("cleaned_black_list.md", "")
                 else:
                     # 직접 파일 로드
                     base_path = Path(__file__).parent.parent
                     blacklist_path = base_path / ".." / "data" / "presets" / "cleaned_black_list.md"
-                    
+
                     if blacklist_path.exists():
                         with open(blacklist_path, 'r', encoding='utf-8') as f:
-                            self._blacklist_data = f.read()
+                            blacklist_data = f.read()
                     else:
-                        self._blacklist_data = ""
+                        blacklist_data = ""
+
+                # 안전하게 저장
+                object.__setattr__(self, '_blacklist_data', blacklist_data)
             except Exception as e:
                 print(f" BlackList 데이터 로드 실패: {e}")
-                self._blacklist_data = ""
-        
-        return self._blacklist_data
+                blacklist_data = ""
+                object.__setattr__(self, '_blacklist_data', blacklist_data)
+
+        return blacklist_data
     
     def _identify_risk_keywords(self, user_input: str) -> List[str]:
         """위험 키워드 식별"""

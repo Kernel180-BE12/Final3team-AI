@@ -32,7 +32,7 @@ class LanguageDetector:
         # 반복 패턴 감지 설정
         self.max_repeated_ratio = 0.7  # 70% 이상 같은 문자면 반복으로 판정
 
-        print("🌐 언어 감지 시스템 초기화 완료")
+        print("언어 감지 시스템 초기화 완료")
 
     def detect_korean_ratio(self, text: str) -> float:
         """한국어 문자 비율 계산"""
@@ -277,11 +277,11 @@ if __name__ == "__main__":
 
         # 검증 결과
         is_valid, error_type, message = detector.validate_language_input(test_input)
-        status = "✅ 통과" if is_valid else "❌ 차단"
+        status = "통과" if is_valid else "차단"
         print(f"    결과: {status} - {message}")
 
         if not is_valid:
             suggestion = detector.get_validation_suggestion(test_input, error_type)
             print(f"    제안: {suggestion}")
 
-    print(f"\n🔧 언어 감지 시스템 테스트 완료")
+    print(f"\n언어 감지 시스템 테스트 완료")

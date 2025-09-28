@@ -5,7 +5,7 @@ Agent2의 세 번째 도구
 """
 import os
 from pathlib import Path
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Optional, Tuple
 from langchain.tools import BaseTool
 from datetime import datetime
 
@@ -15,35 +15,52 @@ class InfoCommLawTool(BaseTool):
     """
     name: str = "info_communication_law_compliance"
     description: str = "정보통신망법 준수 검증 및 가이드"
-    
-    def __init__(self, index_manager=None):
-        super().__init__()
-        self._index_manager = index_manager
-        self._law_data = None
+
+    # 인스턴스 필드 선언
+    _index_manager: Optional[Any] = None
+    _law_data: Optional[str] = None
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def __init__(self, index_manager=None, **kwargs):
+        super().__init__(**kwargs)
+        object.__setattr__(self, '_index_manager', index_manager)
         
     def _get_law_data(self) -> str:
         """법령 데이터 로드 (캐시 사용)"""
-        if self._law_data is None:
+        # object.__getattribute__로 안전하게 접근
+        try:
+            law_data = object.__getattribute__(self, '_law_data')
+        except AttributeError:
+            law_data = None
+
+        if law_data is None:
             try:
-                if self._index_manager:
+                index_manager = object.__getattribute__(self, '_index_manager')
+                if index_manager:
                     # IndexManager에서 캐시된 데이터 사용
-                    predata = self._index_manager.get_predata_cache()
-                    self._law_data = predata.get("pdf_extraction_results.txt", "")
+                    predata = index_manager.get_predata_cache()
+                    law_data = predata.get("info_comm_law_guide.yaml", "")
                 else:
                     # 직접 파일 로드
-                    base_path = Path(__file__).parent.parent.parent
-                    law_path = base_path / ".." / "data" / "presets" / "pdf_extraction_results.txt"
-                    
+                    base_path = Path(__file__).parent.parent
+                    law_path = base_path / ".." / "data" / "presets" / "info_comm_law_guide.yaml"
+
                     if law_path.exists():
                         with open(law_path, 'r', encoding='utf-8') as f:
-                            self._law_data = f.read()
+                            law_data = f.read()
                     else:
-                        self._law_data = ""
+                        law_data = ""
+
+                # 안전하게 저장
+                object.__setattr__(self, '_law_data', law_data)
             except Exception as e:
                 print(f" 법령 데이터 로드 실패: {e}")
-                self._law_data = ""
-        
-        return self._law_data
+                law_data = ""
+                object.__setattr__(self, '_law_data', law_data)
+
+        return law_data
     
     def _classify_message_type(self, user_input: str) -> Tuple[str, str]:
         """메시지 유형 분류 (정보성 vs 광고성)"""

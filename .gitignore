@@ -211,6 +211,9 @@ __marimo__/
 # Cache directories
 cache/
 chroma_db/
+storage/cache/
+storage/chroma_db/
+storage/logs/
 *.cache
 
 # Temporary files
@@ -221,6 +224,7 @@ firstTodo.txt
 langgraph.txt
 IMPLEMENTATION_CHECKLIST.md
 AI.png
+claudedocs/
 
 # Performance files
 performance_*.json
@@ -228,6 +232,17 @@ performance_*.json
 
 # Test files
 test_*.py
+tests/
+*.csv
+*presentation*.py
+migration_*.md
+
+# CSV files
+csvfile/
+
+# macOS
+.DS_Store
+**/.DS_Store
 
 # Notebooks
 notebooks/

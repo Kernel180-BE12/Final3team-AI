@@ -22,23 +22,22 @@ package-mode = false
 python = "^3.11.13,<3.12"
 
 # 핵심 AI 패키지 (검증된 버전)
-google-generativeai = "0.7.2"
 chromadb = "^0.5.0"
 numpy = "^1.26.0,<2.0.0"
 pandas = "^2.0.0,<3.0.0"
 
 # LangChain 생태계 (호환성 검증)
-langchain-core = "^0.2.33,<0.3.0"
-langchain = "^0.2.17,<0.3.0"
-langchain-openai = "^0.1.0,<0.3.0"
-langchain-google-genai = "1.0.10"
-langchain-community = "^0.2.19,<0.3.0"
-langchain-text-splitters = "^0.2.4,<0.3.0"
+langchain-core = "^0.3.76"
+langchain = "^0.3.27"
+langchain-openai = "^0.3.33"
+langchain-google-genai = "^2.1.12"
+langchain-community = "^0.3.30"
+langchain-text-splitters = "^0.3.11"
 
 # 웹 프레임워크 & API
 fastapi = "0.115.0"
 uvicorn = {extras = ["standard"], version = "0.32.0"}
-pydantic = "^2.9.0,<3.0.0"
+pydantic = "^1.10.0,<2.0.0"
 
 # 데이터 처리 & 파일 처리
 pymupdf = "^1.24.0"
@@ -64,6 +63,7 @@ pyyaml = "^6.0.0"
 
 # 평가 도구
 datasets = "^2.0.0"
+langgraph = "^0.6.7"
 
 [tool.poetry.group.dev.dependencies]
 # 개발 도구

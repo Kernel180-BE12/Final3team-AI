@@ -4,7 +4,7 @@ Agent1용 의도 분류기
 """
 
 from typing import Dict, List, Optional
-import google.generativeai as genai
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 
 class IntentClassifier:
@@ -20,8 +20,7 @@ class IntentClassifier:
         """
         self.api_key = api_key
         self.model_name = model_name
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(model_name)
+        self.model = ChatGoogleGenerativeAI(model=model_name, google_api_key=api_key)
         
         # 새로운 카테고리 체계에 맞는 의도 카테고리 정의
         self.intent_categories = {
@@ -185,8 +184,8 @@ class IntentClassifier:
         prompt = self._create_classification_prompt(query, variables)
 
         try:
-            response = self.model.generate_content(prompt)
-            result = self._parse_llm_response(response.text)
+            response = self.model.invoke(prompt)
+            result = self._parse_llm_response(response.content)
             return result
         except Exception as e:
             print(f"LLM 의도 분류 중 오류 발생: {e}")

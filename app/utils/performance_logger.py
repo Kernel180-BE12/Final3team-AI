@@ -84,7 +84,7 @@ class PerformanceLogger:
 
         # 콘솔용 간단한 요약
         stage_summary = " | ".join([f"{k}: {v:.2f}s" for k, v in stage_times.items()])
-        print(f"⏱️  [TIMING] Total: {total_time:.2f}s | {stage_summary} | Request: '{truncated_content}'")
+        print(f"[TIMING] Total: {total_time:.2f}s | {stage_summary} | Request: '{truncated_content}'")
 
     def log_stage_start(self, stage_name: str, request_id: str = None):
         """단계 시작 로깅"""

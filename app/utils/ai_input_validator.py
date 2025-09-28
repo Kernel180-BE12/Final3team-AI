@@ -408,7 +408,7 @@ if __name__ == "__main__":
 
         # 사전 검증 결과
         pre_val = analysis['pre_validation']
-        status = "✅ 통과" if pre_val['is_valid'] else "❌ 차단"
+        status = "통과" if pre_val['is_valid'] else "차단"
         print(f"    사전검증: {status} - {pre_val['message']}")
 
         if not pre_val['is_valid']:
@@ -416,4 +416,4 @@ if __name__ == "__main__":
             suggestion = validator.get_ai_validation_suggestions(error_type, test_input)
             print(f"    제안: {suggestion}")
 
-    print(f"\n🔧 AI 레벨 입력 검증 시스템 테스트 완료")
+    print(f"\nAI 레벨 입력 검증 시스템 테스트 완료")

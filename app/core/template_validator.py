@@ -70,8 +70,8 @@ class TemplateValidator:
         """
         validation_results = []
 
-        # 🔍 DEBUG: Tools 결과 로깅
-        print(f"🔍 DEBUG - Tools Results: {tools_results}")
+        # DEBUG: Tools 결과 로깅
+        print(f"DEBUG - Tools Results: {tools_results}")
 
         # 1. BlackList 검증
         blacklist_result = self._validate_blacklist_compliance(
@@ -109,12 +109,12 @@ class TemplateValidator:
         score = 1.0
 
         # BlackList Tool에서 감지된 위반사항 확인
-        compliance_check = blacklist_result.get("compliance_check", "UNKNOWN")
+        compliance_check = blacklist_result.get("compliance_status", "UNKNOWN")
         violations = blacklist_result.get("risk_keywords", [])
 
-        # 🔍 DEBUG: BlackList 결과 로깅
-        print(f"🔍 DEBUG - BlackList Result: {blacklist_result}")
-        print(f"🔍 DEBUG - compliance_status: {compliance_check}")
+        # DEBUG: BlackList 결과 로깅
+        print(f"DEBUG - BlackList Result: {blacklist_result}")
+        print(f"DEBUG - compliance_status: {compliance_check}")
 
         if compliance_check == "FAILED":
             # 치명적 실패
@@ -128,11 +128,11 @@ class TemplateValidator:
             for violation in violations:
                 issues.append(f"주의 표현: {violation}")
 
-        elif compliance_check == "PASSED":
+        elif compliance_check == "COMPLIANT":
             # 정상 통과
             score = 1.0
 
-        elif compliance_check != "PASSED":
+        elif compliance_check not in ["COMPLIANT", "REVIEW_REQUIRED", "ERROR"]:
             # 알 수 없는 상태
             score = 0.3
             issues.append("BlackList 검증 상태 불명확")
@@ -400,20 +400,20 @@ class TemplateValidator:
         """점수와 결과에 따른 권장사항 생성"""
 
         if success and overall_score >= 0.9:
-            return "✅ 우수: 템플릿이 모든 기준을 만족합니다. 바로 사용 가능합니다."
+            return "우수: 템플릿이 모든 기준을 만족합니다. 바로 사용 가능합니다."
 
         elif success and overall_score >= 0.7:
-            return "✅ 양호: 템플릿이 기본 요구사항을 만족합니다. 사용 가능합니다."
+            return "양호: 템플릿이 기본 요구사항을 만족합니다. 사용 가능합니다."
 
         elif overall_score >= 0.5:
             critical_issues = [r for r in validation_results if r.tool_name in ['blacklist', 'law'] and r.status == ValidationStatus.FAILED]
             if critical_issues:
-                return "⚠️ 주의: 법적/규정 위험이 있습니다. 템플릿 재생성을 권장합니다."
+                return "주의: 법적/규정 위험이 있습니다. 템플릿 재생성을 권장합니다."
             else:
-                return "⚠️ 개선: 일부 가이드라인 미준수가 있습니다. 검토 후 사용하세요."
+                return "개선: 일부 가이드라인 미준수가 있습니다. 검토 후 사용하세요."
 
         else:
-            return "❌ 불합격: 템플릿이 여러 기준을 만족하지 않습니다. 반드시 재생성하세요."
+            return "불합격: 템플릿이 여러 기준을 만족하지 않습니다. 반드시 재생성하세요."
 
 # 전역 인스턴스
 _template_validator = None
