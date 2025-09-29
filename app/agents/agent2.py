@@ -254,7 +254,7 @@ class Agent2:
             from app.tools.info_comm_law_tool import InfoCommLawTool
             return InfoCommLawTool(index_manager=self.index_manager)
         except Exception as e:
-            print(f"⚠️ InfoCommLawTool 초기화 실패: {e}")
+            print(f"InfoCommLawTool 초기화 실패: {e}")
             return None
 
     def _init_classifier(self):
@@ -263,7 +263,7 @@ class Agent2:
             from app.tools.industry_classifier import IndustryClassifier
             return IndustryClassifier()
         except Exception as e:
-            print(f"⚠️ IndustryClassifier 초기화 실패: {e}")
+            print(f"IndustryClassifier 초기화 실패: {e}")
             return None
 
     def _preprocess_dates(self, user_input: str) -> str:
@@ -271,9 +271,9 @@ class Agent2:
         try:
             from app.tools.date_preprocessor import DatePreprocessor
             preprocessor = DatePreprocessor()
-            return preprocessor.preprocess(user_input)
+            return preprocessor.preprocess_dates(user_input)
         except Exception as e:
-            print(f"⚠️ 날짜 전처리 실패: {e}")
+            print(f"날짜 전처리 실패: {e}")
             return user_input
 
     # ========== 리팩토링된 핵심 메서드들 ==========
@@ -382,7 +382,7 @@ class Agent2:
                 validation_result = validator.validate_template_content(result.template)
 
                 if not validation_result.is_valid:
-                    print(f"⚠️ 변수 형식 오류 감지: {len(validation_result.violations)}건")
+                    print(f"변수 형식 오류 감지: {len(validation_result.violations)}건")
                     for violation in validation_result.violations:
                         print(f"  - {violation}")
 
