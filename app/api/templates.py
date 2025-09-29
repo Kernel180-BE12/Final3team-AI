@@ -508,9 +508,9 @@ async def create_template(request: TemplateRequest):
         # TemplateSuccessData에 모든 필수 필드 포함
         from datetime import datetime
         import pytz
-        # Java 호환 형식: 한국 시간대 + 밀리초 3자리로 제한
+        # Java LocalDateTime 호환: 시간대 없는 로컬 시간만 (yyyy-MM-dd'T'HH:mm:ss)
         korea_tz = pytz.timezone('Asia/Seoul')
-        current_time = datetime.now(korea_tz).isoformat(timespec='milliseconds')
+        current_time = datetime.now(korea_tz).replace(tzinfo=None).isoformat(timespec='seconds')
 
         template_data = TemplateSuccessData(
             id=None,  # Java 백엔드에서 DB 자동생성 ID 사용
