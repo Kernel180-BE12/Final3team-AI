@@ -686,6 +686,35 @@ class TemplateSelector:
             }
         }
 
+    async def find_existing_template(self, user_input: str, variables: Dict[str, Any], intent: Dict[str, Any], user_id: int) -> Optional[Dict[str, Any]]:
+        """
+        기존 템플릿 검색 (Java 백엔드 호환)
+        """
+        try:
+            # 기존 _search_existing_templates 메서드 재사용
+            options = {
+                'variables': variables,
+                'intent': intent,
+                'user_id': user_id,
+                'existing_threshold': 0.7
+            }
+
+            result = self._search_existing_templates(user_input, options)
+
+            if result.success:
+                return {
+                    'template': result.template,
+                    'variables': result.variables,
+                    'source': result.source,
+                    'source_info': result.source_info
+                }
+
+            return None
+
+        except Exception as e:
+            self.logger.error(f"기존 템플릿 검색 실패: {e}")
+            return None
+
 
 # 전역 인스턴스
 _global_template_selector = None
@@ -720,12 +749,12 @@ if __name__ == "__main__":
         print(f"선택 결과: {result.success}")
         print(f"선택 경로: {' -> '.join(result.selection_path or [])}")
         print(f"소스: {result.source}")
-        
+
         if result.success:
             print(f"템플릿: {result.template[:100]}...")
             print(f"변수 수: {len(result.variables or [])}")
         else:
             print(f"오류: {result.error}")
-            
+
     except Exception as e:
         print(f" 테스트 실패: {e}")

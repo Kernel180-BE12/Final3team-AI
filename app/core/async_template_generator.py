@@ -26,6 +26,11 @@ class TemplateResult:
     metadata: Optional[Dict[str, Any]] = None
     processing_time: float = 0.0
 
+    @property
+    def mapped_variables(self) -> Optional[Dict[str, str]]:
+        """mapped_variables 속성에 대한 접근자"""
+        return self._mapped_variables
+
 
 @dataclass
 class ToolsResult:

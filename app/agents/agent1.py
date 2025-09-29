@@ -28,7 +28,8 @@ project_root = Path(__file__).parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from config.legacy import GEMINI_API_KEY
+from config.settings import get_settings
+from config.llm_providers import get_llm_manager, LLMProvider
 
 # 표준 import 시스템 사용 (importlib.util 제거)
 from app.tools.variable_extractor import VariableExtractor
@@ -54,9 +55,29 @@ class Agent1:
         Agent1 초기화 (분리된 클래스들 조립)
 
         Args:
-            api_key: Gemini API 키
+            api_key: API 키 (LLM 관리자에서 자동 선택)
         """
-        self.api_key = api_key or GEMINI_API_KEY
+        settings = get_settings()
+        llm_manager = get_llm_manager()
+
+        # LLM 관리자를 통해 Primary Provider 사용
+        primary_config = llm_manager.get_primary_config()
+        fallback_config = llm_manager.get_fallback_config()
+
+        if primary_config:
+            if primary_config.provider == LLMProvider.OPENAI:
+                print(f"✅ Agent1: OpenAI {primary_config.model_name} 사용 중")
+                self.api_key = primary_config.api_key
+                self.provider = "openai"
+            elif primary_config.provider == LLMProvider.GEMINI:
+                print(f"✅ Agent1: Gemini {primary_config.model_name} 사용 중")
+                self.api_key = primary_config.api_key
+                self.provider = "gemini"
+        else:
+            # 폴백
+            print("⚠️ Agent1: 기본 설정으로 폴백")
+            self.api_key = api_key or settings.GEMINI_API_KEY
+            self.provider = "gemini"
 
         # 전담 클래스들 초기화
         self.input_validator = InputValidator()
@@ -231,19 +252,13 @@ class Agent1:
             self.conversation_state, analysis_result['intent']
         )
 
-        # 6. 재질문 필요 여부 판단
+        # 6. 변수 완성도 체크 - reask_required 제거, 항상 진행
+        # 부족한 변수가 있어도 Agent2에서 추론하도록 변경
         if not self.conversation_manager.should_proceed_to_template_generation(completeness_result):
-            reask_question = self.conversation_manager.generate_contextual_question(
-                self.conversation_state, completeness_result.needed_variables
-            )
-
-            return {
-                'status': 'reask_required',
-                'message': reask_question,
-                'analysis': analysis_result,
-                'missing_variables': completeness_result.needed_variables,
-                'reasoning': completeness_result.reasoning
-            }
+            # 기본값으로 채우거나 빈 값으로 진행
+            for needed_var in completeness_result.needed_variables:
+                if needed_var not in analysis_result['variables'] or not analysis_result['variables'][needed_var]:
+                    analysis_result['variables'][needed_var] = "추론 필요"  # Agent2에서 처리하도록 마킹
 
         # 7. 최종 정책 및 비속어 검사
         confirmed_vars = self.conversation_manager.get_confirmed_variables(self.conversation_state)
@@ -379,19 +394,13 @@ class Agent1:
             self.conversation_state, analysis_result['intent']
         )
 
-        # 5. 재질문 필요 여부 판단
+        # 5. 변수 완성도 체크 - reask_required 제거, 항상 진행 (비동기 버전)
+        # 부족한 변수가 있어도 Agent2에서 추론하도록 변경
         if not self.conversation_manager.should_proceed_to_template_generation(completeness_result):
-            reask_question = self.conversation_manager.generate_contextual_question(
-                self.conversation_state, completeness_result.needed_variables
-            )
-
-            return {
-                'status': 'reask_required',
-                'message': reask_question,
-                'analysis': analysis_result,
-                'missing_variables': completeness_result.needed_variables,
-                'reasoning': completeness_result.reasoning
-            }
+            # 기본값으로 채우거나 빈 값으로 진행
+            for needed_var in completeness_result.needed_variables:
+                if needed_var not in analysis_result['variables'] or not analysis_result['variables'][needed_var]:
+                    analysis_result['variables'][needed_var] = "추론 필요"  # Agent2에서 처리하도록 마킹
 
         # 6. 최종 정책 검사
         confirmed_vars = self.conversation_manager.get_confirmed_variables(self.conversation_state)

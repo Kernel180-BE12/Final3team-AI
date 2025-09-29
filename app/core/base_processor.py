@@ -4,20 +4,65 @@ import numpy as np
 from typing import List, Dict, Tuple, Optional
 from pathlib import Path
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from langchain_openai import ChatOpenAI
+from config.llm_providers import get_llm_manager, LLMProvider
 from .index_manager import get_index_manager
 
 class BaseTemplateProcessor:
     """템플릿 처리 기본 클래스"""
-    
+
     def __init__(self, api_key: str, gemini_model: str = "gemini-2.0-flash-exp"):
         self.api_key = api_key
-        
-        # AI 모델 초기화
-        self.gemini_model = ChatGoogleGenerativeAI(model=gemini_model, google_api_key=api_key)
-        self.embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=api_key)
-        
-        print(f" Gemini 모델 초기화: {gemini_model}")
-        print(" Gemini Embedding API 사용 준비 완료")
+
+        # LLM 관리자를 통해 LLM 선택
+        llm_manager = get_llm_manager()
+        primary_config = llm_manager.get_primary_config()
+        fallback_config = llm_manager.get_fallback_config()
+
+        try:
+            if primary_config and primary_config.provider == LLMProvider.OPENAI:
+                print(f"✅ BaseProcessor: OpenAI {primary_config.model_name} 사용 중")
+                self.gemini_model = ChatOpenAI(
+                    model=primary_config.model_name,
+                    api_key=primary_config.api_key,
+                    temperature=primary_config.temperature,
+                    max_tokens=primary_config.max_tokens
+                )
+                self.provider = "openai"
+                # 임베딩은 여전히 Gemini 사용 (OpenAI 임베딩은 별도 처리 필요)
+                if fallback_config and fallback_config.provider == LLMProvider.GEMINI:
+                    self.embeddings_model = GoogleGenerativeAIEmbeddings(
+                        model="models/embedding-001",
+                        google_api_key=fallback_config.api_key
+                    )
+                    print("📝 임베딩: Gemini 사용")
+                else:
+                    print("⚠️ 임베딩: 폴백 사용")
+                    self.embeddings_model = None
+            elif primary_config and primary_config.provider == LLMProvider.GEMINI:
+                print(f"✅ BaseProcessor: Gemini {primary_config.model_name} 사용 중")
+                self.gemini_model = ChatGoogleGenerativeAI(
+                    model=primary_config.model_name,
+                    google_api_key=primary_config.api_key,
+                    temperature=primary_config.temperature
+                )
+                self.embeddings_model = GoogleGenerativeAIEmbeddings(
+                    model="models/embedding-001",
+                    google_api_key=primary_config.api_key
+                )
+                self.provider = "gemini"
+                print("📝 임베딩: Gemini 사용")
+            else:
+                # 폴백
+                print("⚠️ BaseProcessor: 기본 설정으로 폴백")
+                self.gemini_model = ChatGoogleGenerativeAI(model=gemini_model, google_api_key=api_key)
+                self.embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=api_key)
+                self.provider = "gemini"
+        except Exception as e:
+            print(f"⚠️ BaseProcessor LLM 초기화 실패, 폴백 사용: {e}")
+            self.gemini_model = ChatGoogleGenerativeAI(model=gemini_model, google_api_key=api_key)
+            self.embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=api_key)
+            self.provider = "gemini"
         
         # 데이터 저장소
         self.templates = []

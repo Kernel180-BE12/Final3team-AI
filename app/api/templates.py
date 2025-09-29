@@ -149,12 +149,7 @@ class ErrorResponseWithDetails(BaseModel):
     detail: Dict[str, Any]
 
 
-class PartialTemplateResponse(BaseModel):
-    """부분 완성 템플릿 응답 모델"""
-    status: str = "PARTIAL_COMPLETION"
-    message: str
-    data: Dict[str, Any]
-    timestamp: str
+# PartialTemplateResponse 클래스 삭제 - 202 응답 제거
 
 
 def create_error_response(error_code: str, message: str, details: Any = None, status_code: int = 400) -> JSONResponse:
@@ -240,35 +235,52 @@ def convert_industry_purpose_data(industry_list: List[dict] = None, purpose_list
     return result
 
 
-def create_partial_response(user_id: int, partial_template: str, missing_variables: List[dict], mapped_variables: Dict[str, str], industry: List[dict], purpose: List[dict]) -> JSONResponse:
-    """부분 완성 응답 생성 (202 상태코드) - Java 호환 구조"""
-    # Industry/Purpose 데이터를 기존 및 새로운 형식 둘 다 생성
-    converted_data = convert_industry_purpose_data(industry, purpose)
+# create_partial_response 함수 삭제 - 202 응답 제거
 
-    # 동적 카테고리 결정
-    category_info = get_category_info(converted_data["industries"], converted_data["purposes"])
+
+def format_existing_template_response(existing_template: Dict[str, Any], user_id: int):
+    """
+    기존 템플릿을 Java 백엔드 호환 구조로 포맷팅
+    """
+    from datetime import datetime
+    import pytz
+
+    # 기존 템플릿 변수를 Java VariableDto 형식으로 변환
+    variables_list = existing_template.get('variables', [])
+    formatted_variables = []
+
+    for i, var in enumerate(variables_list):
+        if isinstance(var, dict):
+            formatted_variables.append({
+                "id": i+1,
+                "variableKey": var.get('variable_key', var.get('variableKey', str(var))),
+                "placeholder": var.get('placeholder', f"#{{{var.get('variable_key', 'unknown')}}}"),
+                "inputType": var.get('input_type', var.get('inputType', 'TEXT'))
+            })
+
+    # 기본 industry/purpose (기존 템플릿이므로 추론)
+    korea_tz = pytz.timezone('Asia/Seoul')
+    current_time = datetime.now(korea_tz).replace(tzinfo=None).isoformat(timespec='seconds')
 
     template_data = TemplateSuccessData(
-        id=None,  # 부분 완성 상태 (아직 DB에 저장되지 않음)
+        id=None,  # AI에서 생성하므로 null
         userId=user_id,
-        categoryId=category_info["categoryId"],
-        title=f"{category_info['title']} (부분 완성)",
-        content=partial_template,
+        categoryId="004001",  # 기본 카테고리
+        title="기존 템플릿 재사용",
+        content=existing_template.get('template', ''),
         imageUrl=None,
-        type=determine_template_type([]),  # 부분완성은 버튼이 없으므로 MESSAGE
+        type="MESSAGE",
+        isPublic=False,  
+        status="CREATED",  
+        createdAt=current_time,  
+        updatedAt=current_time,  
         buttons=[],
-        variables=missing_variables,  # 누락된 변수들
-        industries=converted_data["industries"],
-        purposes=converted_data["purposes"],
-        _mapped_variables=mapped_variables  # 이미 매핑된 변수들
+        variables=formatted_variables,
+        industries=[{"id": 9, "name": "기타"}],  
+        purposes=[{"id": 1, "name": "공지/안내"}] 
     )
 
-    # ApiResult로 래핑
-    result = ApiResult.ok(template_data)
-    return JSONResponse(
-        status_code=202,
-        content=result.dict()
-    )
+    return ApiResult.ok(template_data)
 
 
 @router.post("/templates", tags=["Template Generation"],
@@ -332,29 +344,16 @@ async def create_template(request: TemplateRequest):
             )
 
         elif agent1_result['status'] == 'reask_required':
-            # 추가 정보 필요
+            # 변수 부족 시 422 에러 반환 (202 대신)
             missing_vars = agent1_result.get('missing_variables', [])
-            # missing_variables 형태를 Variable 형태로 변환
-            formatted_missing_vars = []
-            for i, var in enumerate(missing_vars):
-                if isinstance(var, str):
-                    formatted_missing_vars.append({
-                        "id": i+1,
-                        "variableKey": var,
-                        "placeholder": f"#{{{var}}}",
-                        "inputType": "TEXT",
-                        "value": ""
-                    })
-                else:
-                    formatted_missing_vars.append(var)
-
-            return create_partial_response(
-                user_id=request.userId,
-                partial_template="",  # Agent1 단계에서는 템플릿이 없음
-                missing_variables=formatted_missing_vars,
-                mapped_variables=agent1_result.get('analysis', {}).get('variables', {}),
-                industry=[],
-                purpose=[]
+            return create_error_response(
+                "INSUFFICIENT_INFO",
+                "템플릿 생성에 필요한 정보가 부족합니다.",
+                details={
+                    "missing_variables": missing_vars,
+                    "suggestions": ["더 구체적인 정보를 포함해서 다시 요청해주세요"]
+                },
+                status_code=422
             )
 
         elif agent1_result['status'] == 'policy_violation':
@@ -371,26 +370,26 @@ async def create_template(request: TemplateRequest):
                 f"Agent1 처리 실패: {agent1_result.get('message', '알 수 없는 오류')}"
             )
 
-        # 4. 템플릿 선택
-        with TimingContext(perf_logger, "Template_Selection", request_id) as ctx:
+        # 4. 기존 템플릿 검색 (새 로직)
+        with TimingContext(perf_logger, "Existing_Template_Search", request_id) as ctx:
             template_selector = TemplateSelector()
             analysis = agent1_result.get('analysis', {})
 
-            selected_template = await template_selector.select_template_async(
+            existing_template = await template_selector.find_existing_template(
                 user_input=request.requestContent,
-                options={
-                    'variables': analysis.get('variables', {}),
-                    'intent': analysis.get('intent', {}),
-                    'user_id': request.userId
-                }
+                variables=analysis.get('variables', {}),
+                intent=analysis.get('intent', {}),
+                user_id=request.userId
             )
-        stage_times['template_selection'] = ctx.duration
+        stage_times['existing_template_search'] = ctx.duration
 
-        if not selected_template:
-            return create_error_response(
-                "TEMPLATE_SELECTION_FAILED",
-                "적합한 템플릿을 찾을 수 없습니다"
-            )
+        # 4-A. 기존 템플릿 발견 시 바로 반환
+        if existing_template:
+            print(f"✅ [EXISTING TEMPLATE FOUND] {request_id} - 기존 템플릿 사용")
+            return format_existing_template_response(existing_template, request.userId)
+
+        # 4-B. 기존 템플릿 없음 - Agent2로 새 템플릿 생성
+        print(f"🔄 [NEW TEMPLATE NEEDED] {request_id} - 새 템플릿 생성 시작")
 
         # 5. Agent2로 최종 템플릿 생성
         with TimingContext(perf_logger, "Agent2_Initialization", request_id) as ctx:
@@ -410,43 +409,18 @@ async def create_template(request: TemplateRequest):
                 "템플릿 생성에 실패했습니다"
             )
 
-        # Check if more variables are needed
+        # Check if more variables are needed - 422 에러로 변경 (202 대신)
         if final_template_result.get('status') == 'need_more_variables':
-            # Convert TemplateVariable format to Variable format
             missing_vars = final_template_result.get('missing_variables', [])
-            formatted_missing_vars = []
-            for i, var in enumerate(missing_vars):
-                if isinstance(var, dict) and 'variable_key' in var:
-                    # TemplateVariable format from Agent2
-                    formatted_missing_vars.append({
-                        "id": i+1,
-                        "variableKey": var["variable_key"],
-                        "placeholder": var["placeholder"],
-                        "inputType": var["input_type"],
-                        "value": ""
-                    })
-                elif isinstance(var, dict):
-                    # Already in Variable format
-                    if 'value' not in var:
-                        var['value'] = ""
-                    formatted_missing_vars.append(var)
-                else:
-                    # String format (fallback)
-                    formatted_missing_vars.append({
-                        "id": i+1,
-                        "variableKey": str(var),
-                        "placeholder": f"#{{{var}}}",
-                        "inputType": "TEXT",
-                        "value": ""
-                    })
-
-            return create_partial_response(
-                user_id=request.userId,
-                partial_template=final_template_result.get('template', ''),
-                missing_variables=formatted_missing_vars,
-                mapped_variables=final_template_result.get('mapped_variables', {}),
-                industry=final_template_result.get('industry', []),  # Agent2에서 오는 dict 형태 그대로 전달
-                purpose=final_template_result.get('purpose', [])    # Agent2에서 오는 dict 형태 그대로 전달
+            return create_error_response(
+                "TEMPLATE_INCOMPLETE",
+                "템플릿 생성을 위해 추가 정보가 필요합니다.",
+                details={
+                    "missing_variables": missing_vars,
+                    "partial_template": final_template_result.get('template', ''),
+                    "suggestions": ["더 구체적인 정보를 포함해서 다시 요청해주세요"]
+                },
+                status_code=422
             )
 
         # Check if template generation failed

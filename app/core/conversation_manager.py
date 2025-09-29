@@ -8,6 +8,8 @@ import re
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
+from config.llm_providers import get_llm_manager, LLMProvider
 
 
 @dataclass
@@ -54,11 +56,39 @@ class ConversationManager:
     }
 
     def __init__(self, api_key: Optional[str] = None, model_name: str = "gemini-2.0-flash-exp"):
-        """대화 관리자 초기화"""
+        """대화 관리자 초기화 - LLM 관리자를 통해 최적 LLM 선택"""
         self.api_key = api_key
         self.model_name = model_name
+
         if api_key:
-            self.model = ChatGoogleGenerativeAI(model=model_name, google_api_key=api_key)
+            # LLM 관리자를 통해 LLM 선택
+            llm_manager = get_llm_manager()
+            primary_config = llm_manager.get_primary_config()
+
+            try:
+                if primary_config and primary_config.provider == LLMProvider.OPENAI:
+                    self.model = ChatOpenAI(
+                        model=primary_config.model_name,
+                        api_key=primary_config.api_key,
+                        temperature=primary_config.temperature,
+                        max_tokens=primary_config.max_tokens
+                    )
+                    self.provider = "openai"
+                elif primary_config and primary_config.provider == LLMProvider.GEMINI:
+                    self.model = ChatGoogleGenerativeAI(
+                        model=primary_config.model_name,
+                        google_api_key=primary_config.api_key,
+                        temperature=primary_config.temperature
+                    )
+                    self.provider = "gemini"
+                else:
+                    # 폴백
+                    self.model = ChatGoogleGenerativeAI(model=model_name, google_api_key=api_key)
+                    self.provider = "gemini"
+            except Exception as e:
+                print(f"ConversationManager LLM 초기화 실패, 폴백 사용: {e}")
+                self.model = ChatGoogleGenerativeAI(model=model_name, google_api_key=api_key)
+                self.provider = "gemini"
         else:
             self.model = None
 
