@@ -289,9 +289,9 @@ def format_existing_template_response(existing_template: Dict[str, Any], user_id
                     "model": TemplateSuccessResponse,
                     "description": "템플릿 생성 완료"
                 },
-                202: {
-                    "model": TemplateSuccessResponse,
-                    "description": "부분 완성 - 추가 정보 필요 (200과 동일한 구조)"
+                422: {
+                    "model": ErrorResponseWithDetails,
+                    "description": "입력 검증 실패 또는 템플릿 생성 불가"
                 },
                 400: {"model": ErrorResponseWithDetails},
                 500: {"model": ErrorResponseWithDetails}
