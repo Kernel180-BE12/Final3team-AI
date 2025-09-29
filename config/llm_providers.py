@@ -44,7 +44,7 @@ class LLMProviderManager:
             providers[LLMProvider.GEMINI] = LLMConfig(
                 provider=LLMProvider.GEMINI,
                 api_key=gemini_key,
-                model_name=os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp"),
+                model_name=os.getenv("GEMINI_MODEL", "gemini-2.5-pro"),
                 max_tokens=None,  # Gemini는 max_tokens 사용 안함
                 temperature=float(os.getenv("GEMINI_TEMPERATURE", "0.7")),
                 timeout=int(os.getenv("GEMINI_TIMEOUT", "30"))
@@ -56,7 +56,7 @@ class LLMProviderManager:
             providers[LLMProvider.OPENAI] = LLMConfig(
                 provider=LLMProvider.OPENAI,
                 api_key=openai_key,
-                model_name=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+                model_name=os.getenv("OPENAI_MODEL", "gpt-4o"),
                 max_tokens=int(os.getenv("OPENAI_MAX_TOKENS", "4000")),
                 temperature=float(os.getenv("OPENAI_TEMPERATURE", "0.7")),
                 timeout=int(os.getenv("OPENAI_TIMEOUT", "30"))
@@ -67,7 +67,7 @@ class LLMProviderManager:
     def _get_primary_provider(self) -> Optional[LLMProvider]:
         """기본 제공자 결정"""
         # 환경변수로 우선순위 지정 가능
-        primary = os.getenv("PRIMARY_LLM_PROVIDER", "gemini").lower()
+        primary = os.getenv("PRIMARY_LLM_PROVIDER", "openai").lower()
 
         if primary == "openai" and LLMProvider.OPENAI in self.providers:
             return LLMProvider.OPENAI

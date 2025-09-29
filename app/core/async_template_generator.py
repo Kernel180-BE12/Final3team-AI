@@ -21,7 +21,7 @@ class TemplateResult:
     variables: Optional[List[Dict[str, Any]]] = None
     industry: Optional[List[Dict[str, Any]]] = None
     purpose: Optional[List[Dict[str, Any]]] = None
-    mapped_variables: Optional[Dict[str, str]] = None
+    _mapped_variables: Optional[Dict[str, str]] = None
     error: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
     processing_time: float = 0.0
@@ -445,7 +445,7 @@ class AsyncTemplateGenerator:
                 variables=template_result.get("variables", []),
                 industry=industry,
                 purpose=purpose,
-                mapped_variables=agent1_variables or {},
+                _mapped_variables=agent1_variables or {},
                 error=template_result.get("error"),
                 metadata={
                     "tools_processing_time": tools_result.processing_time,
@@ -499,7 +499,7 @@ class AsyncTemplateGenerator:
                 variables=template_result.get("variables", []),
                 industry=industry,
                 purpose=purpose,
-                mapped_variables=agent1_variables or {},
+                _mapped_variables=agent1_variables or {},
                 error=template_result.get("error"),
                 metadata={
                     "tools_processing_time": tools_result.processing_time,
