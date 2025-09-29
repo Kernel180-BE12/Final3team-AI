@@ -329,124 +329,44 @@ class AsyncTemplateGenerator:
 
     def _generate_buttons_from_content(self, template_content: str) -> List[Dict[str, str]]:
         """
-        템플릿 내용을 기반으로 버튼 자동 생성 (Agent2와 동일한 로직)
+        원래 버전: 간단한 URL 감지 기반 버튼 생성
 
         Args:
             template_content: 생성된 템플릿 내용
 
         Returns:
-            List[Dict]: 생성된 버튼 목록 [{"name": "버튼명", "type": "WL", "url_mobile": "", "url_pc": ""}]
+            List[Dict]: URL 있으면 link 타입 버튼, 없으면 빈 리스트
         """
-        buttons = []
+        import re
 
-        try:
-            content_lower = template_content.lower()
+        # URL 패턴 감지
+        url_patterns = [
+            r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',
+            r'www\.(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',
+            r'[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?'
+        ]
 
-            # 1. 예약 관련 버튼
-            if any(keyword in content_lower for keyword in ['예약', '방문', '진료', '상담', '접수']):
-                buttons.append({
-                    "name": "예약 확인",
-                    "type": "WL",
-                    "url_mobile": "",
-                    "url_pc": ""
-                })
+        # URL 검색
+        found_urls = []
+        for pattern in url_patterns:
+            urls = re.findall(pattern, template_content)
+            found_urls.extend(urls)
 
-                if '변경' in content_lower or '취소' in content_lower:
-                    buttons.append({
-                        "name": "예약 변경/취소",
-                        "type": "WL",
-                        "url_mobile": "",
-                        "url_pc": ""
-                    })
+        # URL이 있으면 link 타입 버튼 생성
+        if found_urls:
+            url = found_urls[0]  # 첫 번째 URL 사용
+            if not url.startswith('http'):
+                url = f"https://{url}"
 
-            # 2. 결제/주문 관련 버튼
-            if any(keyword in content_lower for keyword in ['결제', '주문', '구매', '영수증']):
-                buttons.append({
-                    "name": "결제 내역",
-                    "type": "WL",
-                    "url_mobile": "",
-                    "url_pc": ""
-                })
+            return [{
+                "name": "바로가기",
+                "type": "link",
+                "url_mobile": url,
+                "url_pc": url
+            }]
 
-                if '환불' in content_lower:
-                    buttons.append({
-                        "name": "환불 신청",
-                        "type": "WL",
-                        "url_mobile": "",
-                        "url_pc": ""
-                    })
-
-            # 3. 배송 관련 버튼
-            if any(keyword in content_lower for keyword in ['배송', '택배', '발송', '도착']):
-                buttons.append({
-                    "name": "배송 조회",
-                    "type": "WL",
-                    "url_mobile": "",
-                    "url_pc": ""
-                })
-
-            # 4. 이벤트/혜택 관련 버튼
-            if any(keyword in content_lower for keyword in ['이벤트', '할인', '쿠폰', '포인트', '혜택']):
-                buttons.append({
-                    "name": "혜택 확인",
-                    "type": "WL",
-                    "url_mobile": "",
-                    "url_pc": ""
-                })
-
-            # 5. 회원/서비스 관련 버튼
-            if any(keyword in content_lower for keyword in ['회원', '가입', '등록', '인증']):
-                buttons.append({
-                    "name": "서비스 바로가기",
-                    "type": "WL",
-                    "url_mobile": "",
-                    "url_pc": ""
-                })
-
-            # 6. 문의/고객센터 버튼 (기본)
-            if any(keyword in content_lower for keyword in ['문의', '고객센터', '상담', '도움']):
-                buttons.append({
-                    "name": "고객센터",
-                    "type": "WL",
-                    "url_mobile": "",
-                    "url_pc": ""
-                })
-
-            # 7. URL 패턴 감지 및 자동 링크 버튼
-            import re
-            url_patterns = [
-                r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',
-                r'www\.(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',
-                r'[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?'
-            ]
-
-            for pattern in url_patterns:
-                urls = re.findall(pattern, template_content)
-                for url in urls[:2]:  # 최대 2개까지
-                    if not any(btn["name"] == "바로가기" for btn in buttons):
-                        buttons.append({
-                            "name": "바로가기",
-                            "type": "WL",
-                            "url_mobile": url if url.startswith('http') else f"https://{url}",
-                            "url_pc": url if url.startswith('http') else f"https://{url}"
-                        })
-                        break
-
-            # 8. 중복 제거 및 우선순위 정렬
-            unique_buttons = []
-            seen_names = set()
-
-            for button in buttons:
-                if button["name"] not in seen_names:
-                    unique_buttons.append(button)
-                    seen_names.add(button["name"])
-
-            # 최대 5개 버튼으로 제한 (카카오 알림톡 제한)
-            return unique_buttons[:5]
-
-        except Exception as e:
-            print(f"⚠️ 버튼 생성 중 오류: {e}")
-            return []
+        # URL이 없으면 빈 리스트 반환 (message 타입으로 분류됨)
+        return []
 
     def _parse_template_response(self, response_content: str) -> Dict[str, Any]:
         """LLM 응답을 파싱하여 구조화된 결과 반환"""

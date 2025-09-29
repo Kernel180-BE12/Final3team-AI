@@ -568,6 +568,50 @@ def classify_purpose(text: str) -> Tuple[int, str, float]:
     return classifier.classify_purpose(text)
 
 
+# IndustryClassifier 클래스에 누락된 메서드 추가
+def add_classify_industry_purpose_method():
+    """classify_industry_purpose 메서드를 IndustryClassifier에 추가"""
+    def classify_industry_purpose(self, text: str, agent1_variables: dict = None) -> tuple:
+        """
+        Industry/Purpose 분류하여 리스트 형태로 반환
+
+        Args:
+            text: 분류할 텍스트
+            agent1_variables: Agent1 변수 (선택적)
+
+        Returns:
+            (industry_list, purpose_list) 튜플
+        """
+        if agent1_variables:
+            result = self.classify_with_agent1_context(text, agent1_variables)
+        else:
+            result = self.classify(text)
+
+        # 딕셔너리 결과를 리스트 형태로 변환
+        industry = result.get('industry', {})
+        purpose = result.get('purpose', {})
+
+        industry_list = [{
+            'id': industry.get('id', 9),
+            'name': industry.get('name', '기타'),
+            'confidence': industry.get('confidence', 0.0)
+        }] if industry.get('name') else []
+
+        purpose_list = [{
+            'id': purpose.get('id', 11),
+            'name': purpose.get('name', '기타'),
+            'confidence': purpose.get('confidence', 0.0)
+        }] if purpose.get('name') else []
+
+        return industry_list, purpose_list
+
+    # 메서드를 클래스에 동적으로 추가
+    IndustryClassifier.classify_industry_purpose = classify_industry_purpose
+
+# 메서드 추가 실행
+add_classify_industry_purpose_method()
+
+
 if __name__ == "__main__":
     # 테스트 코드
     print("=== Industry/Purpose 분류기 테스트 ===")

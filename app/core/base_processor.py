@@ -92,8 +92,9 @@ class BaseTemplateProcessor:
         return self.search_similar_chroma(query, collection_name, top_k)
     
     def extract_variables(self, template: str) -> List[str]:
-        """템플릿에서 #{변수명} 형태의 변수 추출"""
-        pattern = r'#\{([^}]+)\}'
+        """템플릿에서 #{변수명} 또는 #{{변수명}} 형태의 변수 추출"""
+        # 이중 브레이스와 단일 브레이스 모두 지원
+        pattern = r'#\{+([^}]+)\}+'
         variables = re.findall(pattern, template)
         return list(set(variables))  # 중복 제거
     

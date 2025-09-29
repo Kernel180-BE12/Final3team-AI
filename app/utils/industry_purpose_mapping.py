@@ -243,7 +243,7 @@ if __name__ == "__main__":
     print("=== 매핑 테이블 테스트 (실제 데이터 기반) ===")
     for i, test in enumerate(test_cases, 1):
         result = get_category_info(test["industry"], test["purpose"])
-        success = "PASS" if result["categoryId"] == test["expected"] else "FAIL"
+        success = "✅" if result["categoryId"] == test["expected"] else "❌"
 
         print(f"\n{i}. {success} {test['name']} 테스트:")
         print(f"   입력: {test['industry'][0]['name']} + {test['purpose'][0]['name']}")

@@ -27,13 +27,6 @@ from app.dto.api_result import ApiResult, ErrorResponse as ApiErrorResponse
 from app.utils.language_detector import validate_input_language, ValidationError
 from app.utils.industry_purpose_mapping import get_category_info
 from app.utils.performance_logger import get_performance_logger, TimingContext
-
-# LangGraph 통합
-from app.core.langgraph_integration import (
-    process_template_with_langgraph,
-    is_langgraph_enabled
-)
-
 import time
 import uuid
 
@@ -57,7 +50,6 @@ class TemplateRequest(BaseModel):
     )
 
     @validator('requestContent')
-    @classmethod
     def validate_request_content(cls, v):
         """requestContent 유효성 검증"""
         if not v or v.strip() == "":
@@ -103,7 +95,6 @@ class Variable(BaseModel):
     variableKey: str = Field(..., alias='variableKey')
     placeholder: str
     inputType: str = Field(..., alias='inputType')
-    value: str
 
 
 class IndustryPurposeItem(BaseModel):
@@ -121,6 +112,10 @@ class TemplateSuccessData(BaseModel):
     content: str
     imageUrl: Optional[str] = None
     type: str
+    isPublic: Optional[bool] = None
+    status: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
     buttons: List[dict] = []
     variables: List[Variable]
     industries: List[IndustryPurposeItem] = []  # [{"id": 1, "name": "학원"}]
@@ -164,12 +159,11 @@ class PartialTemplateResponse(BaseModel):
 
 def create_error_response(error_code: str, message: str, details: Any = None, status_code: int = 400) -> JSONResponse:
     """Java 호환 에러 응답 생성"""
-    # ApiResult의 클래스 메소드를 사용하여 에러 응답 객체를 생성
-    api_result = ApiResult.error(code=error_code, message=message)
+    api_error_response = ApiErrorResponse(code=error_code, message=message)
+    error_result = ApiResult(data=None, message=None, error=api_error_response)
     return JSONResponse(
         status_code=status_code,
-        # Pydantic v1의 dict() 메소드를 사용하여 직렬화
-        content=api_result.dict()
+        content=error_result.model_dump()
     )
 
 
@@ -277,7 +271,6 @@ def create_partial_response(user_id: int, partial_template: str, missing_variabl
     )
 
 
-
 @router.post("/templates", tags=["Template Generation"],
             responses={
                 200: {
@@ -307,44 +300,9 @@ async def create_template(request: TemplateRequest):
     perf_logger = get_performance_logger()
     stage_times = {}
 
-    print(f"[REQUEST START] {request_id} - User: {request.userId} - Content: '{request.requestContent[:50]}...'")
+    print(f"🚀 [REQUEST START] {request_id} - User: {request.userId} - Content: '{request.requestContent[:50]}...'")
 
     try:
-        # LangGraph 활성화 여부 확인 후 자동 선택
-        if is_langgraph_enabled():
-            print(f"LangGraph 자동 선택 - 성능 최적화 모드")
-            # LangGraph 워크플로우로 처리
-            api_response, processing_time, metadata = await process_template_with_langgraph(
-                user_id=request.userId,
-                request_content=request.requestContent,
-                conversation_context=request.conversationContext
-            )
-
-            # 성능 개선 정보 출력
-            improvement_info = metadata.get("performance_improvement", {})
-            if improvement_info.get("improvement_percentage", 0) > 0:
-                print(f"성능 개선: {improvement_info['improvement_percentage']}% 단축 "
-                      f"({improvement_info.get('time_saved', 0):.2f}초 절약)")
-
-            # LangGraph 결과를 기존 API 형식으로 변환
-            if api_response.get("success"):
-                template_data = api_response.get("data", {})
-                print(f"[REQUEST SUCCESS] {request_id} - Total: {processing_time:.2f}s (LangGraph)")
-                return ApiResult.ok(template_data)
-
-            elif api_response.get("status") == "need_more_info":
-                # 부분 완성 응답 처리
-                template_data = api_response.get("data", {})
-                result = ApiResult.ok(template_data)
-                return JSONResponse(status_code=202, content=result.dict())
-
-            else:
-                # LangGraph 오류 시 기존 방식으로 폴백
-                print(f"LangGraph 처리 실패, 기존 방식으로 폴백: {api_response.get('error', 'Unknown error')}")
-
-        # 기존 방식 처리 (LangGraph 비활성화 또는 폴백)
-        print(f"기존 Agent 방식으로 처리")
-
         # 1. Agent1 초기화 및 분석
         with TimingContext(perf_logger, "Agent1_Initialization", request_id) as ctx:
             agent1 = Agent1()
@@ -499,23 +457,44 @@ async def create_template(request: TemplateRequest):
             )
 
         # 6. 성공 응답 반환 (Java 호환 구조)
-        # Ensure variables have required value field
+        # Variables 변환: variable_key → variableKey
         variables_list = final_template_result.get('variables', [])
         formatted_variables = []
         for i, var in enumerate(variables_list):
             if isinstance(var, dict):
-                if 'value' not in var:
-                    var['value'] = ""  # Add missing value field
-                formatted_variables.append(var)
+                # variable_key → variableKey 변환
+                formatted_var = {
+                    "id": i+1,
+                    "variableKey": var.get('variable_key', var.get('variableKey', str(var))),
+                    "placeholder": var.get('placeholder', f"#{{{var.get('variable_key', 'unknown')}}}"),
+                    "inputType": var.get('input_type', var.get('inputType', 'TEXT'))
+                }
+                formatted_variables.append(formatted_var)
             else:
-                # Handle other formats if needed
+                # Handle string format
                 formatted_variables.append({
                     "id": i+1,
                     "variableKey": str(var),
                     "placeholder": f"#{{{var}}}",
-                    "inputType": "TEXT",
-                    "value": ""
+                    "inputType": "TEXT"
                 })
+
+        # Buttons 변환: AI 형식 → Java Backend 형식
+        buttons_list = final_template_result.get('buttons', [])
+        formatted_buttons = []
+        for i, button in enumerate(buttons_list):
+            if isinstance(button, dict):
+                # AI 형식에서 Java 형식으로 변환
+                formatted_button = {
+                    "name": button.get('name', '바로가기'),
+                    "linkMo": button.get('url_mobile', button.get('linkMo', '')),
+                    "linkPc": button.get('url_pc', button.get('linkPc', '')),
+                    "linkAnd": button.get('linkAnd'),
+                    "linkIos": button.get('linkIos'),
+                    "linkType": "WL" if button.get('type') == 'link' else button.get('linkType', 'WL'),
+                    "ordering": i + 1
+                }
+                formatted_buttons.append(formatted_button)
 
         # Industry/Purpose 데이터를 기존 및 새로운 형식 둘 다 생성
         converted_data = convert_industry_purpose_data(
@@ -526,6 +505,10 @@ async def create_template(request: TemplateRequest):
         # 동적 카테고리 결정
         category_info = get_category_info(converted_data["industries"], converted_data["purposes"])
 
+        # TemplateSuccessData에 모든 필수 필드 포함
+        from datetime import datetime
+        current_time = datetime.now().isoformat()
+
         template_data = TemplateSuccessData(
             id=None,  # Java 백엔드에서 DB 자동생성 ID 사용
             userId=request.userId,
@@ -533,9 +516,13 @@ async def create_template(request: TemplateRequest):
             title=category_info["title"],
             content=final_template_result.get('template', ''),
             imageUrl=None,
-            type=determine_template_type(final_template_result.get('buttons', [])),
-            buttons=final_template_result.get('buttons', []),
-            variables=formatted_variables,
+            type=determine_template_type(formatted_buttons),
+            isPublic=False,  # 기본값
+            status="CREATED",  # 기본값
+            createdAt=current_time,
+            updatedAt=current_time,
+            buttons=formatted_buttons,  # 변환된 버튼 사용
+            variables=formatted_variables,  # 변환된 변수 사용
             industries=converted_data["industries"],
             purposes=converted_data["purposes"],
             _mapped_variables={}  # 완성된 템플릿은 빈 객체
@@ -561,7 +548,7 @@ async def create_template(request: TemplateRequest):
             }
         )
 
-        print(f"[REQUEST SUCCESS] {request_id} - Total: {total_time:.2f}s")
+        print(f"✅ [REQUEST SUCCESS] {request_id} - Total: {total_time:.2f}s")
 
         # ApiResult로 래핑하여 반환
         return ApiResult.ok(template_data)
@@ -577,7 +564,7 @@ async def create_template(request: TemplateRequest):
             duration=total_time
         )
 
-        print(f"[REQUEST ERROR] {request_id} - Duration: {total_time:.2f}s - Error: {error_message}")
+        print(f"❌ [REQUEST ERROR] {request_id} - Duration: {total_time:.2f}s - Error: {error_message}")
 
         # 예상치 못한 오류 - 디버그 로깅 추가
         print(f"DEBUG: 템플릿 생성 중 예외 발생: {error_message}")
