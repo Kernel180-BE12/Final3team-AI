@@ -15,6 +15,7 @@ class ErrorResponse(BaseModel):
     code: str
     message: str
     timestamp: str = None
+    details: Optional[dict] = None
 
     def __init__(self, **data):
         if not data.get('timestamp'):

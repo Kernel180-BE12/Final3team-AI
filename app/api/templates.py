@@ -154,7 +154,12 @@ class ErrorResponseWithDetails(BaseModel):
 
 def create_error_response(error_code: str, message: str, details: Any = None, status_code: int = 400) -> JSONResponse:
     """Java 호환 에러 응답 생성"""
-    api_error_response = ApiErrorResponse(code=error_code, message=message)
+    api_error_response = ApiErrorResponse(
+        code=error_code,
+        message=message,
+        details=details if details else None
+    )
+
     error_result = ApiResult(data=None, message=None, error=api_error_response)
     return JSONResponse(
         status_code=status_code,
@@ -306,15 +311,16 @@ async def create_template(request: TemplateRequest):
     Returns:
         생성된 템플릿 정보 또는 에러 응답
     """
-    # 성능 로깅 초기화
-    request_id = str(uuid.uuid4())[:8]
-    start_time = time.time()
-    perf_logger = get_performance_logger()
-    stage_times = {}
-
-    print(f"🚀 [REQUEST START] {request_id} - User: {request.userId} - Content: '{request.requestContent[:50]}...'")
-
     try:
+        # 성능 로깅 초기화
+        request_id = str(uuid.uuid4())[:8]
+        start_time = time.time()
+        perf_logger = get_performance_logger()
+        stage_times = {}
+
+        print(f"🚀 [REQUEST START] {request_id} - User: {request.userId} - Content: '{request.requestContent[:50]}...'")
+
+        # Agent1 분석 시작
         # 1. Agent1 초기화 및 분석
         with TimingContext(perf_logger, "Agent1_Initialization", request_id) as ctx:
             agent1 = Agent1()
@@ -327,6 +333,8 @@ async def create_template(request: TemplateRequest):
                 conversation_context=request.conversationContext
             )
         stage_times['agent1_processing'] = ctx.duration
+
+        print(f"🔍 [DEBUG] Agent1 처리 완료! 상태: {agent1_result['status']}")
 
         # 3. Agent1 처리 결과에 따른 분기
         if agent1_result['status'] == 'inappropriate_request':
@@ -343,19 +351,6 @@ async def create_template(request: TemplateRequest):
                 agent1_result['message']
             )
 
-        elif agent1_result['status'] == 'reask_required':
-            # 변수 부족 시 422 에러 반환 (202 대신)
-            missing_vars = agent1_result.get('missing_variables', [])
-            return create_error_response(
-                "INSUFFICIENT_INFO",
-                "템플릿 생성에 필요한 정보가 부족합니다.",
-                details={
-                    "missing_variables": missing_vars,
-                    "suggestions": ["더 구체적인 정보를 포함해서 다시 요청해주세요"]
-                },
-                status_code=422
-            )
-
         elif agent1_result['status'] == 'policy_violation':
             # 정책 위반
             return create_error_response(
@@ -370,16 +365,26 @@ async def create_template(request: TemplateRequest):
                 f"Agent1 처리 실패: {agent1_result.get('message', '알 수 없는 오류')}"
             )
 
-        # 4. 기존 템플릿 검색 (새 로직)
-        with TimingContext(perf_logger, "Existing_Template_Search", request_id) as ctx:
-            template_selector = TemplateSelector()
-            analysis = agent1_result.get('analysis', {})
+        # 디버깅: Agent1 결과 출력
+        print(f"🔍 [DEBUG] Agent1 결과: {agent1_result}")
 
-            existing_template = await template_selector.find_existing_template(
-                user_input=request.requestContent,
-                variables=analysis.get('variables', {}),
-                intent=analysis.get('intent', {}),
-                user_id=request.userId
+        # 4. 기존 템플릿 검색 (새 로직)
+        try:
+            with TimingContext(perf_logger, "Existing_Template_Search", request_id) as ctx:
+                template_selector = TemplateSelector()
+
+                existing_template = await template_selector.find_existing_template(
+                    user_input=request.requestContent,
+                    variables=agent1_result.get('variables', {}),
+                    intent=agent1_result.get('intent', {}),
+                    user_id=request.userId
+                )
+        except Exception as e:
+            print(f"❌ [ERROR] 기존 템플릿 검색 중 오류: {e}")
+            return create_error_response(
+                "TEMPLATE_SEARCH_ERROR",
+                f"템플릿 검색 중 오류가 발생했습니다: {str(e)}",
+                status_code=500
             )
         stage_times['existing_template_search'] = ctx.duration
 
@@ -399,7 +404,7 @@ async def create_template(request: TemplateRequest):
         with TimingContext(perf_logger, "Agent2_Template_Generation", request_id) as ctx:
             final_template_result, metadata = await agent2.generate_compliant_template_async(
                 user_input=request.requestContent,
-                agent1_variables=analysis.get('variables', {})
+                agent1_variables=agent1_result.get('variables', {})
             )
         stage_times['agent2_generation'] = ctx.duration
 
@@ -577,6 +582,16 @@ async def create_template(request: TemplateRequest):
                 error_message,
                 500
             )
+
+    except Exception as e:
+        print(f"❌ [FATAL ERROR] create_template 함수에서 예외 발생: {e}")
+        import traceback
+        traceback.print_exc()
+        return create_error_response(
+            "UNKNOWN_ERROR",
+            f"예상치 못한 오류가 발생했습니다: {str(e)}",
+            status_code=500
+        )
 
 
 @router.get("/templates/test", tags=["Template Generation"],

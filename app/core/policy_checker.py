@@ -89,8 +89,9 @@ class PolicyChecker:
 
         # 5. 스팸성 표현
         self.spam_keywords = [
-            "긴급", "마지막", "즉시", "빨리", "한정", "선착순",
+            "마지막", "즉시", "빨리", "한정", "선착순",
             "지금", "바로", "오늘만", "마감임박"
+            # "긴급" 제거 - 정당한 서비스 장애/점검 안내에서 사용 가능
         ]
 
         # 6. 영업시간/휴무 안내
@@ -105,22 +106,16 @@ class PolicyChecker:
         # 8. 반려 사례 기반 패턴들 (카카오 알림톡 반려 데이터 기반)
         self.kakao_rejection_patterns = {
             "unsolicited_notice": [
-                "휴무 안내", "영업시간 변경", "운영시간 안내",
-                "생일 축하", "기념일 축하", "안부 인사",
-                "앱 업데이트", "새 기능", "업데이트 안내",
-                "시스템 점검", "서비스 개선"
+                "생일 축하", "기념일 축하", "안부 인사", "앱 업데이트", "새 기능", "업데이트 안내"
             ],
             "promotional_reminder": [
-                "쿠폰 리마인드", "포인트 만료", "혜택 소멸",
-                "할인 혜택", "이벤트 참여", "프로모션 안내"
+                "쿠폰 리마인드", "포인트 만료", "혜택 소멸", "할인 혜택", "이벤트 참여", "프로모션 안내"
             ],
             "unclear_recipient_action": [
-                "공지사항", "안내말씀", "알려드립니다",
-                "변경사항", "개선사항", "소식"
+                "안내말씀", "알려드립니다", "변경사항", "개선사항", "소식"
             ],
             "simple_greetings": [
-                "감사합니다", "축하드립니다", "안녕하세요만",
-                "좋은 하루", "행복한", "즐거운"
+                "감사합니다", "축하드립니다", "안녕하세요만", "좋은 하루", "행복한", "즐거운"
             ]
         }
 
@@ -173,49 +168,51 @@ class PolicyChecker:
                 confidence=0.5
             )
 
-        # 1. 광고성 정보 판단 기준 검사
+        # 1. [광고] 표기가 있는 경우 - 알림톡은 광고성 메시지 발송 불가
+        if "[광고]" in text or "(광고)" in text:
+            violations.append("알림톡은 광고성 메시지 발송이 불가능합니다. [광고] 표기가 포함된 메시지는 발송 불가")
+
+        # 2. 광고성 정보 판단 기준 검사
         has_ad_content = any(keyword in text_lower for keyword in self.ad_keywords)
         if has_ad_content:
-            if "[광고]" not in text:
-                violations.append("광고성 내용이지만 [광고] 표기가 없습니다")
+            violations.append("광고성 내용으로 알림톡 발송이 불가능합니다")
 
-        # 2. 광고성 정보로 판단되는 추가 키워드들
+        # 3. 광고성 정보로 판단되는 추가 키워드들
         promo_count = sum(1 for keyword in self.promo_keywords if keyword in text_lower)
         if promo_count >= 2:
-            if "[광고]" not in text:
-                violations.append("프로모션/혜택 관련 내용 - [광고] 표기 필요")
+            violations.append("프로모션/혜택 관련 내용으로 알림톡 발송이 불가능합니다")
 
-        # 3. 청소년 유해 정보 검사
+        # 4. 청소년 유해 정보 검사
         if any(keyword in text_lower for keyword in self.youth_harmful_keywords):
             violations.append("청소년 유해 정보 관련 - 연령 인증 필요")
 
-        # 4. 금융 관련 제한사항
+        # 5. 금융 관련 제한사항
         if any(keyword in text_lower for keyword in self.financial_keywords):
             violations.append("금융 관련 내용 - 정책 검토 필요")
 
-        # 5. 개인정보 관련
+        # 6. 개인정보 관련
         if "개인정보" in text_lower or "정보 수집" in text_lower:
             violations.append("개인정보 수집 시 동의 절차 필요")
 
-        # 6. 스팸성 표현 검사
+        # 7. 스팸성 표현 검사
         spam_count = sum(1 for keyword in self.spam_keywords if keyword in text_lower)
         if spam_count >= 2:
             violations.append("스팸성 표현 과다 사용")
 
-        # 7. 영업시간/휴무 안내
+        # 8. 영업시간/휴무 안내
         if any(keyword in text_lower for keyword in self.business_hours_keywords):
             violations.append("영업시간/휴무 안내는 광고성 정보에 해당")
 
-        # 8. 설문조사 관련
+        # 9. 설문조사 관련
         if (any(s in text_lower for s in self.survey_keywords) and
             any(p in text_lower for p in self.product_keywords)):
             violations.append("제품 관련 설문조사는 광고성 정보에 해당할 수 있음")
 
-        # 9. 추천/공유 이벤트 관련
+        # 10. 추천/공유 이벤트 관련
         if "친구" in text_lower and ("추천" in text_lower or "공유" in text_lower):
             violations.append("친구 추천/공유 이벤트는 광고성 정보 - 수신동의 필요")
 
-        # 10. 카카오 반려 사례 기반 검증 (강화된 패턴 매칭)
+        # 11. 카카오 반려 사례 기반 검증 (강화된 패턴 매칭)
         rejection_violations = self._check_kakao_rejection_patterns(text_lower)
         violations.extend(rejection_violations)
 
