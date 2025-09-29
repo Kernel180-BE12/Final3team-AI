@@ -26,6 +26,8 @@ from app.api import templates, health, sessions
 from app.utils.llm_provider_manager import get_llm_manager
 from config.llm_providers import get_llm_manager as get_config_manager
 from config.settings import Settings
+from app.core.exceptions import AIException
+from app.dto.api_result import ApiResult, ErrorResponse
 
 # 로깅 설정
 logging.basicConfig(
@@ -97,24 +99,62 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# AIException 핸들러 (커스텀 AI 예외)
+@app.exception_handler(AIException)
+async def ai_exception_handler(request: Request, exc: AIException):
+    """AI 예외 처리 - Java 백엔드와 호환되는 응답 형식"""
+    logger.error(f"AI 예외 발생: {exc.code} - {exc.message}", exc_info=True)
+
+    error_response = ErrorResponse(
+        code=exc.code,
+        message=exc.message,
+        details=exc.details
+    )
+
+    api_result = ApiResult(data=None, message=None, error=error_response)
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=api_result.dict()
+    )
+
+
+# HTTPException 핸들러
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """HTTP 예외 처리"""
+    logger.error(f"HTTP 예외 발생: {exc.status_code} - {exc.detail}")
+
+    error_response = ErrorResponse(
+        code="HTTP_ERROR",
+        message=exc.detail
+    )
+
+    api_result = ApiResult(data=None, message=None, error=error_response)
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=api_result.dict()
+    )
+
+
 # 글로벌 예외 핸들러
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """글로벌 예외 처리"""
     logger.error(f"글로벌 예외 발생: {exc}", exc_info=True)
 
+    error_response = ErrorResponse(
+        code="INTERNAL_SERVER_ERROR",
+        message="서버 내부 오류가 발생했습니다.",
+        details=str(exc) if os.getenv("DEBUG") == "true" else None
+    )
+
+    api_result = ApiResult(data=None, message=None, error=error_response)
+
     return JSONResponse(
         status_code=500,
-        content={
-            "detail": {
-                "error": {
-                    "code": "INTERNAL_SERVER_ERROR",
-                    "message": "서버 내부 오류가 발생했습니다.",
-                    "details": str(exc) if os.getenv("DEBUG") == "true" else None
-                },
-                "timestamp": datetime.now().isoformat() + "Z"
-            }
-        }
+        content=api_result.dict()
     )
 
 # 라우터 등록

@@ -23,7 +23,8 @@ from app.agents.agent1 import Agent1
 from app.agents.agent2 import Agent2
 from app.core.template_selector import TemplateSelector
 from app.utils.llm_provider_manager import get_llm_manager
-from app.dto.api_result import ApiResult, ErrorResponse as ApiErrorResponse
+from app.dto.api_result import ApiResult
+from app.utils.variable_cleaner import clean_variables_list, clean_template_content
 from app.utils.language_detector import validate_input_language, ValidationError
 from app.utils.industry_purpose_mapping import get_category_info
 from app.utils.performance_logger import get_performance_logger, TimingContext
@@ -252,16 +253,18 @@ def format_existing_template_response(existing_template: Dict[str, Any], user_id
 
     # 기존 템플릿 변수를 Java VariableDto 형식으로 변환
     variables_list = existing_template.get('variables', [])
+
+    # 변수 정리 적용
+    cleaned_variables = clean_variables_list(variables_list)
     formatted_variables = []
 
-    for i, var in enumerate(variables_list):
-        if isinstance(var, dict):
-            formatted_variables.append({
-                "id": i+1,
-                "variableKey": var.get('variable_key', var.get('variableKey', str(var))),
-                "placeholder": var.get('placeholder', f"#{{{var.get('variable_key', 'unknown')}}}"),
-                "inputType": var.get('input_type', var.get('inputType', 'TEXT'))
-            })
+    for i, var in enumerate(cleaned_variables):
+        formatted_variables.append({
+            "id": i+1,
+            "variableKey": var.get('variable_key'),
+            "placeholder": var.get('placeholder'),
+            "inputType": var.get('input_type', 'TEXT')
+        })
 
     # 기본 industry/purpose (기존 템플릿이므로 추론)
     korea_tz = pytz.timezone('Asia/Seoul')
@@ -292,14 +295,148 @@ def format_existing_template_response(existing_template: Dict[str, Any], user_id
             responses={
                 200: {
                     "model": TemplateSuccessResponse,
-                    "description": "템플릿 생성 완료"
+                    "description": "템플릿 생성 완료",
+                    "content": {
+                        "application/json": {
+                            "example": {
+                                "data": {
+                                    "id": 1,
+                                    "userId": 1,
+                                    "categoryId": "004001",
+                                    "title": "알림톡",
+                                    "content": "안녕하세요, #{고객명}님. 독서모임 다음 일정 안내드립니다.\\n\\n▶ 모임명 : 독서모임\\n▶ 일시 : 매주 토요일 오후 2시\\n▶ 장소 : 강남역 스터디카페",
+                                    "imageUrl": None,
+                                    "type": "MESSAGE",
+                                    "buttons": [],
+                                    "variables": [
+                                        {
+                                            "id": 1,
+                                            "variableKey": "고객명",
+                                            "placeholder": "#{고객명}",
+                                            "inputType": "TEXT"
+                                        }
+                                    ]
+                                },
+                                "message": None,
+                                "error": None
+                            }
+                        }
+                    }
+                },
+                400: {
+                    "model": ErrorResponseWithDetails,
+                    "description": "잘못된 요청",
+                    "content": {
+                        "application/json": {
+                            "examples": {
+                                "inappropriate_request": {
+                                    "summary": "부적절한 요청",
+                                    "value": {
+                                        "data": None,
+                                        "message": None,
+                                        "error": {
+                                            "code": "INAPPROPRIATE_REQUEST",
+                                            "message": "비즈니스 알림톡에 적합하지 않은 요청입니다.",
+                                            "timestamp": "2025-09-29T10:30:00Z"
+                                        }
+                                    }
+                                },
+                                "language_validation": {
+                                    "summary": "언어 검증 오류",
+                                    "value": {
+                                        "data": None,
+                                        "message": None,
+                                        "error": {
+                                            "code": "LANGUAGE_VALIDATION_ERROR",
+                                            "message": "Please enter in Korean. English-only input cannot generate KakaoTalk templates.",
+                                            "timestamp": "2025-09-29T10:30:00Z"
+                                        }
+                                    }
+                                },
+                                "profanity_detected": {
+                                    "summary": "비속어 검출",
+                                    "value": {
+                                        "data": None,
+                                        "message": None,
+                                        "error": {
+                                            "code": "PROFANITY_DETECTED",
+                                            "message": "부적절한 언어가 감지되었습니다.",
+                                            "timestamp": "2025-09-29T10:30:00Z"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                408: {
+                    "model": ErrorResponseWithDetails,
+                    "description": "요청 시간 초과",
+                    "content": {
+                        "application/json": {
+                            "example": {
+                                "data": None,
+                                "message": None,
+                                "error": {
+                                    "code": "PROCESSING_TIMEOUT",
+                                    "message": "템플릿 생성 시간이 초과되었습니다. 다시 시도해주세요.",
+                                    "timestamp": "2025-09-29T10:30:00Z"
+                                }
+                            }
+                        }
+                    }
                 },
                 422: {
                     "model": ErrorResponseWithDetails,
-                    "description": "입력 검증 실패 또는 템플릿 생성 불가"
+                    "description": "입력 검증 실패 또는 템플릿 생성 불가",
+                    "content": {
+                        "application/json": {
+                            "example": {
+                                "data": None,
+                                "message": None,
+                                "error": {
+                                    "code": "VALIDATION_ERROR",
+                                    "message": "필수 입력 항목이 누락되었습니다.",
+                                    "timestamp": "2025-09-29T10:30:00Z"
+                                }
+                            }
+                        }
+                    }
                 },
-                400: {"model": ErrorResponseWithDetails},
-                500: {"model": ErrorResponseWithDetails}
+                429: {
+                    "model": ErrorResponseWithDetails,
+                    "description": "API 할당량 초과",
+                    "content": {
+                        "application/json": {
+                            "example": {
+                                "data": None,
+                                "message": None,
+                                "error": {
+                                    "code": "API_QUOTA_EXCEEDED",
+                                    "message": "API 할당량을 초과했습니다. 잠시 후 다시 시도해주세요.",
+                                    "timestamp": "2025-09-29T10:30:00Z"
+                                }
+                            }
+                        }
+                    }
+                },
+                500: {
+                    "model": ErrorResponseWithDetails,
+                    "description": "서버 내부 오류",
+                    "content": {
+                        "application/json": {
+                            "example": {
+                                "data": None,
+                                "message": None,
+                                "error": {
+                                    "code": "INTERNAL_SERVER_ERROR",
+                                    "message": "서버 내부 오류가 발생했습니다.",
+                                    "timestamp": "2025-09-29T10:30:00Z"
+                                }
+                            }
+                        }
+                    }
+                }
             })
 async def create_template(request: TemplateRequest):
     """
@@ -436,27 +573,20 @@ async def create_template(request: TemplateRequest):
             )
 
         # 6. 성공 응답 반환 (Java 호환 구조)
-        # Variables 변환: variable_key → variableKey
+        # Variables 변환: variable_key → variableKey (변수 정리 적용)
         variables_list = final_template_result.get('variables', [])
+
+        # 변수 정리 적용
+        cleaned_variables = clean_variables_list(variables_list)
         formatted_variables = []
-        for i, var in enumerate(variables_list):
-            if isinstance(var, dict):
-                # variable_key → variableKey 변환
-                formatted_var = {
-                    "id": i+1,
-                    "variableKey": var.get('variable_key', var.get('variableKey', str(var))),
-                    "placeholder": var.get('placeholder', f"#{{{var.get('variable_key', 'unknown')}}}"),
-                    "inputType": var.get('input_type', var.get('inputType', 'TEXT'))
-                }
-                formatted_variables.append(formatted_var)
-            else:
-                # Handle string format
-                formatted_variables.append({
-                    "id": i+1,
-                    "variableKey": str(var),
-                    "placeholder": f"#{{{var}}}",
-                    "inputType": "TEXT"
-                })
+
+        for i, var in enumerate(cleaned_variables):
+            formatted_variables.append({
+                "id": i+1,
+                "variableKey": var.get('variable_key'),
+                "placeholder": var.get('placeholder'),
+                "inputType": var.get('input_type', 'TEXT')
+            })
 
         # Buttons 변환: AI 형식 → Java Backend 형식
         buttons_list = final_template_result.get('buttons', [])
@@ -496,7 +626,7 @@ async def create_template(request: TemplateRequest):
             userId=request.userId,
             categoryId=category_info["categoryId"],
             title=category_info["title"],
-            content=final_template_result.get('template', ''),
+            content=clean_template_content(final_template_result.get('template', '')),
             imageUrl=None,
             type=determine_template_type(formatted_buttons),
             isPublic=False,  # 기본값
