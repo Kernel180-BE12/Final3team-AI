@@ -185,6 +185,9 @@ class Agent2:
                             for filename in guideline_files:
                                 content = predata.get(filename, "")
                                 if content:
+                                    # content가 dict인 경우 str로 변환
+                                    if isinstance(content, dict):
+                                        content = str(content)
                                     all_data += content + "\n\n"
                         else:
                             # 직접 파일 로드
