@@ -507,7 +507,8 @@ async def create_template(request: TemplateRequest):
 
         # TemplateSuccessData에 모든 필수 필드 포함
         from datetime import datetime
-        current_time = datetime.now().isoformat()
+        # Java 호환 형식: 밀리초 3자리로 제한 (마이크로초 6자리 제거)
+        current_time = datetime.now().isoformat(timespec='milliseconds')
 
         template_data = TemplateSuccessData(
             id=None,  # Java 백엔드에서 DB 자동생성 ID 사용
