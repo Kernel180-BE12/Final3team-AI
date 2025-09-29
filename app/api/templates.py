@@ -163,7 +163,7 @@ def create_error_response(error_code: str, message: str, details: Any = None, st
     error_result = ApiResult(data=None, message=None, error=api_error_response)
     return JSONResponse(
         status_code=status_code,
-        content=error_result.model_dump()
+        content=error_result.dict()
     )
 
 
@@ -267,7 +267,7 @@ def create_partial_response(user_id: int, partial_template: str, missing_variabl
     result = ApiResult.ok(template_data)
     return JSONResponse(
         status_code=202,
-        content=result.model_dump()
+        content=result.dict()
     )
 
 
