@@ -311,27 +311,27 @@ class VariableMapper:
 
         prompt = f"""다음 Agent1에서 추출한 변수들과 템플릿 변수들을 매핑해주세요.
 
-Agent1 추출 변수:
-{json.dumps(agent1_variables, ensure_ascii=False, indent=2)}
+            Agent1 추출 변수:
+            {json.dumps(agent1_variables, ensure_ascii=False, indent=2)}
 
-템플릿 변수 목록:
-{template_var_keys}
+            템플릿 변수 목록:
+            {template_var_keys}
 
-지시사항:
-1. Agent1 변수의 값을 템플릿 변수에 적절히 매핑해주세요
-2. 의미적으로 일치하는 것들을 연결해주세요 (예: "누가" → "수신자명", "무엇을" → "상품명" 등)
-3. 매핑되지 않는 템플릿 변수는 빈 문자열("")로 설정하세요
-4. JSON 형식으로만 응답해주세요
+            지시사항:
+            1. Agent1 변수의 값을 템플릿 변수에 적절히 매핑해주세요
+            2. 의미적으로 일치하는 것들을 연결해주세요 (예: "누가" → "수신자명", "무엇을" → "상품명" 등)
+            3. 매핑되지 않는 템플릿 변수는 빈 문자열("")로 설정하세요
+            4. JSON 형식으로만 응답해주세요
 
-예시:
-{{
-  "수신자명": "김영수 고객님",
-  "상품명": "아이폰 15",
-  "픽업시간": "내일 오후 3시",
-  "장소": "강남점"
-}}
+            예시:
+            {{
+            "수신자명": "김영수 고객님",
+            "상품명": "아이폰 15",
+            "픽업시간": "내일 오후 3시",
+            "장소": "강남점"
+            }}
 
-응답 (JSON만):"""
+            응답 (JSON만):"""
 
         try:
             response, _, _ = invoke_llm_with_fallback(prompt=prompt)

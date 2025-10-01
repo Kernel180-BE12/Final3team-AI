@@ -22,33 +22,33 @@ class EntityExtractor(BaseTemplateProcessor):
     def _create_entity_extraction_prompt(self, user_input: str) -> str:
         """엔티티 추출 프롬프트 생성"""
         return f"""
-다음 사용자 입력에서 구체적인 정보들을 추출해서 JSON 형태로 반환해주세요:
+            다음 사용자 입력에서 구체적인 정보들을 추출해서 JSON 형태로 반환해주세요:
 
-사용자 입력: "{user_input}"
+            사용자 입력: "{user_input}"
 
-다음 정보들을 찾아서 추출해주세요:
-- 날짜/시간 정보 (예: 2025.8.26, 오후 2시 등)
-- 사람 이름 (예: 홍길동 등)
-- 장소/위치 (예: 강남점 등)
-- 이벤트/행사명 (예: 세미나 등)
-- 기타 중요 정보 (가격, 상품명, 서비스명 등)
+            다음 정보들을 찾아서 추출해주세요:
+            - 날짜/시간 정보 (예: 2025.8.26, 오후 2시 등)
+            - 사람 이름 (예: 홍길동 등)
+            - 장소/위치 (예: 강남점 등)
+            - 이벤트/행사명 (예: 세미나 등)
+            - 기타 중요 정보 (가격, 상품명, 서비스명 등)
 
-JSON 형태:
-{{
-    "extracted_info": {{
-        "dates": ["추출된 날짜들"],
-        "names": ["추출된 이름들"], 
-        "locations": ["추출된 장소들"],
-        "events": ["추출된 이벤트들"],
-        "others": ["기타 중요 정보들"]
-    }},
-    "message_intent": "메시지의 주요 목적 (예: 행사안내, 예약확인, 결제알림 등)",
-    "context": "전체적인 상황/맥락 설명",
-    "message_type": "메시지 유형 (정보성/광고성 판단)",
-    "urgency_level": "긴급도 (높음/보통/낮음)",
-    "target_audience": "대상 고객층"
-}}
-"""
+            JSON 형태:
+            {{
+                "extracted_info": {{
+                    "dates": ["추출된 날짜들"],
+                    "names": ["추출된 이름들"], 
+                    "locations": ["추출된 장소들"],
+                    "events": ["추출된 이벤트들"],
+                    "others": ["기타 중요 정보들"]
+                }},
+                "message_intent": "메시지의 주요 목적 (예: 행사안내, 예약확인, 결제알림 등)",
+                "context": "전체적인 상황/맥락 설명",
+                "message_type": "메시지 유형 (정보성/광고성 판단)",
+                "urgency_level": "긴급도 (높음/보통/낮음)",
+                "target_audience": "대상 고객층"
+            }}
+            """
     
     def _create_fallback_entities(self, user_input: str) -> Dict:
         """오류 시 기본 엔티티 반환"""

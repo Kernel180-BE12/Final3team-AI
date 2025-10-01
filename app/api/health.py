@@ -82,7 +82,7 @@ class LLMResetResponse(BaseModel):
     provider_status: Dict[str, Any]
 
 
-@router.get("/health", tags=["System"], response_model=BasicHealthResponse)
+@router.get("/health", tags=["System"])
 async def health_check() -> Dict[str, Any]:
     """
     기본 헬스체크
@@ -94,7 +94,7 @@ async def health_check() -> Dict[str, Any]:
         "service": Settings.PROJECT_NAME,
         "version": Settings.PROJECT_VERSION
     }
-    return ApiResult.ok(health_data)
+    return ApiResult.ok(health_data).dict()
 
 
 @router.get("/health/detailed", tags=["System"], response_model=DetailedHealthResponse)

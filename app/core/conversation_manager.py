@@ -202,42 +202,42 @@ class ConversationManager:
 
         # AI 판단 프롬프트 생성 (매우 관대한 기준)
         prompt = f"""
-        사용자가 카카오 알림톡 템플릿을 만들려고 합니다. **매우 관대하게 판단해주세요.**
+            사용자가 카카오 알림톡 템플릿을 만들려고 합니다. **매우 관대하게 판단해주세요.**
 
-        **중요: 대부분의 경우 COMPLETE로 판단하세요. 웬만한 요청은 모두 처리 가능합니다.**
+            **중요: 대부분의 경우 COMPLETE로 판단하세요. 웬만한 요청은 모두 처리 가능합니다.**
 
-        [사용자 원본 요청]
-        {state.user_input}
+            [사용자 원본 요청]
+            {state.user_input}
 
-        [의도 분류]
-        의도: {intent.get('intent', '불명')}
-        신뢰도: {intent.get('confidence', 0.0)}
+            [의도 분류]
+            의도: {intent.get('intent', '불명')}
+            신뢰도: {intent.get('confidence', 0.0)}
 
-        [현재 파악된 변수]
-        {chr(10).join([f"- {k}: {v}" for k, v in confirmed_vars.items()]) if confirmed_vars else "- 아직 파악된 변수 없음"}
+            [현재 파악된 변수]
+            {chr(10).join([f"- {k}: {v}" for k, v in confirmed_vars.items()]) if confirmed_vars else "- 아직 파악된 변수 없음"}
 
-        **매우 관대한 판단 기준:**
-        - '무엇을 (What/Subject)'만 있어도 대부분 COMPLETE
-        - 나머지 변수들은 템플릿에서 자동으로 추론/생성 가능
-        - 사용자의 의도가 조금이라도 명확하면 COMPLETE
+            **매우 관대한 판단 기준:**
+            - '무엇을 (What/Subject)'만 있어도 대부분 COMPLETE
+            - 나머지 변수들은 템플릿에서 자동으로 추론/생성 가능
+            - 사용자의 의도가 조금이라도 명확하면 COMPLETE
 
-        **INCOMPLETE로 판단하는 경우 (매우 제한적):**
-        - 무엇에 대한 메시지인지 전혀 알 수 없는 경우만
-        - 완전히 의미 불명한 요청인 경우만
-        - 예: "안녕", "ㅁㄴㅇㄹ", "???"
+            **INCOMPLETE로 판단하는 경우 (매우 제한적):**
+            - 무엇에 대한 메시지인지 전혀 알 수 없는 경우만
+            - 완전히 의미 불명한 요청인 경우만
+            - 예: "안녕", "ㅁㄴㅇㄹ", "???"
 
-        **예시:**
-         "독서모임 안내" → COMPLETE (무엇을이 명확)
-         "할인 이벤트" → COMPLETE (무엇을이 명확)
-         "예약 확인" → COMPLETE (무엇을이 명확)
-         "시스템 점검" → COMPLETE (무엇을이 명확)
-         "안녕하세요" → INCOMPLETE (무엇을이 불명확)
+            **예시:**
+            "독서모임 안내" → COMPLETE (무엇을이 명확)
+            "할인 이벤트" → COMPLETE (무엇을이 명확)
+            "예약 확인" → COMPLETE (무엇을이 명확)
+            "시스템 점검" → COMPLETE (무엇을이 명확)
+            "안녕하세요" → INCOMPLETE (무엇을이 불명확)
 
-        응답 형식:
-        완성도: [COMPLETE/INCOMPLETE]
-        필요한_추가변수: [변수명1, 변수명2] (없으면 없음)
-        이유: [구체적인 판단 이유]
-        """
+            응답 형식:
+            완성도: [COMPLETE/INCOMPLETE]
+            필요한_추가변수: [변수명1, 변수명2] (없으면 없음)
+            이유: [구체적인 판단 이유]
+            """
 
         try:
             response = self.model.invoke(prompt)
