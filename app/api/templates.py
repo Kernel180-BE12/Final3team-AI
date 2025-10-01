@@ -23,7 +23,7 @@ from app.agents.agent1 import Agent1
 from app.agents.agent2 import Agent2
 from app.core.template_selector import TemplateSelector
 from app.utils.llm_provider_manager import get_llm_manager
-from app.dto.api_result import ApiResult
+from app.dto.api_result import ApiResult, ErrorResponse
 from app.utils.variable_cleaner import clean_variables_list, clean_template_content
 from app.utils.language_detector import validate_input_language, ValidationError
 from app.utils.industry_purpose_mapping import get_category_info
@@ -155,7 +155,7 @@ class ErrorResponseWithDetails(BaseModel):
 
 def create_error_response(error_code: str, message: str, details: Any = None, status_code: int = 400) -> JSONResponse:
     """Java 호환 에러 응답 생성"""
-    api_error_response = ApiErrorResponse(
+    api_error_response = ErrorResponse(
         code=error_code,
         message=message,
         details=details if details else None
